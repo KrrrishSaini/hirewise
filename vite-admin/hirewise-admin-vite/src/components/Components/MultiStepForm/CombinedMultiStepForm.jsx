@@ -186,6 +186,11 @@ const PositionSelection = ({ formData, setFormData, onNext, onSaveExit, savingDr
         </div>
       )}
       <div className="form-buttons">
+        {submitError && (
+          <div className="error" style={{ flex: 1, marginBottom: '8px' }}>
+            {submitError}
+          </div>
+        )}
         <div style={{ flex: 1 }}></div>
         <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
           <button
@@ -1891,7 +1896,7 @@ const ResearchInformation = ({ formData, setFormData, onNext, onPrevious, onSave
 };
 
 // Step 6: Documentation
-const Documentation = ({ formData, setFormData, onPrevious, onSubmit, onSaveExit, submitting, savingDraft }) => {
+const Documentation = ({ formData, setFormData, onPrevious, onSubmit, onSaveExit, submitting, savingDraft, submitError }) => {
   const [errors, setErrors] = useState({});
 
   const handleFileChange = (e, field) => {
@@ -2172,6 +2177,7 @@ const CombinedMultiStepForm = () => {
   const { loading, error, full_name: fullName } = profile;
   const [completedSteps, setCompletedSteps] = useState([]);
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
   const sanitizeDraftData = (data) => {
     // Strip File objects (cannot be serialized to JSON) and reset to null
     const {
@@ -2400,6 +2406,7 @@ const CombinedMultiStepForm = () => {
     return;
   }
 
+  setSubmitError('');
   setSubmitting(true);
   // Safety: clear stuck submitting state after 45s even if network hangs silently
   const submittingSafety = setTimeout(() => setSubmitting(false), 45000);
@@ -2423,6 +2430,7 @@ const CombinedMultiStepForm = () => {
     return;
   }
   if (missingDocs.length) {
+    setSubmitError('Missing required documents: ' + missingDocs.join(', '));
     alert('Please upload required documents before submitting:\n\n• ' + missingDocs.join('\n• '));
     setSubmitting(false);
     return;
@@ -2432,6 +2440,7 @@ const CombinedMultiStepForm = () => {
   const user = session?.user;
   
   if (!user) {
+    setSubmitError('You must be logged in to submit an application.');
     alert('❌ You must be logged in to submit an application.');
     setSubmitting(false);
     return;
@@ -2441,6 +2450,7 @@ const CombinedMultiStepForm = () => {
   
   // Validate required fields before submission
   if (!normalized.firstName || !normalized.email || !normalized.position || !normalized.department) {
+    setSubmitError('Please fill in all required fields before submitting.');
     alert('❌ Please fill in all required fields:\n\n' + 
       (!normalized.firstName ? '• First Name\n' : '') +
       (!normalized.email ? '• Email\n' : '') +
@@ -2697,6 +2707,7 @@ const CombinedMultiStepForm = () => {
           onSaveExit={saveDraftAndExit}
           submitting={submitting}
           savingDraft={savingDraft}
+          submitError={submitError}
         />;
       default:
         return null;
