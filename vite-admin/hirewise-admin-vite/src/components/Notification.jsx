@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Bell, Users, FileText, AlertTriangle, Clock, Send, X, CheckCircle } from 'lucide-react';
-import { API_BASE } from '../lib/config';
+
+const BASE_URL = "https://hirewise-maxx-2.onrender.com"; // your backend on Render
 
 const Notification = () => {
   const [title, setTitle] = useState('');
@@ -35,7 +36,7 @@ const Notification = () => {
 
     try {
       // Replace with actual API call
-      // const response = await fetch(API_BASE + '/api/notifications/send', {
+      // const response = await fetch(BASE_URL + '/api/notifications/send', {
       //   method: 'POST',
       //   headers: { 'Content-Type': 'application/json' },
       //   body: JSON.stringify(notificationData)
