@@ -1,1 +1,6 @@
 node_modules
+.DS_Store
+text
+vite-admin/hirewise-admin-vite/npm-cache/
+vite-admin/hirewise-admin-vite/vercel.staging.json
+vite-admin/server/output.log
