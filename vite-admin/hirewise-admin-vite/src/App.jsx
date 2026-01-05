@@ -8,12 +8,8 @@ import CombinedMultiStepForm from './components/Components/MultiStepForm/Combine
 import ProtectedRoute from './components/Components/ProtectedRoute/ProtectedRoute';
 import FacultyPage from './components/FacultyPage';
 import FacultyLayout from './components/FacultyLayout';
+import { API_BASE } from './lib/config';
 import './App.css';
-
-// ✅ Dynamic BASE_URL: localhost for development, Render for production
-const BASE_URL = import.meta.env.MODE === 'production'
-  ? "https://hirewise-maxx-2.onrender.com"
-  : "http://localhost:5173";
 
 function App() {
   // Wake up backend server as soon as app loads (any page)
@@ -21,7 +17,7 @@ function App() {
     const wakeBackend = async () => {
       try {
         // Fire-and-forget request to wake up Render backend
-        fetch(`${BASE_URL}/api`, { 
+        fetch(`${API_BASE}/api`, { 
           method: 'GET'
         }).catch(() => {
           // Silent fail - backend will wake up eventually
@@ -40,7 +36,7 @@ function App() {
   const [backendData, setBackendData] = useState(null);
 
   useEffect(() => {
-    fetch(BASE_URL + "/api")
+    fetch(API_BASE + "/api")
       .then(response => {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         return response.json();
