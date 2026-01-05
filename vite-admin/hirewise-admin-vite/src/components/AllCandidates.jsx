@@ -181,7 +181,7 @@ const AllCandidates = () => {
     }
   };
 
-  // Update application status: 'in_review' (Accept) or 'rejected' (Reject)
+  // Update application status: 'shortlisted' (Approve) or 'rejected' (Reject)
   const updateApplicationStatus = async (nextStatus) => {
     if (!selectedCandidate?.id) return;
     try {
@@ -199,12 +199,6 @@ const AllCandidates = () => {
       if (nextStatus === 'rejected' || nextStatus === 'deleted' || nextStatus === 'shortlisted') {
         setCandidates(prev => prev.filter(c => c.id !== selectedCandidate.id));
         alert(`Application ${nextStatus} and removed from list.`);
-      } else {
-        // Update status in local state
-        setCandidates(prev => prev.map(c => 
-          c.id === selectedCandidate.id ? { ...c, status: nextStatus } : c
-        ));
-        alert('Application moved to Waiting (In Review).');
       }
       
       // Force a full refetch to ensure sync
@@ -824,9 +818,11 @@ const AllCandidates = () => {
                       <span className={`px-3 py-1 rounded-full text-sm font-medium ${
                         selectedCandidate.status === 'shortlisted' ? 'bg-green-100 text-green-700' :
                         selectedCandidate.status === 'rejected' ? 'bg-red-100 text-red-700' :
-                        'bg-yellow-100 text-yellow-700'
+                        'bg-gray-100 text-gray-700'
                       }`}>
-                        {selectedCandidate.status === 'in_review' ? 'in_review' : selectedCandidate.status || 'in_review'}
+                        {selectedCandidate.status === 'shortlisted' ? 'Shortlisted' :
+                         selectedCandidate.status === 'rejected' ? 'Rejected' :
+                         'Pending'}
                       </span>
                       <button
                         onClick={() => updateApplicationStatus('shortlisted')}

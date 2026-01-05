@@ -7,21 +7,21 @@ const FacultyLayout = () => {
   const navigate = useNavigate();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
-  // Get faculty info from location state (passed during login)
-  const facultyInfo = location.state?.facultyInfo || JSON.parse(localStorage.getItem('facultyInfo') || '{}');
+  // Get committee info from location state (passed during login)
+  const committeeInfo = location.state?.committeeInfo || JSON.parse(localStorage.getItem('committeeInfo') || '{}');
   
-  // If no faculty info, redirect to login
+  // If no committee info, redirect to login
   React.useEffect(() => {
-    if (!facultyInfo?.email) {
+    if (!committeeInfo?.code) {
       navigate('/faculty');
     } else {
       // Save to localStorage for persistence
-      localStorage.setItem('facultyInfo', JSON.stringify(facultyInfo));
+      localStorage.setItem('committeeInfo', JSON.stringify(committeeInfo));
     }
-  }, [facultyInfo, navigate]);
+  }, [committeeInfo, navigate]);
 
   const handleLogout = () => {
-    localStorage.removeItem('facultyInfo');
+    localStorage.removeItem('committeeInfo');
     navigate('/faculty');
   };
 
@@ -50,8 +50,8 @@ const FacultyLayout = () => {
           <div className="flex items-center justify-between">
             {!isSidebarCollapsed && (
               <div>
-                <h1 className="text-xl font-bold">Faculty Portal</h1>
-                <p className="text-xs text-blue-200 mt-1">{facultyInfo.name}</p>
+                <h1 className="text-xl font-bold">Committee Portal</h1>
+                <p className="text-xs text-blue-200 mt-1">{committeeInfo.name || committeeInfo.code}</p>
               </div>
             )}
             <button
@@ -76,7 +76,7 @@ const FacultyLayout = () => {
             <Link
               key={item.path}
               to={item.path}
-              state={{ facultyInfo }}
+              state={{ committeeInfo }}
               className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-all ${
                 location.pathname === item.path
                   ? 'bg-blue-700 shadow-lg'
@@ -93,12 +93,13 @@ const FacultyLayout = () => {
         <div className="p-4 border-t border-blue-700">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
-              <span className="text-lg font-bold">{facultyInfo.name?.charAt(0) || 'F'}</span>
+              <span className="text-lg font-bold">
+                {(committeeInfo.name || committeeInfo.code || 'C').charAt(0).toUpperCase()}
+              </span>
             </div>
             {!isSidebarCollapsed && (
               <div className="flex-1">
-                <p className="text-sm font-medium truncate">{facultyInfo.name}</p>
-                <p className="text-xs text-blue-200 truncate">{facultyInfo.email}</p>
+                <p className="text-sm font-medium truncate">{committeeInfo.name || committeeInfo.code}</p>
               </div>
             )}
           </div>

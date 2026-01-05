@@ -305,6 +305,9 @@ body {
   color: #a8b6c4;
   cursor: not-allowed;
 }
+.figma-input-toggle {
+  padding-right: 48px; /* Room for eye icon */
+}
 .figma-float-label label {
   position: absolute;
   left: 18px; /* Adjusted left position */
@@ -314,6 +317,28 @@ body {
   font-size: 1rem;
   pointer-events: none;
   transition: all 0.2s ease;
+}
+.figma-eye-toggle {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: color 0.2s ease, background-color 0.2s ease;
+}
+.figma-eye-toggle:hover,
+.figma-eye-toggle:focus-visible {
+  color: var(--accent);
+  background-color: rgba(0, 123, 255, 0.08);
+  outline: none;
 }
 .figma-float-label.filled label,
 .figma-input:focus + label {
@@ -351,7 +376,7 @@ body {
   gap: 10px; /* Space between country code and phone input */
 }
 .figma-country-code {
-  flex: 0 0 220px; /* Larger width to display full country names */
+  flex: 0 0 120px; /* Keep code compact */
 }
 .figma-country-select {
   width: 100%;
@@ -376,10 +401,17 @@ body {
   cursor: not-allowed;
 }
 .figma-phone-input-wrap {
-  flex: 0 0 160px; /* Fixed width for phone number input */
+  flex: 1 1 auto; /* Let phone number take the remaining space */
 }
 .figma-phone-input {
   width: 100% !important;
+}
+
+.figma-password-hint {
+  margin-top: 8px;
+  font-size: 0.85rem;
+  color: #4b5563;
+  line-height: 1.4;
 }
 
 

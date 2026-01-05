@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase-client'
 
-import { Users, Eye, CheckCircle, XCircle, Trash2, Star } from 'lucide-react'
+import { Users, CheckCircle, XCircle, Trash2, Star } from 'lucide-react'
 
 export default function StatsCardsClient({ selectedView = 'teaching' }) {
   const [stats, setStats] = useState({
     total: 0,
-    inReview: 0,
     shortlisted: 0,
     rejected: 0
   })
@@ -14,7 +13,7 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
   const [error, setError] = useState(null)
 
   // Dropdown panel state
-  const [activePanel, setActivePanel] = useState(null) // 'total' | 'in_review' | 'shortlisted' | 'rejected' | null
+  const [activePanel, setActivePanel] = useState(null) // 'total' | 'shortlisted' | 'rejected' | null
   const [panelLoading, setPanelLoading] = useState(false)
   const [panelItems, setPanelItems] = useState([])
   const [panelError, setPanelError] = useState(null)
@@ -46,13 +45,11 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
         if (error) throw error;
 
         // Calculate counts from the single query result
-        const inReview = data?.filter(app => app.status === 'in_review').length || 0;
         const shortlisted = data?.filter(app => app.status === 'shortlisted').length || 0;
         const rejected = data?.filter(app => app.status === 'rejected').length || 0;
 
         setStats({
           total: count || 0,
-          inReview,
           shortlisted,
           rejected
         })
@@ -84,7 +81,7 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
         query = query.not('position', 'ilike', '%professor%').neq('position', 'teaching');
       }
 
-      if (kind === 'in_review' || kind === 'shortlisted' || kind === 'rejected') {
+      if (kind === 'shortlisted' || kind === 'rejected') {
         query = query.eq('status', kind)
       }
 
@@ -218,8 +215,6 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
 
   const emptyMessage = (k) => {
     switch (k) {
-      case 'in_review':
-        return 'No applications in review.'
       case 'shortlisted':
         return 'No applications shortlisted.'
       case 'rejected':
@@ -232,7 +227,7 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
 
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* Total Applications */}
         <button
           type="button"
@@ -246,23 +241,6 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
             </div>
             <div className="p-3 rounded-lg bg-blue-100/70 shadow-inner">
               <Users className="h-6 w-6 text-blue-600" />
-            </div>
-          </div>
-        </button>
-
-        {/* In Review */}
-        <button
-          type="button"
-          onClick={() => togglePanel('in_review')}
-          className={`text-left bg-[#fff3cd] rounded-xl p-6 border border-amber-100/50 cursor-pointer shadow-[0_4px_12px_rgba(0,0,0,0.05)] hover:shadow-xl hover:-translate-y-1 transition-all duration-300 backdrop-blur-sm backdrop-filter bg-opacity-80 ${activePanel === 'in_review' ? 'ring-2 ring-amber-300' : ''}`}
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-amber-600">In Review</p>
-              <p className="text-2xl font-bold text-amber-900 mt-1">{stats.inReview}</p>
-            </div>
-            <div className="p-3 rounded-lg bg-[#FFE082]/70 shadow-inner">
-              <Eye className="h-6 w-6 text-amber-600" />
             </div>
           </div>
         </button>
@@ -309,7 +287,6 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
             <div className="px-4 py-3 border-b flex items-center justify-between">
               <h3 className="text-sm font-semibold text-gray-800">
                 {activePanel === 'total' && 'All Applications'}
-                {activePanel === 'in_review' && 'Applications • In Review'}
                 {activePanel === 'shortlisted' && 'Applications • Shortlisted'}
                 {activePanel === 'rejected' && 'Applications • Rejected'}
               </h3>
@@ -374,9 +351,11 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
                           <span className={`inline-flex px-2 py-0.5 rounded-full font-medium ${
                             a.status === 'shortlisted' ? 'bg-green-100 text-green-700' :
                             a.status === 'rejected' ? 'bg-red-100 text-red-700' :
-                            a.status === 'in_review' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-700'
+                            'bg-gray-100 text-gray-700'
                           }`}>
-                            {a.status || 'unknown'}
+                            {a.status === 'shortlisted' ? 'shortlisted' :
+                             a.status === 'rejected' ? 'rejected' :
+                             'pending'}
                           </span>
                         </td>
                         {(activePanel === 'shortlisted' || activePanel === 'rejected') && (

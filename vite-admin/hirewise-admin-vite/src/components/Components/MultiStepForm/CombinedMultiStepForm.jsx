@@ -7,8 +7,19 @@ import { COUNTRY_CODES } from '../../../lib/country-codes';
 import { COUNTRIES } from '../../../lib/countries';
 import { COLLEGES } from '../../../lib/colleges';
 
+// Normalize any file-like value into a simple array of File objects
+const normalizeFileArray = (value) => {
+  if (!value) return [];
+  if (Array.isArray(value)) return value.filter((item) => item instanceof File);
+  if (value instanceof File) return [value];
+  if (value?.length && typeof value.item === 'function') {
+    return Array.from(value).filter((item) => item instanceof File);
+  }
+  return [];
+};
+
 // Step 1: PositionSelection
-const PositionSelection = ({ formData, setFormData, onNext, onSaveExit }) => {
+const PositionSelection = ({ formData, setFormData, onNext, onSaveExit, savingDraft }) => {
   const [errors, setErrors] = useState({});
   const [departments, setDepartments] = useState([]);
   const [branches, setBranches] = useState([]);
@@ -108,7 +119,7 @@ const PositionSelection = ({ formData, setFormData, onNext, onSaveExit }) => {
     }
   };
   return (
-    <form onSubmit={handleSubmit}>
+    <form onSubmit={handleSubmit} noValidate>
       <div className="form-field">
         <label htmlFor="position">Position Applying For*</label>
         <select
@@ -177,11 +188,17 @@ const PositionSelection = ({ formData, setFormData, onNext, onSaveExit }) => {
       <div className="form-buttons">
         <div style={{ flex: 1 }}></div>
         <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
-          <button type="button" className="btn btn-secondary save-exit-btn" onClick={onSaveExit}>
+          <button
+            type="button"
+            className="btn btn-secondary save-exit-btn"
+            onClick={onSaveExit}
+            disabled={savingDraft}
+            aria-busy={savingDraft}
+          >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M12.6667 4.66667V1.33333H3.33333V4.66667M8 8V14M8 14L5.33333 11.3333M8 14L10.6667 11.3333M1.33333 14.6667H14.6667V4.66667H1.33333V14.66667Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-            Save & Exit
+            {savingDraft ? 'Saving...' : 'Save & Exit'}
           </button>
         </div>
         <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
@@ -195,7 +212,7 @@ const PositionSelection = ({ formData, setFormData, onNext, onSaveExit }) => {
 };
 
 // Step 2: PersonalInformation
-const PersonalInformation = ({ formData, setFormData, onNext, onPrevious, onSaveExit }) => {
+const PersonalInformation = ({ formData, setFormData, onNext, onPrevious, onSaveExit, savingDraft }) => {
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
@@ -283,6 +300,8 @@ const PersonalInformation = ({ formData, setFormData, onNext, onPrevious, onSave
     }
   };
 
+  const rowLabelStyle = { minHeight: '44px', display: 'flex', alignItems: 'flex-end' };
+
   return (
     <form onSubmit={handleSubmit}>
       <div className="form-fields-row">
@@ -369,8 +388,8 @@ const PersonalInformation = ({ formData, setFormData, onNext, onPrevious, onSave
           </div>
         </div>
       </div>
-      <div className="form-fields-row">
-        <div className="form-field">
+      <div className="form-fields-row" style={{ gap: '14px' }}>
+        <div className="form-field" style={{ flex: '1 1 0' }}>
           <label>Gender*</label>
           <div className="radio-group">
             <label>
@@ -406,7 +425,7 @@ const PersonalInformation = ({ formData, setFormData, onNext, onPrevious, onSave
           </div>
           {errors.gender && <span className="error">{errors.gender}</span>}
         </div>
-        <div className="form-field">
+        <div className="form-field" style={{ flex: '1 1 0' }}>
           <label>Specially Abled*</label>
           <div className="radio-group">
             <label>
@@ -432,9 +451,7 @@ const PersonalInformation = ({ formData, setFormData, onNext, onPrevious, onSave
           </div>
           {errors.speciallyAbled && <span className="error">{errors.speciallyAbled}</span>}
         </div>
-      </div>
-      <div className="form-fields-row">
-        <div className="form-field">
+        <div className="form-field" style={{ flex: '1 1 0' }}>
           <label htmlFor="category">Category*</label>
           <select
             id="category"
@@ -494,11 +511,17 @@ const PersonalInformation = ({ formData, setFormData, onNext, onPrevious, onSave
           </button>
         </div>
         <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
-          <button type="button" className="btn btn-secondary save-exit-btn" onClick={onSaveExit}>
+          <button
+            type="button"
+            className="btn btn-secondary save-exit-btn"
+            onClick={onSaveExit}
+            disabled={savingDraft}
+            aria-busy={savingDraft}
+          >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M12.6667 4.66667V1.33333H3.33333V4.66667M8 8V14M8 14L5.33333 11.3333M8 14L10.6667 11.3333M1.33333 14.6667H14.6667V4.66667H1.33333V14.66667Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-            Save & Exit
+            {savingDraft ? 'Saving...' : 'Save & Exit'}
           </button>
         </div>
         <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
@@ -512,7 +535,7 @@ const PersonalInformation = ({ formData, setFormData, onNext, onPrevious, onSave
 };
 
 // Step 3: EducationDetails
-const EducationDetails = ({ formData, setFormData, onNext, onPrevious, onSaveExit }) => {
+const EducationDetails = ({ formData, setFormData, onNext, onPrevious, onSaveExit, savingDraft }) => {
   const [errors, setErrors] = useState({});
   useEffect(() => {
     setFormData((prev) => ({
@@ -651,7 +674,32 @@ const EducationDetails = ({ formData, setFormData, onNext, onPrevious, onSaveExi
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+    const nextForm = { ...formData, [name]: value };
+
+    // Inline validation for CGPA/percentage fields to give instant feedback
+    const validateCgpa = (fieldValue, scale) => {
+      if (fieldValue === '' || fieldValue === null || fieldValue === undefined) return '';
+      const cg = parseFloat(fieldValue);
+      if (isNaN(cg)) return '';
+      const max = scale === 'percentage' ? 100 : scale === 'cgpa10' ? 10 : 4;
+      if (cg < 0) return 'Value cannot be negative';
+      if (cg > max) return `Value cannot exceed ${max} for this scale`;
+      return '';
+    };
+
+    if (name === 'bachelorCgpa' || name === 'bachelorCgpaScale') {
+      const scale = name === 'bachelorCgpaScale' ? value : nextForm.bachelorCgpaScale || 'percentage';
+      const msg = validateCgpa(name === 'bachelorCgpa' ? value : nextForm.bachelorCgpa, scale);
+      setErrors((prev) => ({ ...prev, bachelorCgpa: msg }));
+    }
+
+    if (name === 'masterCgpa' || name === 'masterCgpaScale') {
+      const scale = name === 'masterCgpaScale' ? value : nextForm.masterCgpaScale || 'percentage';
+      const msg = validateCgpa(name === 'masterCgpa' ? value : nextForm.masterCgpa, scale);
+      setErrors((prev) => ({ ...prev, masterCgpa: msg }));
+    }
+
+    setFormData(nextForm);
   };
 
   return (
@@ -1055,11 +1103,17 @@ const EducationDetails = ({ formData, setFormData, onNext, onPrevious, onSaveExi
           </button>
         </div>
         <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
-          <button type="button" className="btn btn-secondary save-exit-btn" onClick={onSaveExit}>
+          <button
+            type="button"
+            className="btn btn-secondary save-exit-btn"
+            onClick={onSaveExit}
+            disabled={savingDraft}
+            aria-busy={savingDraft}
+          >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M12.6667 4.66667V1.33333H3.33333V4.66667M8 8V14M8 14L5.33333 11.3333M8 14L10.6667 11.3333M1.33333 14.6667H14.6667V4.66667H1.33333V14.66667Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-            Save & Exit
+            {savingDraft ? 'Saving...' : 'Save & Exit'}
           </button>
         </div>
         <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
@@ -1073,7 +1127,7 @@ const EducationDetails = ({ formData, setFormData, onNext, onPrevious, onSaveExi
 };
 
 // Step 4: Experience
-const Experience = ({ formData, setFormData, onNext, onPrevious, onSaveExit }) => {
+const Experience = ({ formData, setFormData, onNext, onPrevious, onSaveExit, savingDraft }) => {
   const [errors, setErrors] = useState({});
   useEffect(() => {
     setFormData((prev) => ({
@@ -1167,11 +1221,17 @@ const Experience = ({ formData, setFormData, onNext, onPrevious, onSaveExit }) =
   const validateForm = () => {
     const newErrors = { teaching: [], research: [] };
     const today = new Date().toISOString().split('T')[0];
+    const teachingList = (formData.teachingExperiences || []);
+    const researchList = (formData.researchExperiences || []);
+    const hasTeachingData = (exp) =>
+      exp.teachingPost || exp.teachingInstitution || exp.teachingStartDate || exp.teachingEndDate || exp.teachingExperience;
+    const hasResearchData = (exp) =>
+      exp.researchPost || exp.researchInstitution || exp.researchStartDate || exp.researchEndDate || exp.researchExperience;
     
     // Only validate teaching experiences that have ANY data entered
-    (formData.teachingExperiences || []).forEach((exp, idx) => {
+    teachingList.forEach((exp, idx) => {
       const entryErrors = {};
-      const hasAnyData = exp.teachingPost || exp.teachingInstitution || exp.teachingStartDate || exp.teachingEndDate;
+      const hasAnyData = hasTeachingData(exp);
       
       // Only validate if user started entering data
       if (hasAnyData) {
@@ -1206,10 +1266,10 @@ const Experience = ({ formData, setFormData, onNext, onPrevious, onSaveExit }) =
       }
       newErrors.teaching[idx] = entryErrors;
     });
-    (formData.researchExperiences || []).forEach((exp, idx) => {
+    researchList.forEach((exp, idx) => {
       const entryErrors = {};
-      const hasResearchData = exp.researchPost || exp.researchInstitution || exp.researchStartDate || exp.researchEndDate;
-      if (hasResearchData) {
+      const hasAnyData = hasResearchData(exp);
+      if (hasAnyData) {
         if (!exp.researchPost) entryErrors.researchPost = 'Research post is required';
         if (!exp.researchInstitution) entryErrors.researchInstitution = 'Institution/University is required';
         // Check if institution is "Other" but no custom value provided
@@ -1254,6 +1314,10 @@ const Experience = ({ formData, setFormData, onNext, onPrevious, onSaveExit }) =
     if (validateForm()) {
       // Normalize "Other" institution values before proceeding
       const normalizedData = { ...formData };
+      // Drop completely empty research entries
+      normalizedData.researchExperiences = (normalizedData.researchExperiences || []).filter(exp =>
+        exp.researchPost || exp.researchInstitution || exp.researchStartDate || exp.researchEndDate || exp.researchExperience
+      );
       
       // Normalize teaching experiences
       if (normalizedData.teachingExperiences) {
@@ -1331,19 +1395,33 @@ const Experience = ({ formData, setFormData, onNext, onPrevious, onSaveExit }) =
             <label htmlFor={`teachingPost${idx}`}>Post</label>
             <select
               id={`teachingPost${idx}`}
-              name="teachingPost"
-              value={exp.teachingPost}
+            name="teachingPost"
+            value={exp.teachingPost}
+            onChange={(e) => handleTeachingChange(idx, e)}
+          >
+            <option value="">Select Post</option>
+            <option value="Assistant Professor">Assistant Professor</option>
+            <option value="Associate Professor">Associate Professor</option>
+            <option value="Professor">Professor</option>
+            <option value="Other">Other</option>
+          </select>
+          {errors.teaching && errors.teaching[idx] && errors.teaching[idx].teachingPost && (
+            <span className="error">{errors.teaching[idx].teachingPost}</span>
+          )}
+        </div>
+        {exp.teachingPost === 'Other' && (
+          <div className="form-field">
+            <label htmlFor={`teachingPostOther${idx}`}>Please specify Post</label>
+            <input
+              type="text"
+              id={`teachingPostOther${idx}`}
+              name="teachingPostOther"
+              value={exp.teachingPostOther || ''}
               onChange={(e) => handleTeachingChange(idx, e)}
-            >
-              <option value="">Select Post</option>
-              <option value="Assistant Professor">Assistant Professor</option>
-              <option value="Associate Professor">Associate Professor</option>
-              <option value="Professor">Professor</option>
-            </select>
-            {errors.teaching && errors.teaching[idx] && errors.teaching[idx].teachingPost && (
-              <span className="error">{errors.teaching[idx].teachingPost}</span>
-            )}
+              placeholder="Enter your post title"
+            />
           </div>
+        )}
           <div className="form-field">
             <label htmlFor={`teachingInstitution${idx}`}>Institution/University</label>
             <select
@@ -1387,7 +1465,6 @@ const Experience = ({ formData, setFormData, onNext, onPrevious, onSaveExit }) =
               min="1970-01-01"
               max={new Date().toISOString().split('T')[0]}
               onChange={(e) => handleTeachingChange(idx, e)}
-              required
             />
             {errors.teaching && errors.teaching[idx] && errors.teaching[idx].teachingStartDate && (
               <span className="error">{errors.teaching[idx].teachingStartDate}</span>
@@ -1521,15 +1598,14 @@ const Experience = ({ formData, setFormData, onNext, onPrevious, onSaveExit }) =
           <div className="form-field">
             <label htmlFor={`researchStartDate${idx}`}>Start Date</label>
             <input
-              type="date"
-              id={`researchStartDate${idx}`}
-              name="researchStartDate"
-              value={exp.researchStartDate}
-              min="1970-01-01"
-              max={new Date().toISOString().split('T')[0]}
-              onChange={(e) => handleResearchChange(idx, e)}
-              required
-            />
+            type="date"
+            id={`researchStartDate${idx}`}
+            name="researchStartDate"
+            value={exp.researchStartDate}
+            min="1970-01-01"
+            max={new Date().toISOString().split('T')[0]}
+            onChange={(e) => handleResearchChange(idx, e)}
+          />
             {errors.research && errors.research[idx] && errors.research[idx].researchStartDate && (
               <span className="error">{errors.research[idx].researchStartDate}</span>
             )}
@@ -1537,15 +1613,14 @@ const Experience = ({ formData, setFormData, onNext, onPrevious, onSaveExit }) =
           <div className="form-field">
             <label htmlFor={`researchEndDate${idx}`}>End Date</label>
             <input
-              type="date"
-              id={`researchEndDate${idx}`}
-              name="researchEndDate"
-              value={exp.researchEndDate}
-              min="1970-01-01"
-              max={new Date().toISOString().split('T')[0]}
-              onChange={(e) => handleResearchChange(idx, e)}
-              required
-            />
+            type="date"
+            id={`researchEndDate${idx}`}
+            name="researchEndDate"
+            value={exp.researchEndDate}
+            min="1970-01-01"
+            max={new Date().toISOString().split('T')[0]}
+            onChange={(e) => handleResearchChange(idx, e)}
+          />
             {errors.research && errors.research[idx] && errors.research[idx].researchEndDate && (
               <span className="error">{errors.research[idx].researchEndDate}</span>
             )}
@@ -1579,11 +1654,17 @@ const Experience = ({ formData, setFormData, onNext, onPrevious, onSaveExit }) =
           </button>
         </div>
         <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
-          <button type="button" className="btn btn-secondary save-exit-btn" onClick={onSaveExit}>
+          <button
+            type="button"
+            className="btn btn-secondary save-exit-btn"
+            onClick={onSaveExit}
+            disabled={savingDraft}
+            aria-busy={savingDraft}
+          >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M12.6667 4.66667V1.33333H3.33333V4.66667M8 8V14M8 14L5.33333 11.3333M8 14L10.6667 11.3333M1.33333 14.6667H14.6667V4.66667H1.33333V14.66667Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-            Save & Exit
+            {savingDraft ? 'Saving...' : 'Save & Exit'}
           </button>
         </div>
         <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
@@ -1597,7 +1678,7 @@ const Experience = ({ formData, setFormData, onNext, onPrevious, onSaveExit }) =
 };
 
 // Step 5: ResearchInformation
-const ResearchInformation = ({ formData, setFormData, onNext, onPrevious, onSaveExit }) => {
+const ResearchInformation = ({ formData, setFormData, onNext, onPrevious, onSaveExit, savingDraft }) => {
   const [errors, setErrors] = useState({});
   const validateForm = () => {
     const newErrors = {};
@@ -1625,6 +1706,9 @@ const ResearchInformation = ({ formData, setFormData, onNext, onPrevious, onSave
     if (!formData.edited_books && formData.edited_books !== 0) {
       newErrors.edited_books = 'No. of Edited Books is required';
     }
+    if (!formData.govt_funded_projects && formData.govt_funded_projects !== 0) {
+      newErrors.govt_funded_projects = 'No. of Govt. Funded Projects is required';
+    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -1641,10 +1725,12 @@ const ResearchInformation = ({ formData, setFormData, onNext, onPrevious, onSave
     }
   };
 
+  const rowLabelStyle = { minHeight: '44px', display: 'flex', alignItems: 'flex-end' };
+
   return (
     <form onSubmit={handleSubmit}>
       <div className="form-fields-row">
-        <div className="form-field">
+        <div className="form-field" style={{ flex: '0 0 200px' }}>
           <label htmlFor="scopusId">
             Scopus ID*
             <a 
@@ -1663,13 +1749,13 @@ const ResearchInformation = ({ formData, setFormData, onNext, onPrevious, onSave
             name="scopusId"
             value={formData.scopusId || ''}
             onChange={handleInputChange}
-            placeholder="Enter 11-digit Scopus ID"
+            placeholder="11-digit Scopus ID"
             maxLength="11"
             pattern="\d{11}"
           />
           {errors.scopusId && <span className="error">{errors.scopusId}</span>}
         </div>
-        <div className="form-field">
+        <div className="form-field" style={{ flex: '0 0 200px' }}>
           <label htmlFor="orchidId">
             ORCID ID
             <a 
@@ -1688,12 +1774,11 @@ const ResearchInformation = ({ formData, setFormData, onNext, onPrevious, onSave
             name="orchidId"
             value={formData.orchidId || ''}
             onChange={handleInputChange}
+            placeholder="0000-0001-5109-3700"
           />
           {errors.orchidId && <span className="error">{errors.orchidId}</span>}
         </div>
-      </div>
-      <div className="form-fields-row">
-        <div className="form-field" style={{ gridColumn: '1 / -1' }}>
+        <div className="form-field" style={{ flex: 1 }}>
           <label htmlFor="googleScholarId">
             Google Scholar Link*
             <a 
@@ -1717,9 +1802,11 @@ const ResearchInformation = ({ formData, setFormData, onNext, onPrevious, onSave
           {errors.googleScholarId && <span className="error">{errors.googleScholarId}</span>}
         </div>
       </div>
-      <div className="form-fields-row">
-        <div className="form-field">
-          <label htmlFor="scopus_general_papers">No. of Scopus Index General Papers*</label>
+      <div className="form-fields-row" style={{ alignItems: 'flex-start', flexWrap: 'nowrap' }}>
+        <div className="form-field" style={{ flex: '1 1 0', minWidth: '200px' }}>
+          <label htmlFor="scopus_general_papers" style={rowLabelStyle}>
+            No. of Scopus Index General Papers*
+          </label>
           <input
             type="number"
             id="scopus_general_papers"
@@ -1730,8 +1817,10 @@ const ResearchInformation = ({ formData, setFormData, onNext, onPrevious, onSave
           />
           {errors.scopus_general_papers && <span className="error">{errors.scopus_general_papers}</span>}
         </div>
-        <div className="form-field">
-          <label htmlFor="conference_papers">No. of Scopus Index Conference Papers*</label>
+        <div className="form-field" style={{ flex: '1 1 0', minWidth: '200px' }}>
+          <label htmlFor="conference_papers" style={rowLabelStyle}>
+            No. of Scopus Index Conference Papers*
+          </label>
           <input
             type="number"
             id="conference_papers"
@@ -1742,8 +1831,10 @@ const ResearchInformation = ({ formData, setFormData, onNext, onPrevious, onSave
           />
           {errors.conference_papers && <span className="error">{errors.conference_papers}</span>}
         </div>
-        <div className="form-field">
-          <label htmlFor="edited_books">No. of Edited Books*</label>
+        <div className="form-field" style={{ flex: '1 1 0', minWidth: '200px' }}>
+          <label htmlFor="edited_books" style={rowLabelStyle}>
+            No. of Edited Books*
+          </label>
           <input
             type="number"
             id="edited_books"
@@ -1754,6 +1845,20 @@ const ResearchInformation = ({ formData, setFormData, onNext, onPrevious, onSave
           />
           {errors.edited_books && <span className="error">{errors.edited_books}</span>}
         </div>
+        <div className="form-field" style={{ flex: '1 1 0', minWidth: '200px' }}>
+          <label htmlFor="govt_funded_projects" style={rowLabelStyle}>
+            No. of Govt. Funded Projects*
+          </label>
+          <input
+            type="number"
+            id="govt_funded_projects"
+            name="govt_funded_projects"
+            value={formData.govt_funded_projects || ''}
+            min="0"
+            onChange={handleInputChange}
+          />
+          {errors.govt_funded_projects && <span className="error">{errors.govt_funded_projects}</span>}
+        </div>
       </div>
       <div className="form-buttons">
         <div style={{ flex: 1 }}>
@@ -1762,11 +1867,17 @@ const ResearchInformation = ({ formData, setFormData, onNext, onPrevious, onSave
           </button>
         </div>
         <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
-          <button type="button" className="btn btn-secondary save-exit-btn" onClick={onSaveExit}>
+          <button
+            type="button"
+            className="btn btn-secondary save-exit-btn"
+            onClick={onSaveExit}
+            disabled={savingDraft}
+            aria-busy={savingDraft}
+          >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M12.6667 4.66667V1.33333H3.33333V4.66667M8 8V14M8 14L5.33333 11.3333M8 14L10.6667 11.3333M1.33333 14.6667H14.6667V4.66667H1.33333V14.66667Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-            Save & Exit
+            {savingDraft ? 'Saving...' : 'Save & Exit'}
           </button>
         </div>
         <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
@@ -1780,38 +1891,78 @@ const ResearchInformation = ({ formData, setFormData, onNext, onPrevious, onSave
 };
 
 // Step 6: Documentation
-const Documentation = ({ formData, setFormData, onPrevious, onSubmit, onSaveExit, submitting }) => {
+const Documentation = ({ formData, setFormData, onPrevious, onSubmit, onSaveExit, submitting, savingDraft }) => {
   const [errors, setErrors] = useState({});
 
   const handleFileChange = (e, field) => {
-    const file = e.target.files[0];
-    if (file) {
-      setFormData((prev) => ({ ...prev, [field]: file }));
-      // Clear error when file is selected
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const existingKeyMap = {
+      coverLetterPath: 'existingCoverLetterPath',
+      teachingStatement: 'existingTeachingStatementPath',
+      researchStatement: 'existingResearchStatementPath',
+      cvPath: 'existingCvPath',
+      otherPublications: 'existingOtherPublicationsPath'
+    };
+
+    if (field === 'otherPublications') {
+      const selectedFiles = Array.from(files).slice(0, 3);
+      setFormData((prev) => ({
+        ...prev,
+        otherPublications: selectedFiles,
+        existingOtherPublicationsPath: null,
+      }));
       setErrors((prev) => ({ ...prev, [field]: '' }));
+      if (files.length > 3) {
+        setErrors((prev) => ({ ...prev, [field]: 'You can upload a maximum of 3 files' }));
+      }
+      return;
     }
+
+    const file = files[0];
+    setFormData((prev) => ({
+      ...prev,
+      [field]: file,
+      ...(existingKeyMap[field] ? { [existingKeyMap[field]]: null } : {}),
+    }));
+    // Clear error when file is selected
+    setErrors((prev) => ({ ...prev, [field]: '' }));
   };
 
-  const validateAndSubmit = () => {
+  const validateAndSubmit = async () => {
     const newErrors = {};
-    
-    if (!formData.teachingStatement) {
+
+    const otherPublicationFiles = normalizeFileArray(formData.otherPublications);
+    const hasExistingOther =
+      Array.isArray(formData.existingOtherPublicationsPath)
+        ? formData.existingOtherPublicationsPath.filter(Boolean).length > 0
+        : Boolean(formData.existingOtherPublicationsPath);
+
+    if (!(formData.teachingStatement instanceof File) && !formData.existingTeachingStatementPath) {
       newErrors.teachingStatement = 'Teaching Statement is required';
     }
-    if (!formData.researchStatement) {
+    if (!(formData.researchStatement instanceof File) && !formData.existingResearchStatementPath) {
       newErrors.researchStatement = 'Research Statement is required';
     }
-    if (!formData.cvPath) {
+    if (!(formData.cvPath instanceof File) && !formData.existingCvPath) {
       newErrors.cvPath = 'CV is required';
     }
-    if (!formData.otherPublications) {
-      newErrors.otherPublications = 'Top 3 Published Papers is required';
+    if (!hasExistingOther && otherPublicationFiles.length === 0) {
+      newErrors.otherPublications = 'Best published papers are required';
+    } else if (otherPublicationFiles.length > 3) {
+      newErrors.otherPublications = 'You can upload a maximum of 3 files';
     }
 
     setErrors(newErrors);
 
     if (Object.keys(newErrors).length === 0) {
-      onSubmit();
+      try {
+        await onSubmit();
+      } catch (err) {
+        console.error('Submit error:', err);
+        alert('Submission failed. Please try again.');
+      }
     } else {
       alert('Please upload all required documents marked with *');
     }
@@ -1824,13 +1975,15 @@ const Documentation = ({ formData, setFormData, onPrevious, onSubmit, onSaveExit
         <input type="file" onChange={(e) => handleFileChange(e, 'coverLetterPath')} />
       </div>
       <div className="form-field">
-        <label>Teaching Statement *</label>
-        <input type="file" onChange={(e) => handleFileChange(e, 'teachingStatement')} />
+        <label>Teaching Statement * <span style={{ color: '#6b7280', fontWeight: 500 }}>(Max 250 words)</span></label>
+        <input type="file" onChange={(e) => handleFileChange(e, 'teachingStatement')} aria-describedby="teaching-hint" />
+        <div id="teaching-hint" style={{ fontSize: '0.85rem', color: '#6b7280', marginTop: '6px' }}>Max 250 words</div>
         {errors.teachingStatement && <span className="error">{errors.teachingStatement}</span>}
       </div>
       <div className="form-field">
-        <label>Research Statement *</label>
-        <input type="file" onChange={(e) => handleFileChange(e, 'researchStatement')} />
+        <label>Research Statement * <span style={{ color: '#6b7280', fontWeight: 500 }}>(Max 500 words)</span></label>
+        <input type="file" onChange={(e) => handleFileChange(e, 'researchStatement')} aria-describedby="research-hint" />
+        <div id="research-hint" style={{ fontSize: '0.85rem', color: '#6b7280', marginTop: '6px' }}>Max 500 words</div>
         {errors.researchStatement && <span className="error">{errors.researchStatement}</span>}
       </div>
       <div className="form-field">
@@ -1843,8 +1996,9 @@ const Documentation = ({ formData, setFormData, onPrevious, onSubmit, onSaveExit
         {errors.cvPath && <span className="error">{errors.cvPath}</span>}
       </div>
       <div className="form-field">
-        <label>Top 3 Published Papers (1 compiled PDF)*</label>
-        <input type="file" onChange={(e) => handleFileChange(e, 'otherPublications')} />
+        <label>Best Published Papers* (up to 3 files)</label>
+        <input type="file" multiple onChange={(e) => handleFileChange(e, 'otherPublications')} aria-describedby="papers-hint" />
+        <div id="papers-hint" style={{ fontSize: '0.85rem', color: '#6b7280', marginTop: '6px' }}>Upload up to 3 files</div>
         {errors.otherPublications && <span className="error">{errors.otherPublications}</span>}
       </div>
       <div className="form-buttons">
@@ -1854,11 +2008,17 @@ const Documentation = ({ formData, setFormData, onPrevious, onSubmit, onSaveExit
           </button>
         </div>
         <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
-          <button type="button" className="btn btn-secondary save-exit-btn" onClick={onSaveExit}>
+          <button
+            type="button"
+            className="btn btn-secondary save-exit-btn"
+            onClick={onSaveExit}
+            disabled={savingDraft}
+            aria-busy={savingDraft}
+          >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M12.6667 4.66667V1.33333H3.33333V4.66667M8 8V14M8 14L5.33333 11.3333M8 14L10.6667 11.3333M1.33333 14.6667H14.6667V4.66667H1.33333V14.66667Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-            Save & Exit
+            {savingDraft ? 'Saving...' : 'Save & Exit'}
           </button>
         </div>
         <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
@@ -1904,23 +2064,31 @@ const CombinedMultiStepForm = () => {
     branch: '',
     countryCode: '+91',
   });
+  const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
+  const [autoSaveTick, setAutoSaveTick] = useState(0);
   const [profile, setProfile] = useState({
     full_name: '',
     loading: true,
     error: null,
   });
+  const [draftLoaded, setDraftLoaded] = useState(false);
+  const [draftLoadError, setDraftLoadError] = useState(null);
+  const [savingDraft, setSavingDraft] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   // Load draft on component mount
   useEffect(() => {
+    let active = true;
     const loadDraft = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      const user = session?.user;
-      if (!user) {
-        return;
-      }
-
       try {
-        // Load draft directly without checking existing application
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) throw sessionError;
+
+        const user = session?.user;
+        if (!user) {
+          return;
+        }
+
         const { data, error } = await supabase
           .from('draft_applications')
           .select('form_data, current_step')
@@ -1928,20 +2096,40 @@ const CombinedMultiStepForm = () => {
           .maybeSingle();
 
         if (error) {
-          console.log('⚠️ Error loading draft:', error.message);
+          console.error('⚠️ Error loading draft:', error);
+          if (active) setDraftLoadError(error.message);
           return;
         }
 
-        if (data && data.form_data) {
-          setFormData(data.form_data);
-          setCurrentStep(data.current_step);
+        if (data && data.form_data && active) {
+          setFormData((prev) => ({
+            ...prev,
+            ...data.form_data
+          }));
+          const loadedStep = data.current_step || 1;
+          setCurrentStep(loadedStep);
+          // Mark all previous steps as completed when resuming
+          const completed = Array.from({ length: Math.max(0, loadedStep - 1) }, (_, i) => i + 1);
+          setCompletedSteps(completed);
+          setDraftLoadError(null);
+          console.log('✅ Draft restored', { step: loadedStep });
         }
       } catch (err) {
-        console.log('❌ Error in loadDraft:', err.message);
+        if (active) {
+          console.error('❌ Error in loadDraft:', err);
+          setDraftLoadError(err.message || 'Unable to load saved draft');
+        }
+      } finally {
+        if (active) {
+          setDraftLoaded(true);
+        }
       }
     };
 
     loadDraft();
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -1984,6 +2172,25 @@ const CombinedMultiStepForm = () => {
   const { loading, error, full_name: fullName } = profile;
   const [completedSteps, setCompletedSteps] = useState([]);
   const [submitting, setSubmitting] = useState(false);
+  const sanitizeDraftData = (data) => {
+    // Strip File objects (cannot be serialized to JSON) and reset to null
+    const {
+      coverLetterPath,
+      teachingStatement,
+      researchStatement,
+      cvPath,
+      otherPublications,
+      ...rest
+    } = data || {};
+    return {
+      ...rest,
+      coverLetterPath: null,
+      teachingStatement: null,
+      researchStatement: null,
+      cvPath: null,
+      otherPublications: null,
+    };
+  };
 
   // Wake up backend when user reaches final step (Documentation - step 6)
   useEffect(() => {
@@ -2035,20 +2242,109 @@ const CombinedMultiStepForm = () => {
     }
   };
 
+  const handleLogout = async () => {
+    if (loggingOut) {
+      return;
+    }
+    setLoggingOut(true);
+    try {
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.error('Sign out error:', err);
+    } finally {
+      try {
+        localStorage.clear();
+      } catch (storageErr) {
+        console.warn('Unable to clear local storage on logout:', storageErr);
+      }
+      navigate('/register', { replace: true });
+      setLoggingOut(false);
+    }
+  };
+
   // Save draft function
   const saveDraftAndExit = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    const user = session?.user;
-    
-    if (!user) {
-      alert('You must be logged in to save progress.');
+    if (submitting) {
+      alert('Submission in progress. Please wait for it to finish.');
       return;
     }
 
+    if (savingDraft) {
+      console.log('Draft save already in progress - ignoring duplicate click');
+      return;
+    }
+
+    setSavingDraft(true);
     try {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
+
+      const user = session?.user;
+      
+      if (!user) {
+        alert('You must be logged in to save progress.');
+        return;
+      }
+
+      const otherPublicationFiles = normalizeFileArray(formData.otherPublications);
+      const hasFiles = [
+        formData.coverLetterPath instanceof File,
+        formData.teachingStatement instanceof File,
+        formData.researchStatement instanceof File,
+        formData.cvPath instanceof File,
+        otherPublicationFiles.length > 0
+      ].some(Boolean);
+
+      let draftPaths = {};
+
+      if (hasFiles) {
+        console.log('Uploading draft documents for Save & Exit', {
+          step: currentStep,
+          fileCounts: {
+            otherPublications: otherPublicationFiles.length,
+            coverLetter: formData.coverLetterPath instanceof File ? 1 : 0,
+            teachingStatement: formData.teachingStatement instanceof File ? 1 : 0,
+            researchStatement: formData.researchStatement instanceof File ? 1 : 0,
+            cv: formData.cvPath instanceof File ? 1 : 0,
+          },
+        });
+        const fd = new FormData();
+        if (formData.coverLetterPath instanceof File) fd.append('coverLetterPath', formData.coverLetterPath);
+        if (formData.teachingStatement instanceof File) fd.append('teachingStatement', formData.teachingStatement);
+        if (formData.researchStatement instanceof File) fd.append('researchStatement', formData.researchStatement);
+        if (formData.cvPath instanceof File) fd.append('cvPath', formData.cvPath);
+        otherPublicationFiles.slice(0, 3).forEach((f) => fd.append('otherPublications', f));
+
+        const uploadRes = await fetch(`${API_BASE}/api/documents/drafts/upload`, {
+          method: 'POST',
+          body: fd
+        });
+        if (!uploadRes.ok) {
+          let err = {};
+          try {
+            err = await uploadRes.json();
+          } catch {
+            err = {};
+          }
+          throw new Error(err.error || `Draft upload failed (status ${uploadRes.status})`);
+        }
+        const data = await uploadRes.json();
+        draftPaths = data.paths || {};
+        console.log('Draft file paths saved', draftPaths);
+      } else {
+        console.log('Saving draft without uploading new files', { step: currentStep });
+      }
+
       const draftData = {
         user_id: user.id,
-        form_data: formData,
+        form_data: {
+          ...sanitizeDraftData(formData),
+          existingCoverLetterPath: draftPaths.cover_letter_path || formData.existingCoverLetterPath || null,
+          existingTeachingStatementPath: draftPaths.teaching_statement_path || formData.existingTeachingStatementPath || null,
+          existingResearchStatementPath: draftPaths.research_statement_path || formData.existingResearchStatementPath || null,
+          existingCvPath: draftPaths.cv_path || formData.existingCvPath || null,
+          existingOtherPublicationsPath: draftPaths.other_publications_path || formData.existingOtherPublicationsPath || null
+        },
         current_step: currentStep,
         updated_at: new Date().toISOString()
       };
@@ -2063,17 +2359,74 @@ const CombinedMultiStepForm = () => {
       navigate('/register');
     } catch (err) {
       console.error('Save draft error:', err);
-      alert('❌ Failed to save progress: ' + err.message);
+      alert('❌ Failed to save progress: ' + (err.message || 'Unexpected error'));
+    } finally {
+      setSavingDraft(false);
     }
   };
 
- const onSubmitFinalApplication = async () => {
+  // Silent autosave when enabled
+  const autoSaveDraft = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user;
+    if (!user || !autoSaveEnabled || savingDraft || submitting) return;
+
+    const draftData = {
+      user_id: user.id,
+      form_data: sanitizeDraftData(formData),
+      current_step: currentStep,
+      updated_at: new Date().toISOString()
+    };
+
+    await supabase
+      .from('draft_applications')
+      .upsert(draftData, { onConflict: 'user_id' })
+      .then(() => setAutoSaveTick((t) => t + 1))
+      .catch((err) => console.warn('Autosave skipped:', err.message));
+  };
+
+  // Debounce autosave on form changes
+  useEffect(() => {
+    if (!autoSaveEnabled || !draftLoaded) return;
+    const timer = setTimeout(() => {
+      autoSaveDraft();
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [formData, currentStep, autoSaveEnabled, draftLoaded]);
+
+  const onSubmitFinalApplication = async () => {
   // Client-side double-submit guard: prevents multiple rapid clicks
   if (submitting) {
     return;
   }
-  
+
   setSubmitting(true);
+  // Safety: clear stuck submitting state after 45s even if network hangs silently
+  const submittingSafety = setTimeout(() => setSubmitting(false), 45000);
+
+  const otherPublicationFiles = normalizeFileArray(formData.otherPublications);
+  const hasExistingOtherPublications = Array.isArray(formData.existingOtherPublicationsPath)
+    ? formData.existingOtherPublicationsPath.filter(Boolean).length > 0
+    : Boolean(formData.existingOtherPublicationsPath);
+
+  // Final guard for required docs (in case UI validation is bypassed)
+  const missingDocs = [];
+  if (!(formData.teachingStatement instanceof File) && !formData.existingTeachingStatementPath) missingDocs.push('Teaching Statement');
+  if (!(formData.researchStatement instanceof File) && !formData.existingResearchStatementPath) missingDocs.push('Research Statement');
+  if (!(formData.cvPath instanceof File) && !formData.existingCvPath) missingDocs.push('CV');
+  if (!hasExistingOtherPublications && otherPublicationFiles.length === 0) {
+    missingDocs.push('Best Published Papers');
+  }
+  if (otherPublicationFiles.length > 3) {
+    alert('You can upload a maximum of 3 best published papers.');
+    setSubmitting(false);
+    return;
+  }
+  if (missingDocs.length) {
+    alert('Please upload required documents before submitting:\n\n• ' + missingDocs.join('\n• '));
+    setSubmitting(false);
+    return;
+  }
   
   const { data: { session } } = await supabase.auth.getSession();
   const user = session?.user;
@@ -2170,23 +2523,39 @@ const CombinedMultiStepForm = () => {
     scopus_general_papers: Number(normalized.scopus_general_papers) || 0,
     conference_papers: Number(normalized.conference_papers) || 0,
     edited_books: Number(normalized.edited_books) || 0,
+    govt_funded_projects: Number(normalized.govt_funded_projects) || 0,
   }));
 
-  // Files (only append when File objects exist)
+  // Files (only append when File objects exist) or use existing paths from drafts
   if (formData.coverLetterPath instanceof File) {
     fd.append('coverLetterPath', formData.coverLetterPath, formData.coverLetterPath.name);
+  } else if (formData.existingCoverLetterPath) {
+    fd.append('existingCoverLetterPath', formData.existingCoverLetterPath);
   }
   if (formData.teachingStatement instanceof File) {
     fd.append('teachingStatement', formData.teachingStatement, formData.teachingStatement.name);
+  } else if (formData.existingTeachingStatementPath) {
+    fd.append('existingTeachingStatementPath', formData.existingTeachingStatementPath);
   }
   if (formData.researchStatement instanceof File) {
     fd.append('researchStatement', formData.researchStatement, formData.researchStatement.name);
+  } else if (formData.existingResearchStatementPath) {
+    fd.append('existingResearchStatementPath', formData.existingResearchStatementPath);
   }
   if (formData.cvPath instanceof File) {
     fd.append('cvPath', formData.cvPath, formData.cvPath.name);
+  } else if (formData.existingCvPath) {
+    fd.append('existingCvPath', formData.existingCvPath);
   }
-  if (formData.otherPublications instanceof File) {
-    fd.append('otherPublications', formData.otherPublications, formData.otherPublications.name);
+  if (otherPublicationFiles.length > 0) {
+    otherPublicationFiles.slice(0, 3).forEach((file) => {
+      fd.append('otherPublications', file, file.name);
+    });
+  } else if (hasExistingOtherPublications) {
+    const val = Array.isArray(formData.existingOtherPublicationsPath)
+      ? JSON.stringify(formData.existingOtherPublicationsPath)
+      : formData.existingOtherPublicationsPath;
+    fd.append('existingOtherPublicationsPath', val);
   }
 
   try {
@@ -2259,15 +2628,17 @@ const CombinedMultiStepForm = () => {
       // Don't show scary message - application likely still processing
       alert('✅ Application submitted! Processing may take a moment.\n\nYou will receive email confirmation shortly at: ' + formData.email);
       // Navigate anyway since backend processes in background
-      navigate('/register');
-      return;
-    }
-    
-    if (err.name === 'TypeError' && err.message.includes('fetch')) {
-      alert('❌ Network error. Please check your internet connection and try again.');
-    } else {
-      alert('❌ Submission failed: ' + err.message + '\n\nPlease try again or contact support.');
-    }
+    navigate('/register');
+    return;
+  }
+  
+  if (err.name === 'TypeError' && err.message.includes('fetch')) {
+    alert('❌ Network error. Please check your internet connection and try again.');
+  } else {
+    alert('❌ Submission failed: ' + err.message + '\n\nPlease try again or contact support.');
+  }
+} finally {
+    clearTimeout(submittingSafety);
     setSubmitting(false);
   }
 };
@@ -2279,6 +2650,7 @@ const CombinedMultiStepForm = () => {
           setFormData={setFormData} 
           onNext={handleNext}
           onSaveExit={saveDraftAndExit}
+          savingDraft={savingDraft}
         />;
       case 2:
         return <PersonalInformation 
@@ -2287,6 +2659,7 @@ const CombinedMultiStepForm = () => {
           onNext={handleNext} 
           onPrevious={handlePrevious}
           onSaveExit={saveDraftAndExit}
+          savingDraft={savingDraft}
         />;
       case 3:
         return <EducationDetails 
@@ -2295,6 +2668,7 @@ const CombinedMultiStepForm = () => {
           onNext={handleNext} 
           onPrevious={handlePrevious}
           onSaveExit={saveDraftAndExit}
+          savingDraft={savingDraft}
         />;
       case 4:
         return <Experience 
@@ -2303,6 +2677,7 @@ const CombinedMultiStepForm = () => {
           onNext={handleNext} 
           onPrevious={handlePrevious}
           onSaveExit={saveDraftAndExit}
+          savingDraft={savingDraft}
         />;
       case 5:
         return <ResearchInformation 
@@ -2311,6 +2686,7 @@ const CombinedMultiStepForm = () => {
           onNext={handleNext} 
           onPrevious={handlePrevious}
           onSaveExit={saveDraftAndExit}
+          savingDraft={savingDraft}
         />;
       case 6:
         return <Documentation 
@@ -2320,6 +2696,7 @@ const CombinedMultiStepForm = () => {
           onSubmit={onSubmitFinalApplication}
           onSaveExit={saveDraftAndExit}
           submitting={submitting}
+          savingDraft={savingDraft}
         />;
       default:
         return null;
@@ -2388,34 +2765,75 @@ const CombinedMultiStepForm = () => {
                     ? formData.position.charAt(0).toUpperCase() + formData.position.slice(1)
                     : formData.position}
                   </span>
-                  {formData.department && (
-                    <> • <span>{getDepartmentShortName(formData.department)}</span></>
-                  )}
-                </div>
+              {formData.department && (
+                <> • <span>{getDepartmentShortName(formData.department)}</span></>
               )}
-              <button
-                onClick={async () => {
-                  await supabase.auth.signOut();
-                  window.location.href = '/';
-                }}
-                style={{
-                  marginLeft: '15px',
-                  padding: '8px 16px',
-                  background: '#dc3545',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontSize: '0.9rem',
-                  fontWeight: '600',
-                }}
-              >
-                Logout
-              </button>
+            </div>
+          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#f1f5f9', padding: '6px 10px', borderRadius: '16px', border: '1px solid #d0d7e2' }}>
+              <span style={{ fontSize: '0.85rem', color: '#333', fontWeight: 600 }}>Auto-save</span>
+              <label style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer', gap: '6px' }}>
+                <input
+                  type="checkbox"
+                  checked={autoSaveEnabled}
+                  onChange={(e) => setAutoSaveEnabled(e.target.checked)}
+                  style={{ cursor: 'pointer' }}
+                />
+                <span style={{ fontSize: '0.85rem', color: autoSaveEnabled ? '#16a34a' : '#9ca3af', fontWeight: 600 }}>
+                  {autoSaveEnabled ? 'On' : 'Off'}
+                </span>
+              </label>
+            </div>
+            <button
+              onClick={handleLogout}
+              style={{
+                padding: '8px 10px',
+                background: '#dc3545',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: loggingOut || savingDraft || submitting ? 'wait' : 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'background 0.2s ease, transform 0.1s ease',
+                opacity: loggingOut || savingDraft || submitting ? 0.8 : 1,
+              }}
+              title={loggingOut ? 'Logging out...' : 'Logout'}
+              aria-label="Logout"
+              aria-busy={loggingOut}
+              disabled={loggingOut || savingDraft || submitting}
+              onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.97)'}
+              onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
+              onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
+            </button>
+          </div>
             </>
           )}
         </div>
       </div>
+
+      {(savingDraft || draftLoadError) && (
+        <div style={{ margin: '10px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {savingDraft && (
+            <div style={{ background: '#ecfdf3', color: '#166534', padding: '10px 12px', borderRadius: '10px', border: '1px solid #bbf7d0' }}>
+              Saving draft... please wait for the confirmation alert before leaving this page.
+            </div>
+          )}
+          {draftLoadError && (
+            <div style={{ background: '#fef2f2', color: '#b91c1c', padding: '10px 12px', borderRadius: '10px', border: '1px solid #fecdd3' }}>
+              Draft could not be restored: {draftLoadError}. New progress will be saved going forward.
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Progress Steps */}
       <div className="form-progress">

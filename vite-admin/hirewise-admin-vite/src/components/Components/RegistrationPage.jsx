@@ -37,6 +37,8 @@ const RegistrationPage = ({ onRegistrationSuccess, onLoginSuccess }) => {
   const [showLogin, setShowLogin] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const navigate = useNavigate();
 
   // Validation
@@ -451,8 +453,43 @@ const RegistrationPage = ({ onRegistrationSuccess, onLoginSuccess }) => {
                   <div className="figma-input-with-label">
                     <label htmlFor="password" className="figma-label-blue">Create Password</label>
                     <div className={`figma-float-label ${form.password ? "filled" : ""}`}>
-                      <input className="figma-input" type="password" name="password" id="password" value={form.password} onChange={handleChange} onFocus={() => handleFocus("password")} disabled={!isFieldEnabled("password")} autoComplete="off" placeholder=" " />
+                      <input
+                        className="figma-input figma-input-toggle"
+                        type={showPassword ? "text" : "password"}
+                        name="password"
+                        id="password"
+                        value={form.password}
+                        onChange={handleChange}
+                        onFocus={() => handleFocus("password")}
+                        disabled={!isFieldEnabled("password")}
+                        autoComplete="off"
+                        placeholder=" "
+                      />
+                      <button
+                        type="button"
+                        className="figma-eye-toggle"
+                        aria-label={showPassword ? "Hide password" : "Show password"}
+                        aria-pressed={showPassword}
+                        onClick={() => setShowPassword(prev => !prev)}
+                      >
+                        {showPassword ? (
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M1 1l22 22" />
+                            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-5 0-9.27-3.11-11-8 1-2.73 2.92-4.93 5.21-6.27" />
+                            <path d="M9.88 9.88a3 3 0 0 0 4.24 4.24" />
+                            <path d="M14.12 14.12 20 20" />
+                          </svg>
+                        ) : (
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z" />
+                            <circle cx="12" cy="12" r="3" />
+                          </svg>
+                        )}
+                      </button>
                     </div>
+                  </div>
+                  <div className="figma-password-hint">
+                    Use 8+ characters with a mix of uppercase, lowercase, number, and special character.
                   </div>
                   <div className="figma-warning">{warning.password && !isFieldEnabled("password") && "⚠ Please fill out the previous field first."}</div>
                   {touched.password && fieldErrors.password && typeof fieldErrors.password === 'string' && <div className="figma-error">{fieldErrors.password}</div>}
@@ -462,7 +499,39 @@ const RegistrationPage = ({ onRegistrationSuccess, onLoginSuccess }) => {
                   <div className="figma-input-with-label">
                     <label htmlFor="confirmPassword" className="figma-label-blue">Confirm Password</label>
                     <div className={`figma-float-label ${form.confirmPassword ? "filled" : ""}`}>
-                      <input className="figma-input" type="password" name="confirmPassword" id="confirmPassword" value={form.confirmPassword} onChange={handleChange} onFocus={() => handleFocus("confirmPassword")} disabled={!isFieldEnabled("confirmPassword")} autoComplete="off" placeholder=" " />
+                      <input
+                        className="figma-input figma-input-toggle"
+                        type={showConfirmPassword ? "text" : "password"}
+                        name="confirmPassword"
+                        id="confirmPassword"
+                        value={form.confirmPassword}
+                        onChange={handleChange}
+                        onFocus={() => handleFocus("confirmPassword")}
+                        disabled={!isFieldEnabled("confirmPassword")}
+                        autoComplete="off"
+                        placeholder=" "
+                      />
+                      <button
+                        type="button"
+                        className="figma-eye-toggle"
+                        aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                        aria-pressed={showConfirmPassword}
+                        onClick={() => setShowConfirmPassword(prev => !prev)}
+                      >
+                        {showConfirmPassword ? (
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M1 1l22 22" />
+                            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-5 0-9.27-3.11-11-8 1-2.73 2.92-4.93 5.21-6.27" />
+                            <path d="M9.88 9.88a3 3 0 0 0 4.24 4.24" />
+                            <path d="M14.12 14.12 20 20" />
+                          </svg>
+                        ) : (
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z" />
+                            <circle cx="12" cy="12" r="3" />
+                          </svg>
+                        )}
+                      </button>
                     </div>
                   </div>
                   <div className="figma-warning">{warning.confirmPassword && !isFieldEnabled("confirmPassword") && "⚠ Please fill out the previous field first."}</div>

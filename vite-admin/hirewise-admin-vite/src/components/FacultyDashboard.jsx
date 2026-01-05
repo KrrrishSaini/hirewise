@@ -4,32 +4,242 @@ import { candidatesApi } from '../lib/api';
 import { supabase } from '../../lib/supabase-client';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
-// Faculty Dashboard - Evaluation System
+// Committee Dashboard - Evaluation System
 const FacultyDashboard = () => {
   const location = useLocation();
   const [selectedCandidate, setSelectedCandidate] = useState(null);
   const [evaluationCandidate, setEvaluationCandidate] = useState(null);
   const [evaluationScores, setEvaluationScores] = useState({});
+  const [evaluationErrors, setEvaluationErrors] = useState({});
   const [pendingAction, setPendingAction] = useState(null); // 'shortlist' or 'reject'
   const [candidates, setCandidates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [updatingStatus, setUpdatingStatus] = useState(false);
 
-  const facultyInfo = location.state?.facultyInfo || JSON.parse(localStorage.getItem('facultyInfo') || '{}');
+  const toTitleCase = (value) => {
+    if (!value || typeof value !== 'string') return value || '';
+    return value
+      .split(/\s+/)
+      .map((w) => (w ? w.charAt(0).toUpperCase() + w.slice(1) : ''))
+      .join(' ');
+  };
+
+  const normalizeDegreeRank = (deg) => {
+    if (!deg) return 0;
+    const d = deg.toLowerCase();
+    if (d.includes('phd') || d.includes('doctor')) return 3;
+    if (d.includes('master')) return 2;
+    if (d.includes('bachelor') || d.includes('b.tech')) return 1;
+    return 0;
+  };
+
+  const getAdditionalEducation = (candidate) => {
+    // Build a ranked list from stored fields (highest to lower)
+    const degrees = [
+      {
+        rank: 3,
+        degree: candidate.phdDegreeName || candidate.phdDegree || candidate.highest_degree,
+        institute: candidate.phdInstitute,
+        year: candidate.phdYear,
+      },
+      {
+        rank: 2,
+        degree: candidate.masterDegreeName || candidate.masterDegree,
+        institute: candidate.masterInstitute,
+        year: candidate.masterYear,
+      },
+      {
+        rank: 1,
+        degree: candidate.bachelorDegreeName || candidate.bachelorDegree,
+        institute: candidate.bachelorInstitute,
+        year: candidate.bachelorYear,
+      },
+    ].filter(d => d.degree || d.institute || d.year);
+
+    if (degrees.length === 0) return null;
+
+    // Sort by rank descending and pick the top (highest) and the next one
+    const sorted = degrees.sort((a, b) => b.rank - a.rank);
+    const highest = sorted[0];
+    const next = sorted.find(d => d.rank < highest.rank);
+    return next || null;
+  };
+
+  const computeExperienceFromArrays = (teaching = [], research = []) => {
+    const parseDate = (v) => (v ? new Date(v) : null);
+    const monthsBetween = (start, end) => {
+      if (!start || !end) return 0;
+      const s = parseDate(start);
+      const e = parseDate(end);
+      if (!s || !e || isNaN(s) || isNaN(e)) return 0;
+      let months = (e.getFullYear() - s.getFullYear()) * 12 + (e.getMonth() - s.getMonth());
+      if (e.getDate() < s.getDate()) months -= 1;
+      return Math.max(0, months);
+    };
+
+    const teachingMonths = teaching.reduce(
+      (sum, exp) => sum + monthsBetween(exp.start_date || exp.teachingStartDate, exp.end_date || exp.teachingEndDate || new Date()),
+      0
+    );
+    const researchMonths = research.reduce(
+      (sum, exp) => sum + monthsBetween(exp.start_date || exp.researchStartDate, exp.end_date || exp.researchEndDate || new Date()),
+      0
+    );
+
+    const totalMonths = teachingMonths + researchMonths;
+    if (totalMonths <= 0) return 'N/A';
+    const years = Math.floor(totalMonths / 12);
+    const months = totalMonths % 12;
+    const parts = [];
+    if (years > 0) parts.push(`${years} year${years !== 1 ? 's' : ''}`);
+    if (months > 0) parts.push(`${months} month${months !== 1 ? 's' : ''}`);
+    return parts.join(' ') || '0 months';
+  };
+
+  const TEACHING_CRITERIA = [
+    { key: 't1', label: 'Clarity on the objective of the presentation', group: 'Knowledge of Subject Matter' },
+    { key: 't2', label: 'Theoretical and conceptual knowledge', group: 'Knowledge of Subject Matter' },
+    { key: 't3', label: 'Domain and Interdisciplinary Knowledge', group: 'Knowledge of Subject Matter' },
+    { key: 't4', label: 'Communication and articulation', group: 'Class Handling' },
+    { key: 't5', label: 'Interaction and engagement with the audience', group: 'Class Handling' },
+    { key: 't6', label: 'Effective use of real life and practical examples', group: 'Class Handling' },
+    { key: 't7', label: 'Structure, sequence, and time management of the talk', group: 'Class Handling' },
+    { key: 't8', label: 'Ability to answer questions', group: 'Class Handling' },
+    { key: 't9', label: 'Ability to motivate Students', group: 'Class Handling' },
+    { key: 't10', label: 'Knowledge on blended and flip classroom teaching', group: 'Class Handling' },
+    { key: 't11', label: 'Personality', group: 'Class Handling' },
+    { key: 't12', label: 'Aptitude, attitude, commitment towards teaching & mentoring', group: 'Class Handling' },
+    { key: 't13', label: 'Experiential Learning', group: 'Innovation in Teaching' },
+    { key: 't14', label: 'Innovative pedagogy', group: 'Innovation in Teaching' },
+    { key: 't15', label: 'Assessment methods', group: 'Innovation in Teaching' },
+  ];
+
+  const RESEARCH_CRITERIA = [
+    { key: 'r1', label: 'Research motivation and objective', group: 'Seminar' },
+    { key: 'r2', label: 'Adequacy and clarity of research plan', group: 'Seminar' },
+    { key: 'r3', label: 'Robustness of methodology', group: 'Seminar' },
+    { key: 'r4', label: 'Interpretation of research results', group: 'Seminar' },
+    { key: 'r5', label: 'Research contributions (Analytical/Design/Experimental/Others)', group: 'Seminar' },
+    { key: 'r6', label: 'Orientation towards applied research', group: 'Seminar' },
+    { key: 'r7', label: 'Three years research plan for BMU', group: 'Research Potential' },
+    { key: 'r8', label: 'Quality of research publications and / or Patents filed / awarded', group: 'Research Potential' },
+    { key: 'r9', label: 'Research guidance', group: 'Research Potential' },
+    { key: 'r10', label: 'Sponsored Research and Industrial Consultancy (In term of research income)', group: 'Research Potential' },
+  ];
+
+  const GENERAL_CRITERIA = [
+    { key: 'g1', label: 'Alignment with BMU Vision, Mission & Values' },
+    { key: 'g2', label: 'Enthusiasm and energy' },
+    { key: 'g3', label: 'Motivation' },
+    { key: 'g4', label: 'Honesty and integrity' },
+    { key: 'g5', label: 'Overall fitment with the role' },
+  ];
+
+  const buildSectionScores = (criteria) =>
+    criteria.reduce((acc, item) => {
+      acc[item.key] = '';
+      return acc;
+    }, {});
+
+  const buildSectionErrors = (criteria) =>
+    criteria.reduce((acc, item) => {
+      acc[item.key] = '';
+      return acc;
+    }, {});
+
+  const buildInitialScores = () => ({
+    teaching: buildSectionScores(TEACHING_CRITERIA),
+    research: buildSectionScores(RESEARCH_CRITERIA),
+    general: buildSectionScores(GENERAL_CRITERIA),
+    remarks: '',
+  });
+
+  const buildInitialErrors = () => ({
+    teaching: buildSectionErrors(TEACHING_CRITERIA),
+    research: buildSectionErrors(RESEARCH_CRITERIA),
+    general: buildSectionErrors(GENERAL_CRITERIA),
+  });
+
+  const validateScore = (value) => {
+    if (value === '') return '';
+    const num = Number(value);
+    if (Number.isNaN(num)) return 'Enter a number between 1 and 5.';
+    if (num < 1 || num > 5) return 'Score must be between 1 and 5.';
+    return '';
+  };
+
+  const isValidScore = (value) => validateScore(value) === '';
+
+  const getSectionAverage = (scores) => {
+    if (!scores) return null;
+    const values = Object.values(scores);
+    if (!values.every((v) => v !== '' && isValidScore(v))) return null;
+    const numeric = values.map((v) => Number(v));
+    const total = numeric.reduce((sum, value) => sum + value, 0);
+    return total / numeric.length;
+  };
+
+  const allScoresFilled = (scores) =>
+    Object.values(scores).every((value) => value !== '' && value !== null && value !== undefined && isValidScore(value));
+
+  const formatScoreLines = (criteria, scores) =>
+    criteria.map((item, index) => `${index + 1}. ${item.label}: ${scores[item.key]}`);
+
+  const buildEvaluationNotes = (scores, averages, total) => {
+    const lines = [
+      'Evaluation Scores (1-5):',
+      'I. Teaching',
+      ...formatScoreLines(TEACHING_CRITERIA, scores.teaching),
+      `Average (I): ${averages.teaching.toFixed(2)}`,
+      '',
+      'II. Research',
+      ...formatScoreLines(RESEARCH_CRITERIA, scores.research),
+      `Average (II): ${averages.research.toFixed(2)}`,
+      '',
+      'III. General: Culture Alignment',
+      ...formatScoreLines(GENERAL_CRITERIA, scores.general),
+      `Average (III): ${averages.general.toFixed(2)}`,
+      '',
+      `Total Score (I + II + III): ${total.toFixed(2)}`,
+    ];
+
+    const comment = (scores.remarks || '').trim();
+    if (comment) {
+      lines.push('', 'Comments:', comment);
+    }
+
+    return lines.join('\n');
+  };
+
+  const committeeInfo = location.state?.committeeInfo || JSON.parse(localStorage.getItem('committeeInfo') || '{}');
+  const committeeCode = (committeeInfo.code || '').toLowerCase();
 
   const fetchCandidates = async () => {
     try {
       setLoading(true);
       
-      // Fetch candidates assigned to this faculty from database
-      const { data, error } = await supabase
+      // Fetch candidates assigned to this committee from database
+      let { data, error } = await supabase
         .from('faculty_applications')
         .select('*')
-        .eq('assigned_faculty_id', facultyInfo.id)
+        .eq('assigned_committee_code', committeeCode)
         .order('created_at', { ascending: false });
       
-      if (error) throw error;
+      if (error) {
+        const missingCommitteeColumn = typeof error.message === 'string' && error.message.toLowerCase().includes('assigned_committee_code');
+        if (missingCommitteeColumn) {
+          const fallback = await supabase
+            .from('faculty_applications')
+            .select('*')
+            .or(`assigned_faculty_email.eq.${committeeCode},assigned_faculty_name.eq.${committeeCode}`)
+            .order('created_at', { ascending: false });
+          if (fallback.error) throw fallback.error;
+          data = fallback.data;
+        } else {
+          throw error;
+        }
+      }
       
       // Filter out rejected/shortlisted/deleted candidates
       const validCandidates = (data || []).filter(c => 
@@ -49,12 +259,12 @@ const FacultyDashboard = () => {
   };
 
   useEffect(() => {
-    if (facultyInfo.id) {
+    if (committeeCode) {
       fetchCandidates();
     } else {
       setLoading(false);
     }
-  }, [facultyInfo.id]); // Re-fetch when department filter changes
+  }, [committeeCode]); // Re-fetch when committee changes
 
   const handleViewDetails = async (candidate) => {
     console.log('Opening candidate details for ID:', candidate.id);
@@ -98,38 +308,62 @@ const FacultyDashboard = () => {
   const handleEvaluate = (candidate, action) => {
     setPendingAction(action); // 'shortlist' or 'reject'
     setEvaluationCandidate(candidate);
-    setEvaluationScores({
-      teachingCompetence: '',
-      researchPotential: '',
-      industryExperience: '',
-      communicationSkills: '',
-      subjectKnowledge: '',
-      overallSuitability: '',
-      remarks: ''
-    });
+    setEvaluationScores(buildInitialScores());
+    setEvaluationErrors(buildInitialErrors());
   };
 
   const closeEvaluationModal = () => {
     setEvaluationCandidate(null);
     setEvaluationScores({});
+    setEvaluationErrors({});
     setPendingAction(null);
   };
 
-  const handleScoreChange = (field, value) => {
-    setEvaluationScores(prev => ({ ...prev, [field]: value }));
+  const handleScoreChange = (section, field, value) => {
+    const errorMessage = validateScore(value);
+    setEvaluationScores((prev) => ({
+      ...prev,
+      [section]: {
+        ...prev[section],
+        [field]: value,
+      },
+    }));
+    setEvaluationErrors((prev) => ({
+      ...prev,
+      [section]: {
+        ...prev[section],
+        [field]: errorMessage,
+      },
+    }));
+  };
+
+  const handleRemarksChange = (value) => {
+    setEvaluationScores((prev) => ({ ...prev, remarks: value }));
   };
 
   const submitEvaluation = async () => {
     if (!evaluationCandidate?.id) return;
     
     // Validate all scores are filled
-    const requiredFields = ['teachingCompetence', 'researchPotential', 'industryExperience', 'communicationSkills', 'subjectKnowledge', 'overallSuitability'];
-    const missingFields = requiredFields.filter(field => !evaluationScores[field]);
-    
-    if (missingFields.length > 0) {
-      alert('Please fill in all evaluation scores before submitting.');
+    const missingScores = !allScoresFilled(evaluationScores.teaching)
+      || !allScoresFilled(evaluationScores.research)
+      || !allScoresFilled(evaluationScores.general);
+
+    if (missingScores) {
+      alert('Please fill in all evaluation scores with values between 1 and 5.');
       return;
     }
+
+    const teachingAvg = getSectionAverage(evaluationScores.teaching);
+    const researchAvg = getSectionAverage(evaluationScores.research);
+    const generalAvg = getSectionAverage(evaluationScores.general);
+    const totalAvg = (teachingAvg + researchAvg + generalAvg) / 3;
+    const toDbScore = (value) => Math.round(value * 2);
+    const evaluationNotes = buildEvaluationNotes(
+      evaluationScores,
+      { teaching: teachingAvg, research: researchAvg, general: generalAvg },
+      totalAvg
+    );
     
     try {
       setUpdatingStatus(true);
@@ -139,15 +373,15 @@ const FacultyDashboard = () => {
         .from('faculty_evaluations')
         .insert({
           application_id: evaluationCandidate.id,
-          faculty_id: facultyInfo.id,
-          faculty_name: facultyInfo.name,
-          teaching_competence: parseInt(evaluationScores.teachingCompetence),
-          research_potential: parseInt(evaluationScores.researchPotential),
-          industry_experience: parseInt(evaluationScores.industryExperience),
-          communication_skills: parseInt(evaluationScores.communicationSkills),
-          subject_knowledge: parseInt(evaluationScores.subjectKnowledge),
-          overall_suitability: parseInt(evaluationScores.overallSuitability),
-          remarks: evaluationScores.remarks || null,
+          faculty_id: committeeCode,
+          faculty_name: committeeInfo.name || committeeInfo.code,
+          teaching_competence: toDbScore(teachingAvg),
+          research_potential: toDbScore(researchAvg),
+          industry_experience: toDbScore(generalAvg),
+          communication_skills: toDbScore(generalAvg),
+          subject_knowledge: toDbScore(teachingAvg),
+          overall_suitability: toDbScore(totalAvg),
+          remarks: evaluationNotes || null,
           evaluated_at: new Date().toISOString()
         });
       
@@ -167,10 +401,10 @@ const FacultyDashboard = () => {
       }
       
       const actionMessage = pendingAction === 'shortlist' 
-        ? 'Candidate shortlisted successfully!'
+        ? 'Evaluation completed and sent to Admin/HR for further communication.'
         : pendingAction === 'reject'
-        ? 'Candidate rejected successfully!'
-        : 'Evaluation submitted successfully!';
+        ? 'Evaluation completed and candidate rejected.'
+        : 'Evaluation completed and sent to Admin/HR.';
       
       alert(actionMessage);
       closeEvaluationModal();
@@ -256,6 +490,62 @@ const FacultyDashboard = () => {
   };
 
   const filteredCandidates = candidates;
+  const teachingAverage = getSectionAverage(evaluationScores.teaching);
+  const researchAverage = getSectionAverage(evaluationScores.research);
+  const generalAverage = getSectionAverage(evaluationScores.general);
+  const totalScore = teachingAverage !== null && researchAverage !== null && generalAverage !== null
+    ? teachingAverage + researchAverage + generalAverage
+    : null;
+
+  const renderCriteriaRows = (criteria, scores, sectionKey) => {
+    const rows = [];
+    let lastGroup = null;
+
+    criteria.forEach((item, index) => {
+      if (item.group && item.group !== lastGroup) {
+        rows.push(
+          <div
+            key={`${sectionKey}-${item.group}`}
+            className="bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-700"
+          >
+            {item.group}
+          </div>
+        );
+        lastGroup = item.group;
+      }
+
+      rows.push(
+        <div
+          key={`${sectionKey}-${item.key}`}
+          className="grid grid-cols-1 md:grid-cols-[40px_1fr_120px] gap-3 px-4 py-3 items-center border-t border-gray-200"
+        >
+          <div className="text-sm font-semibold text-gray-600">{index + 1}.</div>
+          <div className="text-sm text-gray-800">{item.label}</div>
+          <div>
+            <input
+              type="number"
+              min="1"
+              max="5"
+              step="0.1"
+              value={scores?.[item.key] ?? ''}
+              onChange={(e) => handleScoreChange(sectionKey, item.key, e.target.value)}
+              className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent ${
+                evaluationErrors?.[sectionKey]?.[item.key] ? 'border-red-400' : 'border-gray-300'
+              }`}
+              placeholder="1-5"
+            />
+            {evaluationErrors?.[sectionKey]?.[item.key] && (
+              <div className="mt-1 text-xs text-red-600">
+                {evaluationErrors[sectionKey][item.key]}
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    });
+
+    return rows;
+  };
 
   if (loading) {
     return (
@@ -277,6 +567,11 @@ const FacultyDashboard = () => {
       </div>
     );
   }
+
+  const additionalEducation = selectedCandidate ? getAdditionalEducation(selectedCandidate) : null;
+  const teachingExperiences = selectedCandidate?.teachingExperiences || [];
+  const researchExperiences = selectedCandidate?.researchExperiences || [];
+  const derivedExperience = selectedCandidate?.experience || computeExperienceFromArrays(teachingExperiences, researchExperiences);
 
   return (
     <>
@@ -306,13 +601,13 @@ const FacultyDashboard = () => {
                     <div className="flex-1">
                       <div className="mb-2">
                         <h3 className="text-lg font-semibold text-gray-900">
-                          {candidate.first_name} {candidate.last_name}
+                          {toTitleCase(candidate.first_name)} {toTitleCase(candidate.last_name)}
                         </h3>
                         <span className="text-xs font-medium text-blue-600 bg-blue-100 px-2 py-1 rounded-full">
-                          {candidate.department}
+                          {toTitleCase(candidate.department)}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-600 mb-1">{candidate.position}</p>
+                      <p className="text-sm text-gray-600 mb-1">{toTitleCase(candidate.position)}</p>
                       <p className="text-sm text-gray-500">{candidate.email}</p>
                       <div className="flex items-center space-x-4 mt-2">
                         <span className="text-sm text-gray-600">{candidate.experience}</span>
@@ -352,12 +647,12 @@ const FacultyDashboard = () => {
             <div className="flex items-center justify-between p-6 border-b bg-gradient-to-r from-blue-50 to-indigo-50">
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">
-                  {selectedCandidate.first_name} {selectedCandidate.middle_name && `${selectedCandidate.middle_name} `}{selectedCandidate.last_name}
+                  {toTitleCase(selectedCandidate.first_name)} {selectedCandidate.middle_name && `${toTitleCase(selectedCandidate.middle_name)} `}{toTitleCase(selectedCandidate.last_name)}
                 </h2>
                 <div className="flex items-center space-x-2 mt-1">
-                  <p className="text-sm text-gray-600">{selectedCandidate.position}</p>
+                  <p className="text-sm text-gray-600">{toTitleCase(selectedCandidate.position)}</p>
                   <span className="text-xs font-medium text-blue-600 bg-blue-100 px-2 py-1 rounded-full">
-                    {selectedCandidate.department}
+                    {toTitleCase(selectedCandidate.department)}
                   </span>
                 </div>
               </div>
@@ -426,17 +721,34 @@ const FacultyDashboard = () => {
                   {/* Education */}
                   <div className="bg-white border rounded-lg p-4 shadow-sm">
                     <h3 className="text-lg font-bold text-gray-900 mb-3 border-b pb-2">Education</h3>
-                    <div className="bg-indigo-50 rounded p-3">
-                      <p className="text-xs font-semibold text-indigo-600 uppercase">Highest Qualification</p>
-                      <p className="text-sm font-medium text-gray-900">
-                        {selectedCandidate.highest_degree || 'Not specified'}
-                      </p>
-                      {selectedCandidate.university && (
-                        <p className="text-xs text-gray-600">{selectedCandidate.university}</p>
-                      )}
-                      {selectedCandidate.graduation_year && (
-                        <p className="text-xs text-gray-600">Graduated: {selectedCandidate.graduation_year}</p>
-                      )}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="bg-indigo-50 rounded p-3">
+                        <p className="text-xs font-semibold text-indigo-600 uppercase">Highest Qualification</p>
+                        <p className="text-sm font-medium text-gray-900">
+                          {selectedCandidate.highest_degree || 'Not specified'}
+                        </p>
+                        {selectedCandidate.university && (
+                          <p className="text-xs text-gray-600">{selectedCandidate.university}</p>
+                        )}
+                        {selectedCandidate.graduation_year && (
+                          <p className="text-xs text-gray-600">Graduated: {selectedCandidate.graduation_year}</p>
+                        )}
+                      </div>
+                      <div className="bg-indigo-50 rounded p-3">
+                        <p className="text-xs font-semibold text-indigo-600 uppercase">Additional Qualification</p>
+                        <p className="text-sm font-medium text-gray-900">
+                          {additionalEducation?.degree || 'Not provided'}
+                        </p>
+                        {additionalEducation?.institute && (
+                          <p className="text-xs text-gray-600">{additionalEducation.institute}</p>
+                        )}
+                        {additionalEducation?.year && (
+                          <p className="text-xs text-gray-600">Graduated: {additionalEducation.year}</p>
+                        )}
+                        {!additionalEducation && (
+                          <p className="text-xs text-gray-600">No additional education details available.</p>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -445,17 +757,17 @@ const FacultyDashboard = () => {
                     <h3 className="text-lg font-bold text-gray-900 mb-3 border-b pb-2">Experience</h3>
                     <div className="bg-green-50 rounded p-3 mb-3">
                       <p className="text-xs font-semibold text-green-600 uppercase">Total Experience</p>
-                      <p className="text-lg font-bold text-gray-900">{selectedCandidate.experience}</p>
+                      <p className="text-lg font-bold text-gray-900">{derivedExperience}</p>
                     </div>
 
                     {/* Teaching Experience */}
-                    {selectedCandidate.teachingExperiences && selectedCandidate.teachingExperiences.length > 0 && (
+                    {teachingExperiences.length > 0 && (
                       <div className="mb-3">
                         <p className="text-xs font-bold text-gray-700 uppercase mb-2">Teaching Experience</p>
-                        {selectedCandidate.teachingExperiences.slice(0, 2).map((exp, index) => (
+                        {teachingExperiences.slice(0, 2).map((exp, index) => (
                           <div key={index} className="border-l-4 border-blue-500 pl-3 mb-2">
                             <p className="text-sm font-medium text-gray-900">
-                              {exp.position || exp.teachingPost || 'Position not specified'}
+                              {exp.post || exp.position || exp.teachingPost || 'Position not specified'}
                             </p>
                             <p className="text-xs text-gray-600">
                               {exp.institution || exp.teachingInstitution || 'Institution not specified'}
@@ -469,13 +781,13 @@ const FacultyDashboard = () => {
                     )}
 
                     {/* Research Experience */}
-                    {selectedCandidate.researchExperiences && selectedCandidate.researchExperiences.length > 0 && (
+                    {researchExperiences.length > 0 && (
                       <div>
                         <p className="text-xs font-bold text-gray-700 uppercase mb-2">Research Experience</p>
-                        {selectedCandidate.researchExperiences.slice(0, 2).map((exp, index) => (
+                        {researchExperiences.slice(0, 2).map((exp, index) => (
                           <div key={index} className="border-l-4 border-green-500 pl-3 mb-2">
                             <p className="text-sm font-medium text-gray-900">
-                              {exp.position || exp.researchPost || 'Position not specified'}
+                              {exp.post || exp.position || exp.researchPost || 'Position not specified'}
                             </p>
                             <p className="text-xs text-gray-600">
                               {exp.institution || exp.researchInstitution || 'Institution not specified'}
@@ -671,12 +983,11 @@ const FacultyDashboard = () => {
                         <span className={`px-3 py-1 rounded-full text-sm font-medium ${
                           selectedCandidate.status === 'shortlisted' ? 'bg-green-100 text-green-700' :
                           selectedCandidate.status === 'rejected' ? 'bg-red-100 text-red-700' :
-                          'bg-yellow-100 text-yellow-700'
+                          'bg-gray-100 text-gray-700'
                         }`}>
-                          {selectedCandidate.status === 'in_review' ? 'In Review' : 
-                           selectedCandidate.status === 'shortlisted' ? 'Shortlisted' :
+                          {selectedCandidate.status === 'shortlisted' ? 'Shortlisted' :
                            selectedCandidate.status === 'rejected' ? 'Rejected' :
-                           selectedCandidate.status || 'In Review'}
+                           'Pending'}
                         </span>
                       </div>
                       
@@ -745,109 +1056,97 @@ const FacultyDashboard = () => {
                 <div>
                   <label className="text-sm font-semibold text-gray-700 block mb-1">Name of the Applicant</label>
                   <p className="text-base font-medium text-gray-900">
-                    {evaluationCandidate.first_name} {evaluationCandidate.middle_name} {evaluationCandidate.last_name}
+                    {toTitleCase(evaluationCandidate.first_name)} {evaluationCandidate.middle_name ? `${toTitleCase(evaluationCandidate.middle_name)} ` : ''}{toTitleCase(evaluationCandidate.last_name)}
                   </p>
                 </div>
                 <div>
                   <label className="text-sm font-semibold text-gray-700 block mb-1">Subject Area</label>
-                  <p className="text-base font-medium text-gray-900">{evaluationCandidate.department || 'N/A'}</p>
+                  <p className="text-base font-medium text-gray-900">{toTitleCase(evaluationCandidate.department) || 'N/A'}</p>
                 </div>
                 <div>
                   <label className="text-sm font-semibold text-gray-700 block mb-1">Post Applied For</label>
-                  <p className="text-base font-medium text-gray-900">{evaluationCandidate.position || 'N/A'}</p>
+                  <p className="text-base font-medium text-gray-900">{toTitleCase(evaluationCandidate.position) || 'N/A'}</p>
                 </div>
               </div>
             </div>
 
             {/* Evaluation Form */}
             <div className="p-6 space-y-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-4 border-b pb-2">Evaluation Parameters (Rate out of 10)</h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Teaching Competence*</label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="10"
-                    value={evaluationScores.teachingCompetence}
-                    onChange={(e) => handleScoreChange('teachingCompetence', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    placeholder="Enter score 0-10"
-                  />
+              <div className="border rounded-lg overflow-hidden">
+                <div className="bg-gray-50 px-4 py-3 flex items-center justify-between">
+                  <h3 className="text-lg font-bold text-gray-900">I. Teaching</h3>
+                  <span className="text-xs font-semibold text-gray-600">Ratings (1 to 5)</span>
                 </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Research Potential*</label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="10"
-                    value={evaluationScores.researchPotential}
-                    onChange={(e) => handleScoreChange('researchPotential', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    placeholder="Enter score 0-10"
-                  />
+                <div className="grid grid-cols-1 md:grid-cols-[40px_1fr_120px] gap-3 px-4 py-2 text-xs font-semibold text-gray-500 uppercase">
+                  <span>Sl. No.</span>
+                  <span>Evaluation Parameters</span>
+                  <span>Rating</span>
                 </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Industry Experience*</label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="10"
-                    value={evaluationScores.industryExperience}
-                    onChange={(e) => handleScoreChange('industryExperience', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    placeholder="Enter score 0-10"
-                  />
+                <div className="border-t border-gray-200">
+                  {renderCriteriaRows(TEACHING_CRITERIA, evaluationScores.teaching, 'teaching')}
                 </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Communication Skills*</label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="10"
-                    value={evaluationScores.communicationSkills}
-                    onChange={(e) => handleScoreChange('communicationSkills', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    placeholder="Enter score 0-10"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Subject Knowledge*</label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="10"
-                    value={evaluationScores.subjectKnowledge}
-                    onChange={(e) => handleScoreChange('subjectKnowledge', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    placeholder="Enter score 0-10"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Overall Suitability*</label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="10"
-                    value={evaluationScores.overallSuitability}
-                    onChange={(e) => handleScoreChange('overallSuitability', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    placeholder="Enter score 0-10"
-                  />
+                <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-t border-gray-200">
+                  <span className="text-sm font-semibold text-gray-700">Average Score (I)</span>
+                  <span className="text-sm font-bold text-gray-900">
+                    {teachingAverage !== null ? teachingAverage.toFixed(2) : '—'}
+                  </span>
                 </div>
               </div>
 
+              <div className="border rounded-lg overflow-hidden">
+                <div className="bg-gray-50 px-4 py-3 flex items-center justify-between">
+                  <h3 className="text-lg font-bold text-gray-900">II. Research</h3>
+                  <span className="text-xs font-semibold text-gray-600">Ratings (1 to 5)</span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-[40px_1fr_120px] gap-3 px-4 py-2 text-xs font-semibold text-gray-500 uppercase">
+                  <span>Sl. No.</span>
+                  <span>Evaluation Parameters</span>
+                  <span>Rating</span>
+                </div>
+                <div className="border-t border-gray-200">
+                  {renderCriteriaRows(RESEARCH_CRITERIA, evaluationScores.research, 'research')}
+                </div>
+                <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-t border-gray-200">
+                  <span className="text-sm font-semibold text-gray-700">Average Score (II)</span>
+                  <span className="text-sm font-bold text-gray-900">
+                    {researchAverage !== null ? researchAverage.toFixed(2) : '—'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="border rounded-lg overflow-hidden">
+                <div className="bg-gray-50 px-4 py-3 flex items-center justify-between">
+                  <h3 className="text-lg font-bold text-gray-900">III. General: Culture Alignment</h3>
+                  <span className="text-xs font-semibold text-gray-600">Ratings (1 to 5)</span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-[40px_1fr_120px] gap-3 px-4 py-2 text-xs font-semibold text-gray-500 uppercase">
+                  <span>Sl. No.</span>
+                  <span>Evaluation Parameters</span>
+                  <span>Rating</span>
+                </div>
+                <div className="border-t border-gray-200">
+                  {renderCriteriaRows(GENERAL_CRITERIA, evaluationScores.general, 'general')}
+                </div>
+                <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-t border-gray-200">
+                  <span className="text-sm font-semibold text-gray-700">Average Score (III)</span>
+                  <span className="text-sm font-bold text-gray-900">
+                    {generalAverage !== null ? generalAverage.toFixed(2) : '—'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <span className="text-sm font-semibold text-blue-800">Total Score (I + II + III)</span>
+                <span className="text-sm font-bold text-blue-900">
+                  {totalScore !== null ? totalScore.toFixed(2) : '—'}
+                </span>
+              </div>
+
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Remarks/Comments</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Comments</label>
                 <textarea
                   value={evaluationScores.remarks}
-                  onChange={(e) => handleScoreChange('remarks', e.target.value)}
+                  onChange={(e) => handleRemarksChange(e.target.value)}
                   rows="4"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                   placeholder="Enter any additional remarks or observations..."
