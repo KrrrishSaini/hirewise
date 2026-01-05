@@ -46,21 +46,29 @@ const allowedOrigins = [
   "https://hiring-portal-mocha.vercel.app"
 ];
 
-app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin) return callback(null, true);
-    // Allow listed origins and any vercel.app subdomain
-    if (allowedOrigins.indexOf(origin) !== -1 || /\.vercel\.app$/.test(origin)) {
-      callback(null, true);
-    } else {
-      console.log('CORS blocked origin:', origin);
-      callback(new Error('Not allowed by CORS'));
+const corsOptions = (process.env.NODE_ENV === 'production')
+  ? {
+      origin: function (origin, callback) {
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.indexOf(origin) !== -1 || /\.vercel\.app$/.test(origin)) {
+          callback(null, true);
+        } else {
+          console.log('CORS blocked origin:', origin);
+          callback(new Error('Not allowed by CORS'));
+        }
+      },
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+      credentials: true,
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
     }
-  },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  credentials: true,
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
-}));
+  : {
+      origin: true, // Reflect request origin for local/LAN dev
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+      credentials: true,
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
+    };
+
+app.use(cors(corsOptions));
 
 // ✅ 5. Apply middleware
 app.use(express.json({ limit: '10mb' })); // Increase limit for file uploads

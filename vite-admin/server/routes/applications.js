@@ -45,6 +45,32 @@ const uploadToStorage = async (bucket, fileName, fileBuffer) => {
 
 const router = express.Router();
 
+// Helper: reuse existing stored file paths (for draft uploads)
+const applyExistingPaths = (req, docPaths) => {
+  const map = [
+    ['existingCoverLetterPath', 'cover_letter_path'],
+    ['existingTeachingStatementPath', 'teaching_statement_path'],
+    ['existingResearchStatementPath', 'research_statement_path'],
+    ['existingCvPath', 'cv_path'],
+    ['existingOtherPublicationsPath', 'other_publications_path']
+  ];
+  map.forEach(([reqKey, docKey]) => {
+    if (req.body?.[reqKey]) {
+      const val = req.body[reqKey];
+      // Parse JSON arrays if sent as string
+      if (docKey === 'other_publications_path') {
+        try {
+          docPaths[docKey] = Array.isArray(val) ? val : JSON.parse(val);
+        } catch {
+          docPaths[docKey] = Array.isArray(val) ? val : [val];
+        }
+      } else {
+        docPaths[docKey] = val;
+      }
+    }
+  });
+};
+
 // ⚡ OPTIMIZED: Get top ranked applications with caching (reduced to 30 seconds for faster updates)
 router.get('/rankings/top', cache.middleware(30), async (req, res) => {
   try {
@@ -261,7 +287,8 @@ router.post(
     { name: 'teachingStatement', maxCount: 1 },
     { name: 'researchStatement', maxCount: 1 },
     { name: 'cvPath', maxCount: 1 },
-    { name: 'otherPublications', maxCount: 1 }
+    // Allow up to 3 files for best published papers
+    { name: 'otherPublications', maxCount: 3 }
   ]),
   async (req, res) => {
     try {
@@ -380,12 +407,23 @@ router.post(
       const applicationId = appData.id;
       const docPaths = {};
 
-      const uploadFile = async (fileKey, bucket, fieldName) => {
+      const uploadFile = async (fileKey, bucket, fieldName, allowMultiple = false) => {
         if (req.files?.[fileKey]?.[0]) {
-          const file = req.files[fileKey][0];
-          const fileName = `${fieldName}_${applicationId}_${Date.now()}${path.extname(file.originalname)}`;
-          const filePath = await uploadToStorage(bucket, fileName, file.buffer);
-          docPaths[fieldName + '_path'] = filePath;
+          const files = req.files[fileKey];
+          if (allowMultiple) {
+            const paths = [];
+            for (const file of files.slice(0, 3)) {
+              const fileName = `${fieldName}_${applicationId}_${Date.now()}_${Math.random().toString(36).slice(2)}${path.extname(file.originalname)}`;
+              const filePath = await uploadToStorage(bucket, fileName, file.buffer);
+              paths.push(filePath);
+            }
+            docPaths[fieldName + '_path'] = JSON.stringify(paths);
+          } else {
+            const file = files[0];
+            const fileName = `${fieldName}_${applicationId}_${Date.now()}${path.extname(file.originalname)}`;
+            const filePath = await uploadToStorage(bucket, fileName, file.buffer);
+            docPaths[fieldName + '_path'] = filePath;
+          }
         }
       };
 
@@ -393,7 +431,9 @@ router.post(
       await uploadFile('teachingStatement', 'application-reports', 'teaching_statement');
       await uploadFile('researchStatement', 'application-reports', 'research_statement');
       await uploadFile('cvPath', 'application-reports', 'cv');
-      await uploadFile('otherPublications', 'application-reports', 'other_publications');
+      await uploadFile('otherPublications', 'application-reports', 'other_publications', true);
+      // Apply any existing paths provided (from draft uploads)
+      applyExistingPaths(req, docPaths);
 
       if (Object.keys(docPaths).length > 0) {
         const { error: updateError } = await supabase

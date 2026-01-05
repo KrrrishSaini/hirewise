@@ -89,6 +89,61 @@ router.post(
   }
 );
 
+// Draft uploads (for Save & Exit) - store in the same bucket so paths can be reused on final submit
+router.post(
+  '/drafts/upload',
+  upload.fields([
+    { name: 'coverLetterPath', maxCount: 1 },
+    { name: 'teachingStatement', maxCount: 1 },
+    { name: 'researchStatement', maxCount: 1 },
+    { name: 'cvPath', maxCount: 1 },
+    { name: 'otherPublications', maxCount: 3 }
+  ]),
+  async (req, res) => {
+    try {
+      const bucket = 'application-reports';
+      const uploaded = {};
+
+      async function handle(key, field) {
+        if (req.files?.[key]?.[0]) {
+          const files = req.files[key];
+          if (key === 'otherPublications') {
+            const paths = [];
+            for (const file of files.slice(0, 3)) {
+              const ext = path.extname(file.originalname).toLowerCase() || '.bin';
+              const fileName = `draft_${field}_${Date.now()}_${Math.random().toString(36).slice(2)}${ext}`;
+              const storagePath = await uploadToStorage(bucket, fileName, file.buffer, file.mimetype);
+              paths.push(storagePath);
+            }
+            uploaded[`${field}_path`] = paths;
+          } else {
+            const file = files[0];
+            const ext = path.extname(file.originalname).toLowerCase() || '.bin';
+            const fileName = `draft_${field}_${Date.now()}${ext}`;
+            const storagePath = await uploadToStorage(bucket, fileName, file.buffer, file.mimetype);
+            uploaded[`${field}_path`] = storagePath;
+          }
+        }
+      }
+
+      await handle('coverLetterPath', 'cover_letter');
+      await handle('teachingStatement', 'teaching_statement');
+      await handle('researchStatement', 'research_statement');
+      await handle('cvPath', 'cv');
+      await handle('otherPublications', 'other_publications');
+
+      if (Object.keys(uploaded).length === 0) {
+        return res.status(400).json({ error: 'No files were provided' });
+      }
+
+      return res.json({ success: true, paths: uploaded });
+    } catch (error) {
+      console.error('Draft upload error:', error);
+      return res.status(500).json({ error: error.message || 'Failed to upload drafts' });
+    }
+  }
+);
+
 // Generate application report
 router.post('/generate/:applicationId', async (req, res) => {
   try {
