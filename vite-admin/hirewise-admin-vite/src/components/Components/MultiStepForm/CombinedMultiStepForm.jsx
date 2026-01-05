@@ -186,11 +186,6 @@ const PositionSelection = ({ formData, setFormData, onNext, onSaveExit, savingDr
         </div>
       )}
       <div className="form-buttons">
-        {submitError && (
-          <div className="error" style={{ flex: 1, marginBottom: '8px' }}>
-            {submitError}
-          </div>
-        )}
         <div style={{ flex: 1 }}></div>
         <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
           <button
