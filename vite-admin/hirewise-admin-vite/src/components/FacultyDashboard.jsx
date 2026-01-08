@@ -331,10 +331,10 @@ const FacultyDashboard = () => {
     setCvPreviewLoading(true);
     setCvPreviewCandidate({ ...candidate, loading: true });
     setCvPreviewError('');
-    if (cvPreviewUrl) {
+    if (cvPreviewUrl && cvPreviewUrl.startsWith('blob:')) {
       URL.revokeObjectURL(cvPreviewUrl);
-      setCvPreviewUrl('');
     }
+    setCvPreviewUrl('');
     try {
       const fullData = await candidatesApi.getById(candidate.id);
       const flattened = {
@@ -345,17 +345,15 @@ const FacultyDashboard = () => {
       setCvPreviewCandidate({ ...flattened, loading: false });
 
       if (flattened.cv_path) {
-        const { data } = supabase
+        const { data: signed, error: signedErr } = await supabase
           .storage
           .from('application-reports')
-          .getPublicUrl(flattened.cv_path);
-        const response = await fetch(data.publicUrl);
-        if (!response.ok) {
-          throw new Error('Failed to load CV');
+          .createSignedUrl(flattened.cv_path, 60 * 60);
+        if (signedErr || !signed?.signedUrl) {
+          throw signedErr || new Error('Failed to create CV link');
         }
-        const blob = await response.blob();
-        const objectUrl = URL.createObjectURL(blob);
-        setCvPreviewUrl(objectUrl);
+        const inlineUrl = `${signed.signedUrl}&response-content-disposition=inline&response-content-type=application%2Fpdf`;
+        setCvPreviewUrl(inlineUrl);
       } else {
         setCvPreviewError('CV not available for this candidate.');
       }
@@ -377,7 +375,7 @@ const FacultyDashboard = () => {
   const closeCvPreview = () => {
     setCvPreviewCandidate(null);
     setCvPreviewLoading(false);
-    if (cvPreviewUrl) {
+    if (cvPreviewUrl && cvPreviewUrl.startsWith('blob:')) {
       URL.revokeObjectURL(cvPreviewUrl);
     }
     setCvPreviewUrl('');
