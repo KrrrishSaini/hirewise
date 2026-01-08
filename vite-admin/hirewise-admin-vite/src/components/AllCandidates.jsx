@@ -69,6 +69,14 @@ const AllCandidates = () => {
     return `${title}${toTitleCase(candidate.first_name)} ${middle}${toTitleCase(candidate.last_name)}`.trim();
   };
 
+  const extractEvaluationComments = (remarks) => {
+    if (!remarks || typeof remarks !== 'string') return '';
+    const marker = 'Comments:';
+    const idx = remarks.indexOf(marker);
+    if (idx === -1) return '';
+    return remarks.slice(idx + marker.length).trim();
+  };
+
   const matchesStage = (candidate, stage) => {
     const rawStatus = (candidate.status || '').toString().trim().toLowerCase();
     const normalizedStatus = rawStatus === '' || rawStatus === 'pending' || rawStatus === 'new' || rawStatus === 'in_review'
@@ -936,20 +944,18 @@ const AllCandidates = () => {
                         </button>
                       </div>
                       {evaluationData ? (
-                        <div className="space-y-2 text-sm text-gray-700">
-                          <p><span className="font-semibold">Faculty:</span> {evaluationData.faculty_name || 'N/A'}</p>
-                          <p><span className="font-semibold">Teaching:</span> {evaluationData.teaching_competence}/10</p>
-                          <p><span className="font-semibold">Research:</span> {evaluationData.research_potential}/10</p>
-                          <p><span className="font-semibold">Industry:</span> {evaluationData.industry_experience}/10</p>
-                          <p><span className="font-semibold">Communication:</span> {evaluationData.communication_skills}/10</p>
-                          <p><span className="font-semibold">Subject Knowledge:</span> {evaluationData.subject_knowledge}/10</p>
-                          <p><span className="font-semibold">Overall:</span> {evaluationData.overall_suitability}/10</p>
-                          {evaluationData.remarks && (
-                            <div>
-                              <p className="font-semibold">Remarks</p>
-                              <p className="text-xs text-gray-600 whitespace-pre-wrap">{evaluationData.remarks}</p>
-                            </div>
-                          )}
+                        <div className="space-y-3 text-sm text-gray-700">
+                          <p><span className="font-semibold">Evaluation Committee:</span> {evaluationData.faculty_name || 'N/A'}</p>
+                          <p><span className="font-semibold">I. Teaching:</span> {evaluationData.teaching_competence ?? 'N/A'}/10</p>
+                          <p><span className="font-semibold">II. Research:</span> {evaluationData.research_potential ?? 'N/A'}/10</p>
+                          <p><span className="font-semibold">III. General: Culture Alignment:</span> {evaluationData.industry_experience ?? 'N/A'}/10</p>
+                          <p><span className="font-semibold">Combined Score:</span> {evaluationData.overall_suitability ?? 'N/A'}/10</p>
+                          <div>
+                            <p className="font-semibold">Remarks</p>
+                            <p className="text-xs text-gray-600 whitespace-pre-wrap">
+                              {extractEvaluationComments(evaluationData.remarks) || 'No additional comments.'}
+                            </p>
+                          </div>
                         </div>
                       ) : (
                         <p className="text-xs text-gray-500">No evaluation loaded.</p>
