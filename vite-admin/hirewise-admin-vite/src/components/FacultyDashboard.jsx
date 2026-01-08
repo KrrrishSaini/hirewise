@@ -12,11 +12,13 @@ const FacultyDashboard = () => {
   const [evaluationScores, setEvaluationScores] = useState({});
   const [evaluationErrors, setEvaluationErrors] = useState({});
   const [evaluationPhase, setEvaluationPhase] = useState(1);
-  const [selectedStage, setSelectedStage] = useState('cv');
+  const [selectedStage, setSelectedStage] = useState('all');
   const [candidates, setCandidates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [candidateEvaluation, setCandidateEvaluation] = useState(null);
+  const [candidateEvaluationLoading, setCandidateEvaluationLoading] = useState(false);
 
   const toTitleCase = (value) => {
     if (!value || typeof value !== 'string') return value || '';
@@ -215,6 +217,7 @@ const FacultyDashboard = () => {
 
   const committeeInfo = location.state?.committeeInfo || JSON.parse(localStorage.getItem('committeeInfo') || '{}');
   const committeeCode = (committeeInfo.code || '').toLowerCase();
+  const isArchivedView = location.pathname.includes('/faculty-portal/archived');
 
   const fetchCandidates = async () => {
     try {
@@ -242,9 +245,9 @@ const FacultyDashboard = () => {
         }
       }
       
-      // Keep only candidates assigned to this committee for CV or interview stages
+      // Keep all candidates assigned to this committee (exclude deleted)
       const validCandidates = (data || []).filter(c =>
-        c.status === 'cv_assigned' || c.status === 'interview_assigned'
+        c.status !== 'deleted' && c.status !== 'Deleted'
       );
       
       setCandidates(validCandidates);
@@ -263,6 +266,12 @@ const FacultyDashboard = () => {
       setLoading(false);
     }
   }, [committeeCode]); // Re-fetch when committee changes
+
+  useEffect(() => {
+    if (isArchivedView) {
+      setSelectedStage('all');
+    }
+  }, [isArchivedView]);
 
   const handleViewDetails = async (candidate) => {
     console.log('Opening candidate details for ID:', candidate.id);
@@ -292,15 +301,44 @@ const FacultyDashboard = () => {
       
       console.log('Flattened candidate data:', flattened);
       setSelectedCandidate(flattened);
+      if (isArchivedStatus(candidate.status) || candidate.status === 'interview_completed') {
+        loadCandidateEvaluation(candidate.id);
+      }
     } catch (error) {
       console.error('Error fetching candidate details:', error);
       // Fallback to existing data if fetch fails
       setSelectedCandidate({ ...candidate, loading: false });
+      if (isArchivedStatus(candidate.status) || candidate.status === 'interview_completed') {
+        loadCandidateEvaluation(candidate.id);
+      }
     }
   };
 
   const closeModal = () => {
     setSelectedCandidate(null);
+    setCandidateEvaluation(null);
+    setCandidateEvaluationLoading(false);
+  };
+
+  const loadCandidateEvaluation = async (applicationId) => {
+    if (!applicationId) return;
+    try {
+      setCandidateEvaluationLoading(true);
+      const { data, error: evalErr } = await supabase
+        .from('faculty_evaluations')
+        .select('*')
+        .eq('application_id', applicationId)
+        .order('evaluated_at', { ascending: false })
+        .limit(1)
+        .single();
+      if (evalErr) throw evalErr;
+      setCandidateEvaluation(data);
+    } catch (err) {
+      console.error('Error loading evaluation:', err);
+      setCandidateEvaluation(null);
+    } finally {
+      setCandidateEvaluationLoading(false);
+    }
   };
 
   const handleEvaluate = (candidate) => {
@@ -392,8 +430,8 @@ const FacultyDashboard = () => {
       
       if (statusErr) throw statusErr;
 
-      // Remove from local state
-      setCandidates(prev => prev.filter(c => c.id !== evaluationCandidate.id));
+      // Update local state
+      setCandidates(prev => prev.map(c => c.id === evaluationCandidate.id ? { ...c, status: 'interview_completed' } : c));
       
       alert('Interview evaluation completed and sent to Admin.');
       closeEvaluationModal();
@@ -428,7 +466,7 @@ const FacultyDashboard = () => {
         closeModal();
       }
       
-      setCandidates(prev => prev.filter(c => c.id !== candidate.id));
+      setCandidates(prev => prev.map(c => c.id === candidate.id ? { ...c, status: nextStatus } : c));
       
       const successMessage = nextStatus === 'cv_rejected'
         ? 'Candidate rejected at CV stage.'
@@ -481,7 +519,14 @@ const FacultyDashboard = () => {
 
   const cvCandidates = candidates.filter((candidate) => candidate.status === 'cv_assigned');
   const interviewCandidates = candidates.filter((candidate) => candidate.status === 'interview_assigned');
-  const filteredCandidates = selectedStage === 'interview' ? interviewCandidates : cvCandidates;
+  const archivedCandidates = candidates.filter((candidate) => isArchivedStatus(candidate.status));
+  const allCandidates = candidates;
+  const filteredCandidates = selectedStage === 'all'
+    ? allCandidates
+    : selectedStage === 'interview'
+    ? interviewCandidates
+    : cvCandidates;
+  const visibleCandidates = isArchivedView ? archivedCandidates : filteredCandidates;
   const teachingAverage = getSectionAverage(evaluationScores.teaching);
   const researchAverage = getSectionAverage(evaluationScores.research);
   const generalAverage = getSectionAverage(evaluationScores.general);
@@ -578,6 +623,8 @@ const FacultyDashboard = () => {
     history: 'History',
     sociology: 'Sociology'
   };
+  const archivedStatusSet = new Set(['cv_rejected', 'final_rejected', 'final_shortlisted']);
+  const isArchivedStatus = (status) => archivedStatusSet.has((status || '').toLowerCase());
   const formatCandidateName = (candidate) => {
     if (!candidate) return '';
     const title = candidate.title ? `${toTitleCase(candidate.title)} ` : '';
@@ -591,41 +638,58 @@ const FacultyDashboard = () => {
         <div className="p-6 border-b border-gray-200 sticky top-0 bg-white z-10">
           <div className="flex justify-between items-center">
             <div>
-              <h2 className="text-2xl font-semibold text-gray-800">My Assigned Candidates</h2>
+              <h2 className="text-2xl font-semibold text-gray-800">
+                {isArchivedView ? 'Archived Applicants' : 'My Assigned Candidates'}
+              </h2>
               <p className="text-sm text-gray-600 mt-1">
-                {filteredCandidates.length} candidate{filteredCandidates.length !== 1 ? 's' : ''} in {selectedStage === 'interview' ? 'Interview Evaluation' : 'CV Review'}
+                {isArchivedView
+                  ? `${archivedCandidates.length} candidate${archivedCandidates.length !== 1 ? 's' : ''} archived`
+                  : `${filteredCandidates.length} candidate${filteredCandidates.length !== 1 ? 's' : ''} in ${selectedStage === 'interview' ? 'Interview Evaluation' : selectedStage === 'all' ? 'All' : 'CV Review'}`}
               </p>
             </div>
           </div>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => setSelectedStage('cv')}
-              className={`px-3 py-1.5 rounded-full text-sm font-semibold transition-colors ${
-                selectedStage === 'cv'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              CV Review ({cvCandidates.length})
-            </button>
-            <button
-              type="button"
-              onClick={() => setSelectedStage('interview')}
-              className={`px-3 py-1.5 rounded-full text-sm font-semibold transition-colors ${
-                selectedStage === 'interview'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Interview Evaluation ({interviewCandidates.length})
-            </button>
-          </div>
+          {!isArchivedView && (
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setSelectedStage('all')}
+                className={`px-3 py-1.5 rounded-full text-sm font-semibold transition-colors ${
+                  selectedStage === 'all'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                All ({allCandidates.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedStage('cv')}
+                className={`px-3 py-1.5 rounded-full text-sm font-semibold transition-colors ${
+                  selectedStage === 'cv'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                CV Review ({cvCandidates.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedStage('interview')}
+                className={`px-3 py-1.5 rounded-full text-sm font-semibold transition-colors ${
+                  selectedStage === 'interview'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                Interview Evaluation ({interviewCandidates.length})
+              </button>
+            </div>
+          )}
         </div>
         
         <div className="divide-y divide-gray-200">
-          {filteredCandidates.length > 0 ? (
-            filteredCandidates.map((candidate, index) => (
+          {visibleCandidates.length > 0 ? (
+            visibleCandidates.map((candidate, index) => (
               <div key={candidate.id} className="p-6 hover:bg-gray-50 transition-colors">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-4">
@@ -659,7 +723,7 @@ const FacultyDashboard = () => {
                     >
                       View Details
                     </button>
-                    {candidate.status === 'cv_assigned' && (
+                    {!isArchivedView && candidate.status === 'cv_assigned' && (
                       <>
                         <button
                           onClick={() => updateCvStatus(candidate, 'cv_shortlisted')}
@@ -677,7 +741,7 @@ const FacultyDashboard = () => {
                         </button>
                       </>
                     )}
-                    {candidate.status === 'interview_assigned' && (
+                    {!isArchivedView && candidate.status === 'interview_assigned' && (
                       <button
                         onClick={() => handleEvaluate(candidate)}
                         disabled={updatingStatus}
@@ -697,8 +761,14 @@ const FacultyDashboard = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">No Assigned Candidates</h3>
-              <p className="text-gray-600">You don't have any candidates assigned to review yet.</p>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">
+                {isArchivedView ? 'No Archived Applicants' : 'No Assigned Candidates'}
+              </h3>
+              <p className="text-gray-600">
+                {isArchivedView
+                  ? 'No rejected or accepted candidates yet.'
+                  : 'You don\'t have any candidates assigned to review yet.'}
+              </p>
             </div>
           )}
         </div>
@@ -1089,6 +1159,40 @@ const FacultyDashboard = () => {
                       )}
                     </div>
                   </div>
+
+                  {(isArchivedStatus(selectedCandidate.status) || selectedCandidate.status === 'interview_completed') && (
+                    <div className="bg-white border rounded-lg p-4 shadow-sm">
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-sm font-bold text-gray-900">Interview Evaluation</h3>
+                        <button
+                          onClick={() => loadCandidateEvaluation(selectedCandidate.id)}
+                          disabled={candidateEvaluationLoading}
+                          className="text-xs px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300"
+                        >
+                          {candidateEvaluationLoading ? 'Loading...' : 'Refresh'}
+                        </button>
+                      </div>
+                      {candidateEvaluation ? (
+                        <div className="space-y-2 text-sm text-gray-700">
+                          <p><span className="font-semibold">Faculty:</span> {candidateEvaluation.faculty_name || 'N/A'}</p>
+                          <p><span className="font-semibold">Teaching:</span> {candidateEvaluation.teaching_competence}/10</p>
+                          <p><span className="font-semibold">Research:</span> {candidateEvaluation.research_potential}/10</p>
+                          <p><span className="font-semibold">Industry:</span> {candidateEvaluation.industry_experience}/10</p>
+                          <p><span className="font-semibold">Communication:</span> {candidateEvaluation.communication_skills}/10</p>
+                          <p><span className="font-semibold">Subject Knowledge:</span> {candidateEvaluation.subject_knowledge}/10</p>
+                          <p><span className="font-semibold">Overall:</span> {candidateEvaluation.overall_suitability}/10</p>
+                          {candidateEvaluation.remarks && (
+                            <div>
+                              <p className="font-semibold">Remarks</p>
+                              <p className="text-xs text-gray-600 whitespace-pre-wrap">{candidateEvaluation.remarks}</p>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gray-500">No evaluation found.</p>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
               )}
