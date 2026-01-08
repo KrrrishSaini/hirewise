@@ -16,6 +16,7 @@ const PIPELINE_STAGES = [
   { key: 'cv_shortlisted', label: 'CV Shortlisted' },
   { key: 'interview_assigned', label: 'Interview Assigned' },
   { key: 'interview_completed', label: 'Interview Completed' },
+  { key: 'accepted', label: 'Accepted' },
   { key: 'rejected', label: 'Rejected' },
   { key: 'all', label: 'All' }
 ];
@@ -115,6 +116,8 @@ const AllCandidates = () => {
         return normalizedStatus === 'interview_assigned';
       case 'interview_completed':
         return normalizedStatus === 'interview_completed' || normalizedStatus === 'final_shortlisted' || normalizedStatus === 'final_rejected';
+      case 'accepted':
+        return normalizedStatus === 'final_shortlisted';
       case 'rejected':
         return normalizedStatus === 'cv_rejected' || normalizedStatus === 'final_rejected';
       case 'all':
