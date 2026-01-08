@@ -77,6 +77,24 @@ const AllCandidates = () => {
     return remarks.slice(idx + marker.length).trim();
   };
 
+  const parseEvaluationAverages = (remarks) => {
+    if (!remarks || typeof remarks !== 'string') {
+      return { teaching: null, research: null, general: null, total: null };
+    }
+    const avgMatch = (label) => {
+      const re = new RegExp(`Average \\(${label}\\):\\s*([0-9]+(?:\\.[0-9]+)?)`, 'i');
+      const match = remarks.match(re);
+      return match ? Number(match[1]) : null;
+    };
+    const totalMatch = remarks.match(/Total Score \\(I \\+ II \\+ III\\):\\s*([0-9]+(?:\\.[0-9]+)?)/i);
+    return {
+      teaching: avgMatch('I'),
+      research: avgMatch('II'),
+      general: avgMatch('III'),
+      total: totalMatch ? Number(totalMatch[1]) : null
+    };
+  };
+
   const matchesStage = (candidate, stage) => {
     const rawStatus = (candidate.status || '').toString().trim().toLowerCase();
     const normalizedStatus = rawStatus === '' || rawStatus === 'pending' || rawStatus === 'new' || rawStatus === 'in_review'
@@ -945,17 +963,29 @@ const AllCandidates = () => {
                       </div>
                       {evaluationData ? (
                         <div className="space-y-3 text-sm text-gray-700">
-                          <p><span className="font-semibold">Evaluation Committee:</span> {evaluationData.faculty_name || 'N/A'}</p>
-                          <p><span className="font-semibold">I. Teaching:</span> {evaluationData.teaching_competence ?? 'N/A'}/10</p>
-                          <p><span className="font-semibold">II. Research:</span> {evaluationData.research_potential ?? 'N/A'}/10</p>
-                          <p><span className="font-semibold">III. General: Culture Alignment:</span> {evaluationData.industry_experience ?? 'N/A'}/10</p>
-                          <p><span className="font-semibold">Combined Score:</span> {evaluationData.overall_suitability ?? 'N/A'}/10</p>
-                          <div>
-                            <p className="font-semibold">Remarks</p>
-                            <p className="text-xs text-gray-600 whitespace-pre-wrap">
-                              {extractEvaluationComments(evaluationData.remarks) || 'No additional comments.'}
-                            </p>
-                          </div>
+                          {(() => {
+                            const parsed = parseEvaluationAverages(evaluationData.remarks);
+                            const teaching = parsed.teaching ?? (typeof evaluationData.teaching_competence === 'number' ? evaluationData.teaching_competence / 2 : null);
+                            const research = parsed.research ?? (typeof evaluationData.research_potential === 'number' ? evaluationData.research_potential / 2 : null);
+                            const general = parsed.general ?? (typeof evaluationData.industry_experience === 'number' ? evaluationData.industry_experience / 2 : null);
+                            const total = parsed.total ?? (teaching !== null && research !== null && general !== null ? teaching + research + general : null);
+                            const formatScore = (value) => (value === null ? 'N/A' : value.toFixed(2));
+                            return (
+                              <>
+                                <p><span className="font-semibold">Evaluation Committee:</span> {evaluationData.faculty_name || 'N/A'}</p>
+                                <p><span className="font-semibold">I. Teaching:</span> {formatScore(teaching)}/5</p>
+                                <p><span className="font-semibold">II. Research:</span> {formatScore(research)}/5</p>
+                                <p><span className="font-semibold">III. General: Culture Alignment:</span> {formatScore(general)}/5</p>
+                                <p><span className="font-semibold">Combined Score:</span> {formatScore(total)}/15</p>
+                                <div>
+                                  <p className="font-semibold">Remarks</p>
+                                  <p className="text-xs text-gray-600 whitespace-pre-wrap">
+                                    {extractEvaluationComments(evaluationData.remarks) || 'No additional comments.'}
+                                  </p>
+                                </div>
+                              </>
+                            );
+                          })()}
                         </div>
                       ) : (
                         <p className="text-xs text-gray-500">No evaluation loaded.</p>
