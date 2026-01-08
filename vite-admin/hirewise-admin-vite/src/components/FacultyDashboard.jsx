@@ -11,8 +11,8 @@ const FacultyDashboard = () => {
   const [evaluationCandidate, setEvaluationCandidate] = useState(null);
   const [evaluationScores, setEvaluationScores] = useState({});
   const [evaluationErrors, setEvaluationErrors] = useState({});
-  const [pendingAction, setPendingAction] = useState(null); // 'shortlist' or 'reject'
   const [evaluationPhase, setEvaluationPhase] = useState(1);
+  const [selectedStage, setSelectedStage] = useState('cv');
   const [candidates, setCandidates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -242,12 +242,9 @@ const FacultyDashboard = () => {
         }
       }
       
-      // Filter out rejected/shortlisted/deleted candidates
-      const validCandidates = (data || []).filter(c => 
-        c.status !== 'rejected' && 
-        c.status !== 'deleted' && 
-        c.status !== 'Deleted' &&
-        c.status !== 'shortlisted'
+      // Keep only candidates assigned to this committee for CV or interview stages
+      const validCandidates = (data || []).filter(c =>
+        c.status === 'cv_assigned' || c.status === 'interview_assigned'
       );
       
       setCandidates(validCandidates);
@@ -306,8 +303,7 @@ const FacultyDashboard = () => {
     setSelectedCandidate(null);
   };
 
-  const handleEvaluate = (candidate, action) => {
-    setPendingAction(action); // 'shortlist' or 'reject'
+  const handleEvaluate = (candidate) => {
     setEvaluationCandidate(candidate);
     setEvaluationScores(buildInitialScores());
     setEvaluationErrors(buildInitialErrors());
@@ -318,7 +314,6 @@ const FacultyDashboard = () => {
     setEvaluationCandidate(null);
     setEvaluationScores({});
     setEvaluationErrors({});
-    setPendingAction(null);
     setEvaluationPhase(1);
   };
 
@@ -390,26 +385,17 @@ const FacultyDashboard = () => {
       
       if (evalErr) throw evalErr;
       
-      // Now update the status based on pending action
-      if (pendingAction) {
-        const { error: statusErr } = await supabase
-          .from('faculty_applications')
-          .update({ status: pendingAction === 'shortlist' ? 'shortlisted' : 'rejected' })
-          .eq('id', evaluationCandidate.id);
-        
-        if (statusErr) throw statusErr;
+      const { error: statusErr } = await supabase
+        .from('faculty_applications')
+        .update({ status: 'interview_completed' })
+        .eq('id', evaluationCandidate.id);
+      
+      if (statusErr) throw statusErr;
 
-        // Remove from local state
-        setCandidates(prev => prev.filter(c => c.id !== evaluationCandidate.id));
-      }
+      // Remove from local state
+      setCandidates(prev => prev.filter(c => c.id !== evaluationCandidate.id));
       
-      const actionMessage = pendingAction === 'shortlist' 
-        ? 'Evaluation completed and sent to Admin/HR for further communication.'
-        : pendingAction === 'reject'
-        ? 'Evaluation completed and candidate rejected.'
-        : 'Evaluation completed and sent to Admin/HR.';
-      
-      alert(actionMessage);
+      alert('Interview evaluation completed and sent to Admin.');
       closeEvaluationModal();
     } catch (error) {
       console.error('Error submitting evaluation:', error);
@@ -419,13 +405,13 @@ const FacultyDashboard = () => {
     }
   };
 
-  // Update application status: 'shortlisted' or 'rejected'
-  const updateApplicationStatus = async (nextStatus) => {
-    if (!selectedCandidate?.id) return;
+  // CV screening decisions
+  const updateCvStatus = async (candidate, nextStatus) => {
+    if (!candidate?.id) return;
     
-    const confirmMessage = nextStatus === 'rejected' 
-      ? 'Are you sure you want to reject this candidate? This will permanently remove them from all lists.'
-      : 'Are you sure you want to shortlist this candidate? They will be moved to the shortlisted stage.';
+    const confirmMessage = nextStatus === 'cv_rejected'
+      ? 'Reject this candidate based on CV review?'
+      : 'Shortlist this candidate for interview?';
     
     if (!confirm(confirmMessage)) return;
     
@@ -434,18 +420,19 @@ const FacultyDashboard = () => {
       const { error: updErr } = await supabase
         .from('faculty_applications')
         .update({ status: nextStatus })
-        .eq('id', selectedCandidate.id);
+        .eq('id', candidate.id);
       if (updErr) throw updErr;
 
-      // Close modal first
-      closeModal();
+      // Close modal if open and remove from list
+      if (selectedCandidate?.id === candidate.id) {
+        closeModal();
+      }
       
-      // Remove from local state - both rejected and shortlisted are removed from active review
-      setCandidates(prev => prev.filter(c => c.id !== selectedCandidate.id));
+      setCandidates(prev => prev.filter(c => c.id !== candidate.id));
       
-      const successMessage = nextStatus === 'rejected'
-        ? 'Candidate rejected and removed from all lists.'
-        : 'Candidate shortlisted and moved to next stage!';
+      const successMessage = nextStatus === 'cv_rejected'
+        ? 'Candidate rejected at CV stage.'
+        : 'Candidate shortlisted and sent to Admin for interview assignment.';
       
       alert(successMessage);
       
@@ -492,7 +479,9 @@ const FacultyDashboard = () => {
     }
   };
 
-  const filteredCandidates = candidates;
+  const cvCandidates = candidates.filter((candidate) => candidate.status === 'cv_assigned');
+  const interviewCandidates = candidates.filter((candidate) => candidate.status === 'interview_assigned');
+  const filteredCandidates = selectedStage === 'interview' ? interviewCandidates : cvCandidates;
   const teachingAverage = getSectionAverage(evaluationScores.teaching);
   const researchAverage = getSectionAverage(evaluationScores.research);
   const generalAverage = getSectionAverage(evaluationScores.general);
@@ -604,9 +593,33 @@ const FacultyDashboard = () => {
             <div>
               <h2 className="text-2xl font-semibold text-gray-800">My Assigned Candidates</h2>
               <p className="text-sm text-gray-600 mt-1">
-                {filteredCandidates.length} candidate{filteredCandidates.length !== 1 ? 's' : ''} assigned for review
+                {filteredCandidates.length} candidate{filteredCandidates.length !== 1 ? 's' : ''} in {selectedStage === 'interview' ? 'Interview Evaluation' : 'CV Review'}
               </p>
             </div>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setSelectedStage('cv')}
+              className={`px-3 py-1.5 rounded-full text-sm font-semibold transition-colors ${
+                selectedStage === 'cv'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              CV Review ({cvCandidates.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedStage('interview')}
+              className={`px-3 py-1.5 rounded-full text-sm font-semibold transition-colors ${
+                selectedStage === 'interview'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Interview Evaluation ({interviewCandidates.length})
+            </button>
           </div>
         </div>
         
@@ -646,6 +659,33 @@ const FacultyDashboard = () => {
                     >
                       View Details
                     </button>
+                    {candidate.status === 'cv_assigned' && (
+                      <>
+                        <button
+                          onClick={() => updateCvStatus(candidate, 'cv_shortlisted')}
+                          disabled={updatingStatus}
+                          className="bg-green-600 hover:bg-green-700 text-white px-5 py-3 rounded-lg transition-colors font-medium shadow-md hover:shadow-lg disabled:bg-gray-300 disabled:cursor-not-allowed"
+                        >
+                          Shortlist
+                        </button>
+                        <button
+                          onClick={() => updateCvStatus(candidate, 'cv_rejected')}
+                          disabled={updatingStatus}
+                          className="bg-red-600 hover:bg-red-700 text-white px-5 py-3 rounded-lg transition-colors font-medium shadow-md hover:shadow-lg disabled:bg-gray-300 disabled:cursor-not-allowed"
+                        >
+                          Reject
+                        </button>
+                      </>
+                    )}
+                    {candidate.status === 'interview_assigned' && (
+                      <button
+                        onClick={() => handleEvaluate(candidate)}
+                        disabled={updatingStatus}
+                        className="bg-green-600 hover:bg-green-700 text-white px-5 py-3 rounded-lg transition-colors font-medium shadow-md hover:shadow-lg disabled:bg-gray-300 disabled:cursor-not-allowed"
+                      >
+                        Evaluate
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1005,33 +1045,48 @@ const FacultyDashboard = () => {
                     <div className="space-y-3">
                       <div className="flex items-center space-x-2">
                         <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                          selectedCandidate.status === 'shortlisted' ? 'bg-green-100 text-green-700' :
-                          selectedCandidate.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                          selectedCandidate.status === 'cv_shortlisted' ? 'bg-green-100 text-green-700' :
+                          selectedCandidate.status === 'cv_rejected' ? 'bg-red-100 text-red-700' :
+                          selectedCandidate.status === 'interview_assigned' ? 'bg-blue-100 text-blue-700' :
                           'bg-gray-100 text-gray-700'
                         }`}>
-                          {selectedCandidate.status === 'shortlisted' ? 'Shortlisted' :
-                           selectedCandidate.status === 'rejected' ? 'Rejected' :
-                           'Pending'}
+                          {selectedCandidate.status === 'cv_shortlisted' ? 'CV Shortlisted' :
+                           selectedCandidate.status === 'cv_rejected' ? 'CV Rejected' :
+                           selectedCandidate.status === 'interview_assigned' ? 'Interview Assigned' :
+                           'CV Assigned'}
                         </span>
                       </div>
                       
-                      {/* Action Buttons */}
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleEvaluate(selectedCandidate, 'shortlist')}
-                          disabled={updatingStatus || selectedCandidate.status === 'shortlisted'}
-                          className="flex-1 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium text-sm"
-                        >
-                          Shortlist
-                        </button>
-                        <button
-                          onClick={() => handleEvaluate(selectedCandidate, 'reject')}
-                          disabled={updatingStatus || selectedCandidate.status === 'rejected'}
-                          className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium text-sm"
-                        >
-                          Reject
-                        </button>
-                      </div>
+                      {selectedCandidate.status === 'cv_assigned' && (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => updateCvStatus(selectedCandidate, 'cv_shortlisted')}
+                            disabled={updatingStatus}
+                            className="flex-1 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium text-sm"
+                          >
+                            Shortlist for Interview
+                          </button>
+                          <button
+                            onClick={() => updateCvStatus(selectedCandidate, 'cv_rejected')}
+                            disabled={updatingStatus}
+                            className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium text-sm"
+                          >
+                            Reject CV
+                          </button>
+                        </div>
+                      )}
+
+                      {selectedCandidate.status === 'interview_assigned' && (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleEvaluate(selectedCandidate)}
+                            disabled={updatingStatus}
+                            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium text-sm"
+                          >
+                            Start Interview Evaluation
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1057,12 +1112,12 @@ const FacultyDashboard = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[95vh] overflow-y-auto">
             {/* Header */}
-            <div className={`flex items-center justify-between p-6 border-b ${pendingAction === 'shortlist' ? 'bg-gradient-to-r from-green-50 to-emerald-50' : 'bg-gradient-to-r from-red-50 to-rose-50'}`}>
+            <div className="flex items-center justify-between p-6 border-b bg-gradient-to-r from-blue-50 to-indigo-50">
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">
-                  {pendingAction === 'shortlist' ? 'Shortlist' : 'Reject'} Candidate - Evaluation Required
+                  Interview Evaluation Required
                 </h2>
-                <p className="text-sm text-gray-600 mt-1">Please evaluate the candidate before {pendingAction === 'shortlist' ? 'shortlisting' : 'rejecting'}</p>
+                <p className="text-sm text-gray-600 mt-1">Please complete the interview evaluation to send scores to Admin.</p>
               </div>
               <button
                 onClick={closeEvaluationModal}

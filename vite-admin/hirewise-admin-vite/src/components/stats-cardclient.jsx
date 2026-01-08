@@ -46,7 +46,7 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
 
         // Calculate counts from the single query result
         const shortlisted = data?.filter(app => app.status === 'shortlisted').length || 0;
-        const rejected = data?.filter(app => app.status === 'rejected').length || 0;
+        const rejected = data?.filter(app => app.status === 'rejected' || app.status === 'cv_rejected').length || 0;
 
         setStats({
           total: count || 0,
@@ -81,8 +81,12 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
         query = query.not('position', 'ilike', '%professor%').neq('position', 'teaching');
       }
 
-      if (kind === 'shortlisted' || kind === 'rejected') {
-        query = query.eq('status', kind)
+      if (kind === 'shortlisted') {
+        query = query.eq('status', 'shortlisted')
+      }
+
+      if (kind === 'rejected') {
+        query = query.in('status', ['rejected', 'cv_rejected'])
       }
 
       const { data, error: selErr } = await query
@@ -350,11 +354,12 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
                         <td className="px-4 py-2 text-xs">
                           <span className={`inline-flex px-2 py-0.5 rounded-full font-medium ${
                             a.status === 'shortlisted' ? 'bg-green-100 text-green-700' :
-                            a.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                            a.status === 'rejected' || a.status === 'cv_rejected' ? 'bg-red-100 text-red-700' :
                             'bg-gray-100 text-gray-700'
                           }`}>
                             {a.status === 'shortlisted' ? 'shortlisted' :
                              a.status === 'rejected' ? 'rejected' :
+                             a.status === 'cv_rejected' ? 'cv rejected' :
                              'pending'}
                           </span>
                         </td>

@@ -3,9 +3,27 @@ import { supabase } from '../../lib/supabase-client';
 import { candidatesApi } from '../lib/api';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
+const COMMITTEES = [
+  { code: 'soet', name: 'SOET Committee' },
+  { code: 'sol', name: 'SOL Committee' },
+  { code: 'som', name: 'SOM Committee' },
+  { code: 'sols', name: 'SOLS Committee' }
+];
+
+const PIPELINE_STAGES = [
+  { key: 'new', label: 'New Applications' },
+  { key: 'cv_assigned', label: 'CV Review' },
+  { key: 'cv_shortlisted', label: 'CV Shortlisted' },
+  { key: 'interview_assigned', label: 'Interview Assigned' },
+  { key: 'interview_completed', label: 'Interview Completed' },
+  { key: 'rejected', label: 'Rejected' },
+  { key: 'all', label: 'All' }
+];
+
 const AllCandidates = () => {
   const [selectedCandidate, setSelectedCandidate] = useState(null);
   const [selectedDepartment, setSelectedDepartment] = useState('All');
+  const [selectedStage, setSelectedStage] = useState('new');
   const [candidates, setCandidates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -13,45 +31,64 @@ const AllCandidates = () => {
   const [uploading, setUploading] = useState(false);
   const [files, setFiles] = useState({});
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [evaluationData, setEvaluationData] = useState(null);
+  const [evaluationLoading, setEvaluationLoading] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [candidateToAssign, setCandidateToAssign] = useState(null);
-  const [selectedFaculty, setSelectedFaculty] = useState(null);
-  const [facultyMembers, setFacultyMembers] = useState([]);
-  const [assignments, setAssignments] = useState({});
+  const [assignType, setAssignType] = useState('cv');
+  const [selectedCommittee, setSelectedCommittee] = useState('');
 
   const departments = ['All', 'law', 'liberal', 'engineering', 'management'];
-  
-  // Load faculty members from CSV
-  useEffect(() => {
-    const loadFacultyMembers = async () => {
-      try {
-        const response = await fetch('/faculty-members.csv');
-        const text = await response.text();
-        const lines = text.trim().split('\n');
-        const headers = lines[0].split(',');
-        
-        const faculty = lines.slice(1).map(line => {
-          const values = line.split(',');
-          return {
-            id: parseInt(values[0]),
-            name: values[1],
-            email: values[2]
-          };
-        });
-        
-        setFacultyMembers(faculty);
-      } catch (error) {
-        console.error('Error loading faculty members:', error);
-        // Fallback to default
-        setFacultyMembers([
-          { id: 1, name: 'Dr. Kiran Sharma', email: 'kiran.sharma@bmu.edu.in' },
-          { id: 2, name: 'Dr. Ziya Uddin', email: 'ziya.uddin@bmu.edu.in' }
-        ]);
-      }
-    };
-    
-    loadFacultyMembers();
-  }, []);
+  const branchLabels = {
+    cse: 'Computer Science & Engineering',
+    mech: 'Mechanical Engineering',
+    ece: 'Electronics and Communication Engineering',
+    criminal: 'Criminal Law',
+    corporate: 'Corporate Law',
+    civil: 'Civil Law',
+    finance: 'Finance',
+    marketing: 'Marketing',
+    hr: 'Human Resources',
+    english: 'English',
+    history: 'History',
+    sociology: 'Sociology'
+  };
+
+  const toTitleCase = (value) => {
+    if (!value || typeof value !== 'string') return value || '';
+    return value
+      .split(/\s+/)
+      .map((w) => (w ? w.charAt(0).toUpperCase() + w.slice(1) : ''))
+      .join(' ');
+  };
+
+  const formatCandidateName = (candidate) => {
+    if (!candidate) return '';
+    const title = candidate.title ? `${toTitleCase(candidate.title)} ` : '';
+    const middle = candidate.middle_name ? `${toTitleCase(candidate.middle_name)} ` : '';
+    return `${title}${toTitleCase(candidate.first_name)} ${middle}${toTitleCase(candidate.last_name)}`.trim();
+  };
+
+  const matchesStage = (candidate, stage) => {
+    const status = candidate.status || 'submitted';
+    switch (stage) {
+      case 'new':
+        return status === 'submitted';
+      case 'cv_assigned':
+        return status === 'cv_assigned';
+      case 'cv_shortlisted':
+        return status === 'cv_shortlisted';
+      case 'interview_assigned':
+        return status === 'interview_assigned';
+      case 'interview_completed':
+        return status === 'interview_completed' || status === 'shortlisted';
+      case 'rejected':
+        return status === 'cv_rejected' || status === 'rejected';
+      case 'all':
+      default:
+        return true;
+    }
+  };
 
   const fetchCandidates = async () => {
     try {
@@ -71,22 +108,11 @@ const AllCandidates = () => {
       
       if (error) throw error;
       
-      // Filter out rejected, deleted, and shortlisted candidates in JavaScript
+      // Keep all active candidates (exclude deleted only)
       const filteredData = (data || []).filter(candidate => 
-        candidate.status !== 'rejected' && 
         candidate.status !== 'deleted' &&
-        candidate.status !== 'Deleted' &&
-        candidate.status !== 'shortlisted'
+        candidate.status !== 'Deleted'
       );
-      
-      // Build assignments object from database data
-      const assignmentsFromDB = {};
-      filteredData.forEach(candidate => {
-        if (candidate.assigned_faculty_id) {
-          assignmentsFromDB[candidate.id] = [candidate.assigned_faculty_id];
-        }
-      });
-      setAssignments(assignmentsFromDB);
       
       console.log('Fetched candidates:', data?.length, 'total, filtered to:', filteredData.length);
       console.log('All statuses in DB:', [...new Set(data?.map(c => c.status))]);
@@ -144,6 +170,30 @@ const AllCandidates = () => {
     setSelectedCandidate(null);
     setShowUpload(false);
     setFiles({});
+    setEvaluationData(null);
+    setEvaluationLoading(false);
+  };
+
+  const loadEvaluation = async (applicationId) => {
+    if (!applicationId) return;
+    try {
+      setEvaluationLoading(true);
+      const { data, error: evalErr } = await supabase
+        .from('faculty_evaluations')
+        .select('*')
+        .eq('application_id', applicationId)
+        .order('evaluated_at', { ascending: false })
+        .limit(1)
+        .single();
+      if (evalErr) throw evalErr;
+      setEvaluationData(data);
+    } catch (err) {
+      console.error('Error loading evaluation:', err);
+      alert('No evaluation found yet.');
+      setEvaluationData(null);
+    } finally {
+      setEvaluationLoading(false);
+    }
   };
   const onFileChange = (e, key) => {
     const f = e.target.files?.[0];
@@ -181,7 +231,7 @@ const AllCandidates = () => {
     }
   };
 
-  // Update application status: 'shortlisted' (Approve) or 'rejected' (Reject)
+  // Update application status: final decision (shortlisted or rejected)
   const updateApplicationStatus = async (nextStatus) => {
     if (!selectedCandidate?.id) return;
     try {
@@ -194,17 +244,8 @@ const AllCandidates = () => {
 
       // Close modal first
       closeModal();
-      
-      // Immediately remove from local state if rejected, deleted, or shortlisted
-      if (nextStatus === 'rejected' || nextStatus === 'deleted' || nextStatus === 'shortlisted') {
-        setCandidates(prev => prev.filter(c => c.id !== selectedCandidate.id));
-        alert(`Application ${nextStatus} and removed from list.`);
-      }
-      
-      // Force a full refetch to ensure sync
-      setTimeout(() => {
-        fetchCandidates();
-      }, 500);
+      alert(`Application marked as ${nextStatus}.`);
+      fetchCandidates();
     } catch (e) {
       console.error('Status update failed:', e);
       alert(e.message || 'Failed to update status');
@@ -213,9 +254,10 @@ const AllCandidates = () => {
     }
   };
 
-  const filteredCandidates = selectedDepartment === 'All' 
+  const departmentFiltered = selectedDepartment === 'All' 
     ? candidates 
     : candidates.filter(candidate => candidate.department === selectedDepartment);
+  const filteredCandidates = departmentFiltered.filter(candidate => matchesStage(candidate, selectedStage));
 
   if (loading) {
     return (
@@ -244,7 +286,7 @@ const AllCandidates = () => {
         <div className="p-6 border-b border-gray-200 sticky top-0 bg-white z-10">
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-semibold text-gray-800">All Candidates</h2>
-            <div className="flex space-x-2">
+            <div className="flex flex-wrap gap-2">
               {departments.map(dept => (
                 <button
                   key={dept}
@@ -259,6 +301,21 @@ const AllCandidates = () => {
                 </button>
               ))}
             </div>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {PIPELINE_STAGES.map((stage) => (
+              <button
+                key={stage.key}
+                onClick={() => setSelectedStage(stage.key)}
+                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                  selectedStage === stage.key
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {stage.label}
+              </button>
+            ))}
           </div>
         </div>
         
@@ -276,17 +333,20 @@ const AllCandidates = () => {
                     <div className="flex-1">
                       <div className="mb-1">
                         <h3 className="text-base font-semibold text-gray-900">
-                          {candidate.first_name} {candidate.last_name}
+                          {formatCandidateName(candidate)}
                         </h3>
                         <span className="text-xs font-medium text-blue-600 bg-blue-100 px-2 py-1 rounded-full">
-                          {candidate.department}
+                          {toTitleCase(candidate.department)}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-600 mb-1">{candidate.position}</p>
+                      <p className="text-sm text-gray-600 mb-1">
+                        {branchLabels[(candidate.branch || candidate.department || '').toLowerCase()]
+                          || toTitleCase(candidate.branch || candidate.department || '')}
+                      </p>
                       <p className="text-sm text-gray-500">{candidate.email}</p>
                       <div className="flex items-center space-x-4 mt-1">
                         <span className="text-sm text-gray-600">{candidate.experience}</span>
-                        <span className="text-sm text-gray-600">{candidate.publications} publications</span>
+                        <span className="text-sm text-gray-600">{toTitleCase(candidate.position)}</span>
                       </div>
                     </div>
                   </div>
@@ -297,23 +357,38 @@ const AllCandidates = () => {
                     >
                       View Details
                     </button>
-                    {assignments[candidate.id] ? (
+                    {(candidate.status || 'submitted') === 'submitted' && (
+                      <button
+                        onClick={() => {
+                          setCandidateToAssign(candidate);
+                          setAssignType('cv');
+                          setShowAssignModal(true);
+                          setSelectedCommittee(candidate.assigned_committee_code || '');
+                        }}
+                        className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors text-sm"
+                      >
+                        Assign Committee
+                      </button>
+                    )}
+                    {(candidate.status || 'submitted') === 'cv_shortlisted' && (
+                      <button
+                        onClick={() => {
+                          setCandidateToAssign(candidate);
+                          setAssignType('interview');
+                          setShowAssignModal(true);
+                          setSelectedCommittee(candidate.assigned_committee_code || '');
+                        }}
+                        className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors text-sm"
+                      >
+                        Assign Interview
+                      </button>
+                    )}
+                    {['cv_assigned', 'interview_assigned'].includes(candidate.status) && (
                       <button
                         disabled
                         className="bg-gray-400 text-white px-4 py-2 rounded-lg cursor-not-allowed text-sm"
                       >
                         Assigned
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => {
-                          setCandidateToAssign(candidate);
-                          setShowAssignModal(true);
-                          setSelectedFaculty(null);
-                        }}
-                        className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors text-sm"
-                      >
-                        Assign Faculty
                       </button>
                     )}
                   </div>
@@ -332,12 +407,14 @@ const AllCandidates = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-gray-900">Assign Faculty</h3>
+              <h3 className="text-xl font-bold text-gray-900">
+                {assignType === 'interview' ? 'Assign Interview Committee' : 'Assign Committee for CV Review'}
+              </h3>
               <button
                 onClick={() => {
                   setShowAssignModal(false);
                   setCandidateToAssign(null);
-                  setSelectedFaculty(null);
+                  setSelectedCommittee('');
                 }}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
               >
@@ -349,83 +426,69 @@ const AllCandidates = () => {
             
             <div className="mb-4">
               <p className="text-sm text-gray-600 mb-2">
-                Assigning faculty to review: <span className="font-semibold">{candidateToAssign.first_name} {candidateToAssign.last_name}</span>
+                Assigning committee for: <span className="font-semibold">{formatCandidateName(candidateToAssign)}</span>
               </p>
             </div>
 
             <div className="space-y-3 mb-6">
-              <p className="text-sm font-medium text-gray-700">Select Faculty Member:</p>
-              {facultyMembers.map((faculty) => (
-                <label
-                  key={faculty.id}
-                  className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
-                >
-                  <input
-                    type="radio"
-                    name="faculty"
-                    checked={selectedFaculty === faculty.id}
-                    onChange={() => setSelectedFaculty(faculty.id)}
-                    className="w-4 h-4 text-blue-600 focus:ring-blue-500"
-                  />
-                  <div className="ml-3">
-                    <p className="text-sm font-medium text-gray-900">{faculty.name}</p>
-                    <p className="text-xs text-gray-500">{faculty.email}</p>
-                  </div>
-                </label>
-              ))}
+              <p className="text-sm font-medium text-gray-700">Select Committee:</p>
+              <select
+                value={selectedCommittee}
+                onChange={(e) => setSelectedCommittee(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">Choose committee</option>
+                {COMMITTEES.map((committee) => (
+                  <option key={committee.code} value={committee.code}>
+                    {committee.name}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="flex space-x-3">
               <button
                 onClick={async () => {
-                  if (selectedFaculty) {
-                    const selectedFacultyName = facultyMembers.find(f => f.id === selectedFaculty)?.name;
-                    const selectedFacultyEmail = facultyMembers.find(f => f.id === selectedFaculty)?.email;
+                  if (selectedCommittee) {
+                    const selectedCommitteeName = COMMITTEES.find(c => c.code === selectedCommittee)?.name;
+                    const nextStatus = assignType === 'interview' ? 'interview_assigned' : 'cv_assigned';
                     
                     try {
                       // Save assignment to Supabase database
                       const { error } = await supabase
                         .from('faculty_applications')
                         .update({ 
-                          assigned_faculty_id: selectedFaculty,
-                          assigned_faculty_name: selectedFacultyName,
-                          assigned_faculty_email: selectedFacultyEmail
+                          assigned_committee_code: selectedCommittee,
+                          status: nextStatus
                         })
                         .eq('id', candidateToAssign.id);
                       
                       if (error) throw error;
                       
-                      // Update local state
-                      const newAssignments = {
-                        ...assignments,
-                        [candidateToAssign.id]: [selectedFaculty]
-                      };
-                      setAssignments(newAssignments);
-                      
-                      alert(`Assigned ${candidateToAssign.first_name} ${candidateToAssign.last_name} to: ${selectedFacultyName}`);
+                      alert(`Assigned ${formatCandidateName(candidateToAssign)} to: ${selectedCommitteeName || selectedCommittee}`);
                       setShowAssignModal(false);
                       setCandidateToAssign(null);
-                      setSelectedFaculty(null);
+                      setSelectedCommittee('');
                       
                       // Refresh candidates list
                       fetchCandidates();
                     } catch (error) {
-                      console.error('Error assigning faculty:', error);
-                      alert('Failed to assign faculty. Please try again.');
+                      console.error('Error assigning committee:', error);
+                      alert('Failed to assign committee. Please try again.');
                     }
                   } else {
-                    alert('Please select a faculty member');
+                    alert('Please select a committee');
                   }
                 }}
                 className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors font-medium"
               >
-                Assign Selected
+                Assign
               </button>
               <button
                 onClick={() => {
                   setShowAssignModal(false);
                   setCandidateToAssign(null);
-                  setSelectedFaculty(null);
+                  setSelectedCommittee('');
                 }}
                 className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg transition-colors font-medium"
               >
@@ -443,12 +506,12 @@ const AllCandidates = () => {
             <div className="flex items-center justify-between p-6 border-b bg-gradient-to-r from-blue-50 to-indigo-50">
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">
-                  {selectedCandidate.first_name} {selectedCandidate.middle_name && `${selectedCandidate.middle_name} `}{selectedCandidate.last_name}
+                  {formatCandidateName(selectedCandidate)}
                 </h2>
                 <div className="flex items-center space-x-2 mt-1">
-                  <p className="text-sm text-gray-600">{selectedCandidate.position}</p>
+                  <p className="text-sm text-gray-600">{toTitleCase(selectedCandidate.position)}</p>
                   <span className="text-xs font-medium text-blue-600 bg-blue-100 px-2 py-1 rounded-full">
-                    {selectedCandidate.department}
+                    {toTitleCase(selectedCandidate.department)}
                   </span>
                 </div>
               </div>
@@ -814,32 +877,78 @@ const AllCandidates = () => {
                   {/* Status Update Section */}
                   <div className="bg-white border rounded-lg p-4 shadow-sm">
                     <h3 className="text-sm font-bold text-gray-900 mb-3">Application Status</h3>
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-2 flex-wrap">
                       <span className={`px-3 py-1 rounded-full text-sm font-medium ${
                         selectedCandidate.status === 'shortlisted' ? 'bg-green-100 text-green-700' :
-                        selectedCandidate.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                        selectedCandidate.status === 'rejected' || selectedCandidate.status === 'cv_rejected' ? 'bg-red-100 text-red-700' :
+                        selectedCandidate.status === 'interview_completed' ? 'bg-blue-100 text-blue-700' :
+                        selectedCandidate.status === 'cv_shortlisted' ? 'bg-emerald-100 text-emerald-700' :
+                        selectedCandidate.status === 'interview_assigned' || selectedCandidate.status === 'cv_assigned' ? 'bg-yellow-100 text-yellow-700' :
                         'bg-gray-100 text-gray-700'
                       }`}>
-                        {selectedCandidate.status === 'shortlisted' ? 'Shortlisted' :
-                         selectedCandidate.status === 'rejected' ? 'Rejected' :
-                         'Pending'}
+                        {selectedCandidate.status === 'shortlisted' ? 'Final Shortlisted' :
+                         selectedCandidate.status === 'rejected' ? 'Final Rejected' :
+                         selectedCandidate.status === 'cv_rejected' ? 'CV Rejected' :
+                         selectedCandidate.status === 'interview_completed' ? 'Interview Completed' :
+                         selectedCandidate.status === 'cv_shortlisted' ? 'CV Shortlisted' :
+                         selectedCandidate.status === 'interview_assigned' ? 'Interview Assigned' :
+                         selectedCandidate.status === 'cv_assigned' ? 'CV Assigned' :
+                         'Submitted'}
                       </span>
-                      <button
-                        onClick={() => updateApplicationStatus('shortlisted')}
-                        className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-xs"
-                        disabled={updatingStatus}
-                      >
-                        Approve
-                      </button>
-                      <button
-                        onClick={() => updateApplicationStatus('rejected')}
-                        className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-xs"
-                        disabled={updatingStatus}
-                      >
-                        Reject
-                      </button>
+                      {selectedCandidate.status === 'interview_completed' && (
+                        <>
+                          <button
+                            onClick={() => updateApplicationStatus('shortlisted')}
+                            className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-xs"
+                            disabled={updatingStatus}
+                          >
+                            Final Shortlist
+                          </button>
+                          <button
+                            onClick={() => updateApplicationStatus('rejected')}
+                            className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-xs"
+                            disabled={updatingStatus}
+                          >
+                            Final Reject
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
+
+                  {(selectedCandidate.status === 'interview_completed' || selectedCandidate.status === 'shortlisted') && (
+                    <div className="bg-white border rounded-lg p-4 shadow-sm">
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-sm font-bold text-gray-900">Interview Evaluation</h3>
+                        <button
+                          onClick={() => loadEvaluation(selectedCandidate.id)}
+                          disabled={evaluationLoading}
+                          className="text-xs px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300"
+                        >
+                          {evaluationLoading ? 'Loading...' : 'Load Evaluation'}
+                        </button>
+                      </div>
+                      {evaluationData ? (
+                        <div className="space-y-2 text-sm text-gray-700">
+                          <p><span className="font-semibold">Faculty:</span> {evaluationData.faculty_name || 'N/A'}</p>
+                          <p><span className="font-semibold">Teaching:</span> {evaluationData.teaching_competence}/10</p>
+                          <p><span className="font-semibold">Research:</span> {evaluationData.research_potential}/10</p>
+                          <p><span className="font-semibold">Industry:</span> {evaluationData.industry_experience}/10</p>
+                          <p><span className="font-semibold">Communication:</span> {evaluationData.communication_skills}/10</p>
+                          <p><span className="font-semibold">Subject Knowledge:</span> {evaluationData.subject_knowledge}/10</p>
+                          <p><span className="font-semibold">Overall:</span> {evaluationData.overall_suitability}/10</p>
+                          {evaluationData.remarks && (
+                            <div>
+                              <p className="font-semibold">Remarks</p>
+                              <p className="text-xs text-gray-600 whitespace-pre-wrap">{evaluationData.remarks}</p>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gray-500">No evaluation loaded.</p>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
               )}
