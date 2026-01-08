@@ -11,6 +11,9 @@ import authRoute from './routes/auth.js';
 // ✅ 1. Create the app FIRST
 const app = express();
 
+// Trust Render's proxy so rate limiting can read X-Forwarded-For safely
+app.set('trust proxy', 1);
+
 // ✅ 2. Enable gzip compression for ALL responses (reduces payload by 70-90%)
 app.use(compression({
   filter: (req, res) => {
