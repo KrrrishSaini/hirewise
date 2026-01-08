@@ -743,6 +743,7 @@ const FacultyDashboard = () => {
   };
 
   const showAllProgress = !isArchivedView && selectedStage === 'all';
+  const showDetailActions = !isArchivedView && selectedStage !== 'all';
 
   return (
     <>
@@ -1337,7 +1338,7 @@ const FacultyDashboard = () => {
                         </span>
                       </div>
                       
-                      {selectedCandidate.status === 'cv_assigned' && (
+                      {showDetailActions && selectedCandidate.status === 'cv_assigned' && (
                         <div className="flex gap-2">
                           <button
                             onClick={() => updateCvStatus(selectedCandidate, 'cv_shortlisted')}
@@ -1356,7 +1357,7 @@ const FacultyDashboard = () => {
                         </div>
                       )}
 
-                      {selectedCandidate.status === 'interview_assigned' && (
+                      {showDetailActions && selectedCandidate.status === 'interview_assigned' && (
                         <div className="flex gap-2">
                           <button
                             onClick={() => handleEvaluate(selectedCandidate)}
