@@ -10,6 +10,8 @@ const FacultyDashboard = () => {
   const [selectedCandidate, setSelectedCandidate] = useState(null);
   const [cvPreviewCandidate, setCvPreviewCandidate] = useState(null);
   const [cvPreviewLoading, setCvPreviewLoading] = useState(false);
+  const [cvPreviewUrl, setCvPreviewUrl] = useState('');
+  const [cvPreviewError, setCvPreviewError] = useState('');
   const [evaluationCandidate, setEvaluationCandidate] = useState(null);
   const [evaluationScores, setEvaluationScores] = useState({});
   const [evaluationErrors, setEvaluationErrors] = useState({});
@@ -328,6 +330,11 @@ const FacultyDashboard = () => {
     if (!candidate) return;
     setCvPreviewLoading(true);
     setCvPreviewCandidate({ ...candidate, loading: true });
+    setCvPreviewError('');
+    if (cvPreviewUrl) {
+      URL.revokeObjectURL(cvPreviewUrl);
+      setCvPreviewUrl('');
+    }
     try {
       const fullData = await candidatesApi.getById(candidate.id);
       const flattened = {
@@ -336,9 +343,26 @@ const FacultyDashboard = () => {
         cv_path: fullData.cv_path || candidate.cv_path || null,
       };
       setCvPreviewCandidate({ ...flattened, loading: false });
+
+      if (flattened.cv_path) {
+        const { data } = supabase
+          .storage
+          .from('application-reports')
+          .getPublicUrl(flattened.cv_path);
+        const response = await fetch(data.publicUrl);
+        if (!response.ok) {
+          throw new Error('Failed to load CV');
+        }
+        const blob = await response.blob();
+        const objectUrl = URL.createObjectURL(blob);
+        setCvPreviewUrl(objectUrl);
+      } else {
+        setCvPreviewError('CV not available for this candidate.');
+      }
     } catch (error) {
       console.error('Error fetching CV details:', error);
       setCvPreviewCandidate({ ...candidate, loading: false });
+      setCvPreviewError('Unable to preview CV. Please try again.');
     } finally {
       setCvPreviewLoading(false);
     }
@@ -353,6 +377,11 @@ const FacultyDashboard = () => {
   const closeCvPreview = () => {
     setCvPreviewCandidate(null);
     setCvPreviewLoading(false);
+    if (cvPreviewUrl) {
+      URL.revokeObjectURL(cvPreviewUrl);
+    }
+    setCvPreviewUrl('');
+    setCvPreviewError('');
   };
 
   const loadCandidateEvaluation = async (applicationId) => {
@@ -855,15 +884,15 @@ const FacultyDashboard = () => {
                     <p className="text-gray-600 text-sm">Loading CV...</p>
                   </div>
                 </div>
-              ) : cvPreviewCandidate.cv_path ? (
+              ) : cvPreviewUrl ? (
                 <iframe
                   title="CV Preview"
-                  src={`${supabase.storage.from('application-reports').getPublicUrl(cvPreviewCandidate.cv_path).data.publicUrl}`}
+                  src={cvPreviewUrl}
                   className="w-full h-full min-h-[70vh]"
                 />
               ) : (
                 <div className="flex items-center justify-center h-full">
-                  <p className="text-gray-600 text-sm">CV not available for this candidate.</p>
+                  <p className="text-gray-600 text-sm">{cvPreviewError || 'CV not available for this candidate.'}</p>
                 </div>
               )}
             </div>
