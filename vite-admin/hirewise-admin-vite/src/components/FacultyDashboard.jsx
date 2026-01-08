@@ -698,6 +698,28 @@ const FacultyDashboard = () => {
     return `${title}${toTitleCase(candidate.first_name)} ${middle}${toTitleCase(candidate.last_name)}`.trim();
   };
 
+  const getProgressMeta = (status) => {
+    const normalized = (status || '').toLowerCase();
+    if (normalized === 'final_rejected' || normalized === 'cv_rejected') {
+      return { percent: 100, color: 'bg-red-500', label: 'Rejected' };
+    }
+    if (normalized === 'final_shortlisted') {
+      return { percent: 100, color: 'bg-green-600', label: 'Selected' };
+    }
+    if (normalized === 'interview_assigned' || normalized === 'interview_completed') {
+      return { percent: 66, color: 'bg-green-500', label: 'Interview Stage' };
+    }
+    if (normalized === 'cv_shortlisted') {
+      return { percent: 50, color: 'bg-green-500', label: 'CV Shortlisted' };
+    }
+    if (normalized === 'cv_assigned') {
+      return { percent: 33, color: 'bg-green-500', label: 'CV Review' };
+    }
+    return { percent: 10, color: 'bg-gray-300', label: 'Pending' };
+  };
+
+  const showAllProgress = !isArchivedView && selectedStage === 'all';
+
   return (
     <>
        <div className="h-full overflow-y-auto">
@@ -755,80 +777,109 @@ const FacultyDashboard = () => {
         
         <div className="divide-y divide-gray-200">
           {visibleCandidates.length > 0 ? (
-            visibleCandidates.map((candidate, index) => (
-              <div key={candidate.id} className="p-6 hover:bg-gray-50 transition-colors">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    <div className="flex-shrink-0">
-                      <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                        <span className="text-lg font-semibold text-blue-600">#{index + 1}</span>
+            visibleCandidates.map((candidate, index) => {
+              const progress = showAllProgress ? getProgressMeta(candidate.status) : null;
+              const showAllActions = showAllProgress;
+              return (
+                <div key={candidate.id} className="p-6 hover:bg-gray-50 transition-colors">
+                  <div className="flex items-center justify-between gap-6">
+                    <div className="flex items-center space-x-4">
+                      <div className="flex-shrink-0">
+                        <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                          <span className="text-lg font-semibold text-blue-600">#{index + 1}</span>
+                        </div>
+                      </div>
+                      <div className="flex-1">
+                        <div className="mb-2">
+                          <h3 className="text-lg font-semibold text-gray-900">
+                            {formatCandidateName(candidate)}
+                          </h3>
+                          <span className="text-xs font-medium text-blue-600 bg-blue-100 px-2 py-1 rounded-full">
+                            {toTitleCase(candidate.department)}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-600 mb-1">
+                          {branchLabels[candidate.branch] || toTitleCase(candidate.branch || candidate.department || '')}
+                        </p>
+                        <p className="text-sm text-gray-500">{candidate.email}</p>
+                        <div className="flex items-center space-x-4 mt-2">
+                          <span className="text-sm text-gray-600">{candidate.experience}</span>
+                        </div>
                       </div>
                     </div>
-                    <div className="flex-1">
-                      <div className="mb-2">
-                        <h3 className="text-lg font-semibold text-gray-900">
-                          {formatCandidateName(candidate)}
-                        </h3>
-                        <span className="text-xs font-medium text-blue-600 bg-blue-100 px-2 py-1 rounded-full">
-                          {toTitleCase(candidate.department)}
-                        </span>
+
+                    {showAllProgress && (
+                      <div className="flex-1 max-w-md px-4">
+                        <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
+                          <span>CV Review</span>
+                          <span>Interview</span>
+                          <span>Final</span>
+                        </div>
+                        <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
+                          <div
+                            className={`h-2 ${progress.color} rounded-full transition-all`}
+                            style={{ width: `${progress.percent}%` }}
+                          />
+                        </div>
+                        <div className="mt-2 text-xs font-semibold text-gray-600">{progress.label}</div>
                       </div>
-                      <p className="text-sm text-gray-600 mb-1">
-                        {branchLabels[candidate.branch] || toTitleCase(candidate.branch || candidate.department || '')}
-                      </p>
-                      <p className="text-sm text-gray-500">{candidate.email}</p>
-                      <div className="flex items-center space-x-4 mt-2">
-                        <span className="text-sm text-gray-600">{candidate.experience}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex-shrink-0 flex space-x-3">
-                    {candidate.status === 'cv_assigned' ? (
-                      <button
-                        onClick={() => handleViewCv(candidate)}
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors font-medium shadow-md hover:shadow-lg"
-                      >
-                        View CV
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => handleViewDetails(candidate)}
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors font-medium shadow-md hover:shadow-lg"
-                      >
-                        View Details
-                      </button>
                     )}
-                    {!isArchivedView && candidate.status === 'cv_assigned' && (
-                      <>
+
+                    <div className="flex-shrink-0 flex space-x-3">
+                      {showAllActions || isArchivedView ? (
                         <button
-                          onClick={() => updateCvStatus(candidate, 'cv_shortlisted')}
+                          onClick={() => handleViewDetails(candidate)}
+                          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors font-medium shadow-md hover:shadow-lg"
+                        >
+                          View Details
+                        </button>
+                      ) : candidate.status === 'cv_assigned' ? (
+                        <button
+                          onClick={() => handleViewCv(candidate)}
+                          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors font-medium shadow-md hover:shadow-lg"
+                        >
+                          View CV
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleViewDetails(candidate)}
+                          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors font-medium shadow-md hover:shadow-lg"
+                        >
+                          View Details
+                        </button>
+                      )}
+                      {!isArchivedView && !showAllActions && candidate.status === 'cv_assigned' && (
+                        <>
+                          <button
+                            onClick={() => updateCvStatus(candidate, 'cv_shortlisted')}
+                            disabled={updatingStatus}
+                            className="bg-green-600 hover:bg-green-700 text-white px-5 py-3 rounded-lg transition-colors font-medium shadow-md hover:shadow-lg disabled:bg-gray-300 disabled:cursor-not-allowed"
+                          >
+                            Shortlist
+                          </button>
+                          <button
+                            onClick={() => updateCvStatus(candidate, 'cv_rejected')}
+                            disabled={updatingStatus}
+                            className="bg-red-600 hover:bg-red-700 text-white px-5 py-3 rounded-lg transition-colors font-medium shadow-md hover:shadow-lg disabled:bg-gray-300 disabled:cursor-not-allowed"
+                          >
+                            Reject
+                          </button>
+                        </>
+                      )}
+                      {!isArchivedView && !showAllActions && candidate.status === 'interview_assigned' && (
+                        <button
+                          onClick={() => handleEvaluate(candidate)}
                           disabled={updatingStatus}
                           className="bg-green-600 hover:bg-green-700 text-white px-5 py-3 rounded-lg transition-colors font-medium shadow-md hover:shadow-lg disabled:bg-gray-300 disabled:cursor-not-allowed"
                         >
-                          Shortlist
+                          Evaluate
                         </button>
-                        <button
-                          onClick={() => updateCvStatus(candidate, 'cv_rejected')}
-                          disabled={updatingStatus}
-                          className="bg-red-600 hover:bg-red-700 text-white px-5 py-3 rounded-lg transition-colors font-medium shadow-md hover:shadow-lg disabled:bg-gray-300 disabled:cursor-not-allowed"
-                        >
-                          Reject
-                        </button>
-                      </>
-                    )}
-                    {!isArchivedView && candidate.status === 'interview_assigned' && (
-                      <button
-                        onClick={() => handleEvaluate(candidate)}
-                        disabled={updatingStatus}
-                        className="bg-green-600 hover:bg-green-700 text-white px-5 py-3 rounded-lg transition-colors font-medium shadow-md hover:shadow-lg disabled:bg-gray-300 disabled:cursor-not-allowed"
-                      >
-                        Evaluate
-                      </button>
-                    )}
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           ) : (
             <div className="p-12 text-center text-gray-500">
               <div className="inline-flex items-center justify-center w-20 h-20 bg-gray-100 rounded-full mb-4">
