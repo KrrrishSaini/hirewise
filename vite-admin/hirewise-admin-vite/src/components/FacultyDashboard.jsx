@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { candidatesApi } from '../lib/api';
 import { supabase } from '../../lib/supabase-client';
@@ -23,6 +23,15 @@ const FacultyDashboard = () => {
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [candidateEvaluation, setCandidateEvaluation] = useState(null);
   const [candidateEvaluationLoading, setCandidateEvaluationLoading] = useState(false);
+  const [archivedIds, setArchivedIds] = useState(() => {
+    try {
+      const raw = localStorage.getItem('facultyArchivedIds');
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      console.warn('Failed to read archived ids', e);
+      return [];
+    }
+  });
 
   const toTitleCase = (value) => {
     if (!value || typeof value !== 'string') return value || '';
@@ -585,12 +594,27 @@ const FacultyDashboard = () => {
   const archivedStatusSet = new Set(['cv_rejected', 'final_rejected', 'final_shortlisted']);
   const isArchivedStatus = (status) => archivedStatusSet.has((status || '').toLowerCase());
 
+  useEffect(() => {
+    try {
+      localStorage.setItem('facultyArchivedIds', JSON.stringify(archivedIds));
+    } catch (e) {
+      console.warn('Failed to persist archived ids', e);
+    }
+  }, [archivedIds]);
+
+  const archivedIdSet = useMemo(() => new Set(archivedIds), [archivedIds]);
+
+  const archiveCandidateFromAll = (candidate) => {
+    if (!candidate || !isArchivedStatus(candidate.status)) return;
+    setArchivedIds((prev) => (prev.includes(candidate.id) ? prev : [...prev, candidate.id]));
+  };
+
   const cvCandidates = candidates.filter((candidate) => candidate.status === 'cv_assigned');
   const interviewCandidates = candidates.filter((candidate) => candidate.status === 'interview_assigned');
   const archivedCandidates = candidates.filter((candidate) => isArchivedStatus(candidate.status));
   const allCandidates = candidates;
   const filteredCandidates = selectedStage === 'all'
-    ? allCandidates
+    ? allCandidates.filter((candidate) => !archivedIdSet.has(candidate.id))
     : selectedStage === 'interview'
     ? interviewCandidates
     : cvCandidates;
@@ -825,7 +849,7 @@ const FacultyDashboard = () => {
                       </div>
                     )}
 
-                    <div className="flex-shrink-0 flex space-x-3">
+                    <div className={`flex-shrink-0 ${showAllActions ? 'flex flex-col items-end gap-2' : 'flex space-x-3'}`}>
                       {showAllActions || isArchivedView ? (
                         <button
                           onClick={() => handleViewDetails(candidate)}
@@ -848,9 +872,17 @@ const FacultyDashboard = () => {
                           View Details
                         </button>
                       )}
-                      {!isArchivedView && !showAllActions && candidate.status === 'cv_assigned' && (
-                        <>
-                          <button
+                      {showAllActions && isArchivedStatus(candidate.status) && !archivedIdSet.has(candidate.id) && (
+                        <button
+                          onClick={() => archiveCandidateFromAll(candidate)}
+                          className="text-xs font-semibold text-gray-600 hover:text-gray-900 border border-gray-300 rounded-md px-3 py-1 bg-white"
+                        >
+                          Archive
+                        </button>
+                      )}
+                    {!isArchivedView && !showAllActions && candidate.status === 'cv_assigned' && (
+                      <>
+                        <button
                             onClick={() => updateCvStatus(candidate, 'cv_shortlisted')}
                             disabled={updatingStatus}
                             className="bg-green-600 hover:bg-green-700 text-white px-5 py-3 rounded-lg transition-colors font-medium shadow-md hover:shadow-lg disabled:bg-gray-300 disabled:cursor-not-allowed"
