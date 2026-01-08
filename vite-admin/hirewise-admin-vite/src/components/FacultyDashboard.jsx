@@ -1086,8 +1086,8 @@ const FacultyDashboard = () => {
                 <div>
                   <label className="text-sm font-semibold text-gray-700 block mb-1">Subject Area</label>
                   <p className="text-base font-medium text-gray-900">
-                    {branchLabels[(evaluationCandidate.department || evaluationCandidate.branch || '').toLowerCase()]
-                      || toTitleCase(evaluationCandidate.department || evaluationCandidate.branch)
+                    {branchLabels[(evaluationCandidate.branch || evaluationCandidate.department || '').toLowerCase()]
+                      || toTitleCase(evaluationCandidate.branch || evaluationCandidate.department)
                       || 'N/A'}
                   </p>
                 </div>
