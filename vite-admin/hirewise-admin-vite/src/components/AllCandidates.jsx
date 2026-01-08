@@ -70,20 +70,23 @@ const AllCandidates = () => {
   };
 
   const matchesStage = (candidate, stage) => {
-    const status = candidate.status || 'submitted';
+    const rawStatus = (candidate.status || '').toString().trim().toLowerCase();
+    const normalizedStatus = rawStatus === '' || rawStatus === 'pending' || rawStatus === 'new'
+      ? 'submitted'
+      : rawStatus;
     switch (stage) {
       case 'new':
-        return status === 'submitted';
+        return normalizedStatus === 'submitted';
       case 'cv_assigned':
-        return status === 'cv_assigned';
+        return normalizedStatus === 'cv_assigned';
       case 'cv_shortlisted':
-        return status === 'cv_shortlisted';
+        return normalizedStatus === 'cv_shortlisted';
       case 'interview_assigned':
-        return status === 'interview_assigned';
+        return normalizedStatus === 'interview_assigned';
       case 'interview_completed':
-        return status === 'interview_completed' || status === 'shortlisted';
+        return normalizedStatus === 'interview_completed' || normalizedStatus === 'shortlisted';
       case 'rejected':
-        return status === 'cv_rejected' || status === 'rejected';
+        return normalizedStatus === 'cv_rejected' || normalizedStatus === 'rejected';
       case 'all':
       default:
         return true;
