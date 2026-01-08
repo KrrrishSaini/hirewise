@@ -233,20 +233,26 @@ const PersonalInformation = ({ formData, setFormData, onNext, onPrevious, onSave
             .eq('id', user.id)
             .maybeSingle();
           
-          if (!error && profile) {
+          if (error) throw error;
+
+          const fallbackName = user.user_metadata?.full_name || '';
+          const fallbackPhone = user.user_metadata?.phone || '';
+          const nameSource = (profile?.full_name || fallbackName).trim();
+          const phoneSource = (profile?.phone || fallbackPhone).trim();
+
+          if (nameSource || phoneSource) {
             // Split full_name into first and last name
-            const nameParts = (profile.full_name || '').trim().split(' ');
+            const nameParts = nameSource.split(' ');
             const firstName = nameParts[0] || '';
             const lastName = nameParts.slice(1).join(' ') || '';
-            
+
             // Extract phone number (remove country code if present)
-            let phoneNumber = (profile.phone || '').trim();
-            // If phone has country code like "+91 1234567890", extract just the number
+            let phoneNumber = phoneSource;
             const phoneMatch = phoneNumber.match(/\d{10,}$/);
             if (phoneMatch) {
               phoneNumber = phoneMatch[0].slice(-10); // Get last 10 digits
             }
-            
+
             setFormData(prev => ({
               ...prev,
               firstName: prev.firstName || firstName,
@@ -256,6 +262,24 @@ const PersonalInformation = ({ formData, setFormData, onNext, onPrevious, onSave
           }
         } catch (err) {
           console.error('Error fetching profile:', err);
+          const fallbackName = user.user_metadata?.full_name || '';
+          const fallbackPhone = user.user_metadata?.phone || '';
+          if (fallbackName || fallbackPhone) {
+            const nameParts = fallbackName.trim().split(' ');
+            const firstName = nameParts[0] || '';
+            const lastName = nameParts.slice(1).join(' ') || '';
+            let phoneNumber = fallbackPhone.trim();
+            const phoneMatch = phoneNumber.match(/\d{10,}$/);
+            if (phoneMatch) {
+              phoneNumber = phoneMatch[0].slice(-10);
+            }
+            setFormData(prev => ({
+              ...prev,
+              firstName: prev.firstName || firstName,
+              lastName: prev.lastName || lastName,
+              phone: prev.phone || phoneNumber,
+            }));
+          }
         }
       }
     };
