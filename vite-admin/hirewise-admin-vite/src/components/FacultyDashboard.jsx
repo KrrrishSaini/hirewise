@@ -12,6 +12,7 @@ const FacultyDashboard = () => {
   const [evaluationScores, setEvaluationScores] = useState({});
   const [evaluationErrors, setEvaluationErrors] = useState({});
   const [pendingAction, setPendingAction] = useState(null); // 'shortlist' or 'reject'
+  const [evaluationPhase, setEvaluationPhase] = useState(1);
   const [candidates, setCandidates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -310,6 +311,7 @@ const FacultyDashboard = () => {
     setEvaluationCandidate(candidate);
     setEvaluationScores(buildInitialScores());
     setEvaluationErrors(buildInitialErrors());
+    setEvaluationPhase(1);
   };
 
   const closeEvaluationModal = () => {
@@ -317,6 +319,7 @@ const FacultyDashboard = () => {
     setEvaluationScores({});
     setEvaluationErrors({});
     setPendingAction(null);
+    setEvaluationPhase(1);
   };
 
   const handleScoreChange = (section, field, value) => {
@@ -1082,7 +1085,11 @@ const FacultyDashboard = () => {
                 </div>
                 <div>
                   <label className="text-sm font-semibold text-gray-700 block mb-1">Subject Area</label>
-                  <p className="text-base font-medium text-gray-900">{toTitleCase(evaluationCandidate.department) || 'N/A'}</p>
+                  <p className="text-base font-medium text-gray-900">
+                    {branchLabels[(evaluationCandidate.department || evaluationCandidate.branch || '').toLowerCase()]
+                      || toTitleCase(evaluationCandidate.department || evaluationCandidate.branch)
+                      || 'N/A'}
+                  </p>
                 </div>
                 <div>
                   <label className="text-sm font-semibold text-gray-700 block mb-1">Post Applied For</label>
@@ -1093,86 +1100,115 @@ const FacultyDashboard = () => {
 
             {/* Evaluation Form */}
             <div className="p-6 space-y-6">
-              <div className="border rounded-lg overflow-hidden">
-                <div className="bg-gray-50 px-4 py-3 flex items-center justify-between">
-                  <h3 className="text-lg font-bold text-gray-900">I. Teaching</h3>
-                  <span className="text-xs font-semibold text-gray-600">Ratings (1 to 5)</span>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-[40px_1fr_120px] gap-3 px-4 py-2 text-xs font-semibold text-gray-500 uppercase">
-                  <span>Sl. No.</span>
-                  <span>Evaluation Parameters</span>
-                  <span>Rating</span>
-                </div>
-                <div className="border-t border-gray-200">
-                  {renderCriteriaRows(TEACHING_CRITERIA, evaluationScores.teaching, 'teaching')}
-                </div>
-                <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-t border-gray-200">
-                  <span className="text-sm font-semibold text-gray-700">Average Score (I)</span>
-                  <span className="text-sm font-bold text-gray-900">
-                    {teachingAverage !== null ? teachingAverage.toFixed(2) : '—'}
-                  </span>
-                </div>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { id: 1, label: 'I. Teaching' },
+                  { id: 2, label: 'II. Research' },
+                  { id: 3, label: 'III. General: Culture Alignment' }
+                ].map((phase) => (
+                  <button
+                    key={phase.id}
+                    type="button"
+                    onClick={() => setEvaluationPhase(phase.id)}
+                    className={`px-3 py-1.5 text-sm font-semibold rounded-full border ${
+                      evaluationPhase === phase.id
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'bg-white text-gray-700 border-gray-300'
+                    }`}
+                  >
+                    {phase.label}
+                  </button>
+                ))}
               </div>
 
-              <div className="border rounded-lg overflow-hidden">
-                <div className="bg-gray-50 px-4 py-3 flex items-center justify-between">
-                  <h3 className="text-lg font-bold text-gray-900">II. Research</h3>
-                  <span className="text-xs font-semibold text-gray-600">Ratings (1 to 5)</span>
+              {evaluationPhase === 1 && (
+                <div className="border rounded-lg overflow-hidden">
+                  <div className="bg-gray-50 px-4 py-3 flex items-center justify-between">
+                    <h3 className="text-lg font-bold text-gray-900">I. Teaching</h3>
+                    <span className="text-xs font-semibold text-gray-600">Ratings (1 to 5)</span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-[40px_1fr_120px] gap-3 px-4 py-2 text-xs font-semibold text-gray-500 uppercase">
+                    <span>Sl. No.</span>
+                    <span>Evaluation Parameters</span>
+                    <span>Rating</span>
+                  </div>
+                  <div className="border-t border-gray-200">
+                    {renderCriteriaRows(TEACHING_CRITERIA, evaluationScores.teaching, 'teaching')}
+                  </div>
+                  <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-t border-gray-200">
+                    <span className="text-sm font-semibold text-gray-700">Average Score (I)</span>
+                    <span className="text-sm font-bold text-gray-900">
+                      {teachingAverage !== null ? teachingAverage.toFixed(2) : 'N/A'}
+                    </span>
+                  </div>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-[40px_1fr_120px] gap-3 px-4 py-2 text-xs font-semibold text-gray-500 uppercase">
-                  <span>Sl. No.</span>
-                  <span>Evaluation Parameters</span>
-                  <span>Rating</span>
-                </div>
-                <div className="border-t border-gray-200">
-                  {renderCriteriaRows(RESEARCH_CRITERIA, evaluationScores.research, 'research')}
-                </div>
-                <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-t border-gray-200">
-                  <span className="text-sm font-semibold text-gray-700">Average Score (II)</span>
-                  <span className="text-sm font-bold text-gray-900">
-                    {researchAverage !== null ? researchAverage.toFixed(2) : '—'}
-                  </span>
-                </div>
-              </div>
+              )}
 
-              <div className="border rounded-lg overflow-hidden">
-                <div className="bg-gray-50 px-4 py-3 flex items-center justify-between">
-                  <h3 className="text-lg font-bold text-gray-900">III. General: Culture Alignment</h3>
-                  <span className="text-xs font-semibold text-gray-600">Ratings (1 to 5)</span>
+              {evaluationPhase === 2 && (
+                <div className="border rounded-lg overflow-hidden">
+                  <div className="bg-gray-50 px-4 py-3 flex items-center justify-between">
+                    <h3 className="text-lg font-bold text-gray-900">II. Research</h3>
+                    <span className="text-xs font-semibold text-gray-600">Ratings (1 to 5)</span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-[40px_1fr_120px] gap-3 px-4 py-2 text-xs font-semibold text-gray-500 uppercase">
+                    <span>Sl. No.</span>
+                    <span>Evaluation Parameters</span>
+                    <span>Rating</span>
+                  </div>
+                  <div className="border-t border-gray-200">
+                    {renderCriteriaRows(RESEARCH_CRITERIA, evaluationScores.research, 'research')}
+                  </div>
+                  <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-t border-gray-200">
+                    <span className="text-sm font-semibold text-gray-700">Average Score (II)</span>
+                    <span className="text-sm font-bold text-gray-900">
+                      {researchAverage !== null ? researchAverage.toFixed(2) : 'N/A'}
+                    </span>
+                  </div>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-[40px_1fr_120px] gap-3 px-4 py-2 text-xs font-semibold text-gray-500 uppercase">
-                  <span>Sl. No.</span>
-                  <span>Evaluation Parameters</span>
-                  <span>Rating</span>
-                </div>
-                <div className="border-t border-gray-200">
-                  {renderCriteriaRows(GENERAL_CRITERIA, evaluationScores.general, 'general')}
-                </div>
-                <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-t border-gray-200">
-                  <span className="text-sm font-semibold text-gray-700">Average Score (III)</span>
-                  <span className="text-sm font-bold text-gray-900">
-                    {generalAverage !== null ? generalAverage.toFixed(2) : '—'}
-                  </span>
-                </div>
-              </div>
+              )}
 
-              <div className="flex items-center justify-between px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <span className="text-sm font-semibold text-blue-800">Total Score (I + II + III)</span>
-                <span className="text-sm font-bold text-blue-900">
-                  {totalScore !== null ? totalScore.toFixed(2) : '—'}
-                </span>
-              </div>
+              {evaluationPhase === 3 && (
+                <>
+                  <div className="border rounded-lg overflow-hidden">
+                    <div className="bg-gray-50 px-4 py-3 flex items-center justify-between">
+                      <h3 className="text-lg font-bold text-gray-900">III. General: Culture Alignment</h3>
+                      <span className="text-xs font-semibold text-gray-600">Ratings (1 to 5)</span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-[40px_1fr_120px] gap-3 px-4 py-2 text-xs font-semibold text-gray-500 uppercase">
+                      <span>Sl. No.</span>
+                      <span>Evaluation Parameters</span>
+                      <span>Rating</span>
+                    </div>
+                    <div className="border-t border-gray-200">
+                      {renderCriteriaRows(GENERAL_CRITERIA, evaluationScores.general, 'general')}
+                    </div>
+                    <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-t border-gray-200">
+                      <span className="text-sm font-semibold text-gray-700">Average Score (III)</span>
+                      <span className="text-sm font-bold text-gray-900">
+                        {generalAverage !== null ? generalAverage.toFixed(2) : 'N/A'}
+                      </span>
+                    </div>
+                  </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Comments</label>
-                <textarea
-                  value={evaluationScores.remarks}
-                  onChange={(e) => handleRemarksChange(e.target.value)}
-                  rows="4"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  placeholder="Enter any additional remarks or observations..."
-                />
-              </div>
+                  <div className="flex items-center justify-between px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <span className="text-sm font-semibold text-blue-800">Total Score (I + II + III)</span>
+                    <span className="text-sm font-bold text-blue-900">
+                      {totalScore !== null ? totalScore.toFixed(2) : 'N/A'}
+                    </span>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Comments</label>
+                    <textarea
+                      value={evaluationScores.remarks}
+                      onChange={(e) => handleRemarksChange(e.target.value)}
+                      rows="4"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      placeholder="Enter any additional remarks or observations..."
+                    />
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Footer */}
@@ -1184,13 +1220,34 @@ const FacultyDashboard = () => {
               >
                 Cancel
               </button>
-              <button
-                onClick={submitEvaluation}
-                disabled={updatingStatus}
-                className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {updatingStatus ? 'Submitting...' : 'Submit Evaluation'}
-              </button>
+              {evaluationPhase > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setEvaluationPhase((p) => Math.max(1, p - 1))}
+                  className="px-5 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors font-medium"
+                  disabled={updatingStatus}
+                >
+                  Previous Phase
+                </button>
+              )}
+              {evaluationPhase < 3 ? (
+                <button
+                  type="button"
+                  onClick={() => setEvaluationPhase((p) => Math.min(3, p + 1))}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={updatingStatus}
+                >
+                  Next Phase
+                </button>
+              ) : (
+                <button
+                  onClick={submitEvaluation}
+                  disabled={updatingStatus}
+                  className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {updatingStatus ? 'Submitting...' : 'Submit Evaluation'}
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -1200,3 +1257,4 @@ const FacultyDashboard = () => {
 };
 
 export default FacultyDashboard;
+
