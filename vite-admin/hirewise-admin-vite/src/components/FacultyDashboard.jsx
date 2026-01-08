@@ -345,14 +345,16 @@ const FacultyDashboard = () => {
       setCvPreviewCandidate({ ...flattened, loading: false });
 
       if (flattened.cv_path) {
-        const { data: signed, error: signedErr } = await supabase
+        const { data: publicData } = supabase
           .storage
           .from('application-reports')
-          .createSignedUrl(flattened.cv_path, 60 * 60);
-        if (signedErr || !signed?.signedUrl) {
-          throw signedErr || new Error('Failed to create CV link');
+          .getPublicUrl(flattened.cv_path);
+        const publicUrl = publicData?.publicUrl || '';
+        if (!publicUrl) {
+          throw new Error('Failed to create CV link');
         }
-        const inlineUrl = `${signed.signedUrl}&response-content-disposition=inline&response-content-type=application%2Fpdf`;
+        const separator = publicUrl.includes('?') ? '&' : '?';
+        const inlineUrl = `${publicUrl}${separator}response-content-disposition=inline&response-content-type=application%2Fpdf`;
         setCvPreviewUrl(inlineUrl);
       } else {
         setCvPreviewError('CV not available for this candidate.');
