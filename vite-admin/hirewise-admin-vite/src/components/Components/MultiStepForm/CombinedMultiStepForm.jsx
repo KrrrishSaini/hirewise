@@ -2444,9 +2444,10 @@ const CombinedMultiStepForm = () => {
   const normalized = { ...formData };
   
   // Validate required fields before submission
-  if (!normalized.firstName || !normalized.email || !normalized.position || !normalized.department) {
+  if (!normalized.title || !normalized.firstName || !normalized.email || !normalized.position || !normalized.department) {
     setSubmitError('Please fill in all required fields before submitting.');
     alert('❌ Please fill in all required fields:\n\n' + 
+      (!normalized.title ? '• Title\n' : '') +
       (!normalized.firstName ? '• First Name\n' : '') +
       (!normalized.email ? '• Email\n' : '') +
       (!normalized.position ? '• Position\n' : '') +
@@ -2488,6 +2489,7 @@ const CombinedMultiStepForm = () => {
   fd.append('position', normalized.position || '');
   fd.append('department', normalized.department || '');
   fd.append('branch', normalized.branch || '');
+  fd.append('title', normalized.title || '');
   fd.append('first_name', normalized.firstName || '');
   fd.append('middle_name', normalized.middleName || '');
   fd.append('last_name', normalized.lastName || '');

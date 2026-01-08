@@ -586,6 +586,12 @@ const FacultyDashboard = () => {
     history: 'History',
     sociology: 'Sociology'
   };
+  const formatCandidateName = (candidate) => {
+    if (!candidate) return '';
+    const title = candidate.title ? `${toTitleCase(candidate.title)} ` : '';
+    const middle = candidate.middle_name ? `${toTitleCase(candidate.middle_name)} ` : '';
+    return `${title}${toTitleCase(candidate.first_name)} ${middle}${toTitleCase(candidate.last_name)}`.trim();
+  };
 
   return (
     <>
@@ -615,7 +621,7 @@ const FacultyDashboard = () => {
                     <div className="flex-1">
                       <div className="mb-2">
                         <h3 className="text-lg font-semibold text-gray-900">
-                          {toTitleCase(candidate.first_name)} {toTitleCase(candidate.last_name)}
+                          {formatCandidateName(candidate)}
                         </h3>
                         <span className="text-xs font-medium text-blue-600 bg-blue-100 px-2 py-1 rounded-full">
                           {toTitleCase(candidate.department)}
@@ -662,7 +668,7 @@ const FacultyDashboard = () => {
             <div className="flex items-center justify-between p-6 border-b bg-gradient-to-r from-blue-50 to-indigo-50">
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">
-                  {toTitleCase(selectedCandidate.first_name)} {selectedCandidate.middle_name && `${toTitleCase(selectedCandidate.middle_name)} `}{toTitleCase(selectedCandidate.last_name)}
+                  {formatCandidateName(selectedCandidate)}
                 </h2>
                 <div className="flex items-center space-x-2 mt-1">
                   <p className="text-sm text-gray-600">{toTitleCase(selectedCandidate.position)}</p>
@@ -1071,7 +1077,7 @@ const FacultyDashboard = () => {
                 <div>
                   <label className="text-sm font-semibold text-gray-700 block mb-1">Name of the Applicant</label>
                   <p className="text-base font-medium text-gray-900">
-                    {toTitleCase(evaluationCandidate.first_name)} {evaluationCandidate.middle_name ? `${toTitleCase(evaluationCandidate.middle_name)} ` : ''}{toTitleCase(evaluationCandidate.last_name)}
+                    {formatCandidateName(evaluationCandidate)}
                   </p>
                 </div>
                 <div>
