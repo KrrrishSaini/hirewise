@@ -8,6 +8,8 @@ import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Toolti
 const FacultyDashboard = () => {
   const location = useLocation();
   const [selectedCandidate, setSelectedCandidate] = useState(null);
+  const [cvPreviewCandidate, setCvPreviewCandidate] = useState(null);
+  const [cvPreviewLoading, setCvPreviewLoading] = useState(false);
   const [evaluationCandidate, setEvaluationCandidate] = useState(null);
   const [evaluationScores, setEvaluationScores] = useState({});
   const [evaluationErrors, setEvaluationErrors] = useState({});
@@ -322,10 +324,35 @@ const FacultyDashboard = () => {
     }
   };
 
+  const handleViewCv = async (candidate) => {
+    if (!candidate) return;
+    setCvPreviewLoading(true);
+    setCvPreviewCandidate({ ...candidate, loading: true });
+    try {
+      const fullData = await candidatesApi.getById(candidate.id);
+      const flattened = {
+        ...candidate,
+        ...fullData,
+        cv_path: fullData.cv_path || candidate.cv_path || null,
+      };
+      setCvPreviewCandidate({ ...flattened, loading: false });
+    } catch (error) {
+      console.error('Error fetching CV details:', error);
+      setCvPreviewCandidate({ ...candidate, loading: false });
+    } finally {
+      setCvPreviewLoading(false);
+    }
+  };
+
   const closeModal = () => {
     setSelectedCandidate(null);
     setCandidateEvaluation(null);
     setCandidateEvaluationLoading(false);
+  };
+
+  const closeCvPreview = () => {
+    setCvPreviewCandidate(null);
+    setCvPreviewLoading(false);
   };
 
   const loadCandidateEvaluation = async (applicationId) => {
@@ -726,12 +753,21 @@ const FacultyDashboard = () => {
                     </div>
                   </div>
                   <div className="flex-shrink-0 flex space-x-3">
-                    <button
-                      onClick={() => handleViewDetails(candidate)}
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors font-medium shadow-md hover:shadow-lg"
-                    >
-                      View Details
-                    </button>
+                    {candidate.status === 'cv_assigned' ? (
+                      <button
+                        onClick={() => handleViewCv(candidate)}
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors font-medium shadow-md hover:shadow-lg"
+                      >
+                        View CV
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleViewDetails(candidate)}
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors font-medium shadow-md hover:shadow-lg"
+                      >
+                        View Details
+                      </button>
+                    )}
                     {!isArchivedView && candidate.status === 'cv_assigned' && (
                       <>
                         <button
@@ -782,6 +818,58 @@ const FacultyDashboard = () => {
           )}
         </div>
       </div>
+
+      {cvPreviewCandidate && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-5xl max-h-[95vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b bg-gradient-to-r from-blue-50 to-indigo-50">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">CV Preview</h2>
+                <p className="text-xs text-gray-600">{formatCandidateName(cvPreviewCandidate)}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    closeCvPreview();
+                    handleViewDetails(cvPreviewCandidate);
+                  }}
+                  className="px-3 py-1.5 text-xs font-semibold bg-white border border-blue-600 text-blue-600 rounded-md hover:bg-blue-50"
+                >
+                  View More Details
+                </button>
+                <button
+                  onClick={closeCvPreview}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto bg-gray-50">
+              {cvPreviewCandidate.loading || cvPreviewLoading ? (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-500 mx-auto mb-3"></div>
+                    <p className="text-gray-600 text-sm">Loading CV...</p>
+                  </div>
+                </div>
+              ) : cvPreviewCandidate.cv_path ? (
+                <iframe
+                  title="CV Preview"
+                  src={`${supabase.storage.from('application-reports').getPublicUrl(cvPreviewCandidate.cv_path).data.publicUrl}`}
+                  className="w-full h-full min-h-[70vh]"
+                />
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-gray-600 text-sm">CV not available for this candidate.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {selectedCandidate && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
