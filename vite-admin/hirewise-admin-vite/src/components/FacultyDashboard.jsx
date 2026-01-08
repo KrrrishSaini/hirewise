@@ -517,6 +517,9 @@ const FacultyDashboard = () => {
     }
   };
 
+  const archivedStatusSet = new Set(['cv_rejected', 'final_rejected', 'final_shortlisted']);
+  const isArchivedStatus = (status) => archivedStatusSet.has((status || '').toLowerCase());
+
   const cvCandidates = candidates.filter((candidate) => candidate.status === 'cv_assigned');
   const interviewCandidates = candidates.filter((candidate) => candidate.status === 'interview_assigned');
   const archivedCandidates = candidates.filter((candidate) => isArchivedStatus(candidate.status));
@@ -623,8 +626,6 @@ const FacultyDashboard = () => {
     history: 'History',
     sociology: 'Sociology'
   };
-  const archivedStatusSet = new Set(['cv_rejected', 'final_rejected', 'final_shortlisted']);
-  const isArchivedStatus = (status) => archivedStatusSet.has((status || '').toLowerCase());
   const formatCandidateName = (candidate) => {
     if (!candidate) return '';
     const title = candidate.title ? `${toTitleCase(candidate.title)} ` : '';
