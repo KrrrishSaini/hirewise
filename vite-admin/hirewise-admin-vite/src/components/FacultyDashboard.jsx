@@ -572,6 +572,20 @@ const FacultyDashboard = () => {
   const teachingExperiences = selectedCandidate?.teachingExperiences || [];
   const researchExperiences = selectedCandidate?.researchExperiences || [];
   const derivedExperience = selectedCandidate?.experience || computeExperienceFromArrays(teachingExperiences, researchExperiences);
+  const branchLabels = {
+    cse: 'Computer Science & Engineering',
+    mech: 'Mechanical Engineering',
+    ece: 'Electronics and Communication Engineering',
+    criminal: 'Criminal Law',
+    corporate: 'Corporate Law',
+    civil: 'Civil Law',
+    finance: 'Finance',
+    marketing: 'Marketing',
+    hr: 'Human Resources',
+    english: 'English',
+    history: 'History',
+    sociology: 'Sociology'
+  };
 
   return (
     <>
@@ -607,11 +621,12 @@ const FacultyDashboard = () => {
                           {toTitleCase(candidate.department)}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-600 mb-1">{toTitleCase(candidate.position)}</p>
+                      <p className="text-sm text-gray-600 mb-1">
+                        {branchLabels[candidate.branch] || toTitleCase(candidate.branch || candidate.department || '')}
+                      </p>
                       <p className="text-sm text-gray-500">{candidate.email}</p>
                       <div className="flex items-center space-x-4 mt-2">
                         <span className="text-sm text-gray-600">{candidate.experience}</span>
-                        <span className="text-sm text-gray-600">{candidate.publications} publications</span>
                       </div>
                     </div>
                   </div>
