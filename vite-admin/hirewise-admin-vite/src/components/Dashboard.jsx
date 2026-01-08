@@ -170,7 +170,7 @@ const getFilteredCandidates = () => {
   // Status filter - exclude rejected applications from Top 10 list
   filtered = filtered.filter(candidate => {
     const status = (candidate.status || '').toLowerCase();
-    return status !== 'rejected';
+    return status !== 'final_rejected';
   });
   
   return filtered;

@@ -73,6 +73,10 @@ const AllCandidates = () => {
     const rawStatus = (candidate.status || '').toString().trim().toLowerCase();
     const normalizedStatus = rawStatus === '' || rawStatus === 'pending' || rawStatus === 'new' || rawStatus === 'in_review'
       ? 'submitted'
+      : rawStatus === 'shortlisted'
+      ? 'final_shortlisted'
+      : rawStatus === 'rejected'
+      ? 'final_rejected'
       : rawStatus;
     switch (stage) {
       case 'new':
@@ -84,9 +88,9 @@ const AllCandidates = () => {
       case 'interview_assigned':
         return normalizedStatus === 'interview_assigned';
       case 'interview_completed':
-        return normalizedStatus === 'interview_completed' || normalizedStatus === 'shortlisted';
+        return normalizedStatus === 'interview_completed' || normalizedStatus === 'final_shortlisted' || normalizedStatus === 'final_rejected';
       case 'rejected':
-        return normalizedStatus === 'cv_rejected' || normalizedStatus === 'rejected';
+        return normalizedStatus === 'cv_rejected' || normalizedStatus === 'final_rejected';
       case 'all':
       default:
         return true;
@@ -882,15 +886,15 @@ const AllCandidates = () => {
                     <h3 className="text-sm font-bold text-gray-900 mb-3">Application Status</h3>
                     <div className="flex items-center space-x-2 flex-wrap">
                       <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                        selectedCandidate.status === 'shortlisted' ? 'bg-green-100 text-green-700' :
-                        selectedCandidate.status === 'rejected' || selectedCandidate.status === 'cv_rejected' ? 'bg-red-100 text-red-700' :
+                        selectedCandidate.status === 'final_shortlisted' ? 'bg-green-100 text-green-700' :
+                        selectedCandidate.status === 'final_rejected' || selectedCandidate.status === 'cv_rejected' ? 'bg-red-100 text-red-700' :
                         selectedCandidate.status === 'interview_completed' ? 'bg-blue-100 text-blue-700' :
                         selectedCandidate.status === 'cv_shortlisted' ? 'bg-emerald-100 text-emerald-700' :
                         selectedCandidate.status === 'interview_assigned' || selectedCandidate.status === 'cv_assigned' ? 'bg-yellow-100 text-yellow-700' :
                         'bg-gray-100 text-gray-700'
                       }`}>
-                        {selectedCandidate.status === 'shortlisted' ? 'Final Shortlisted' :
-                         selectedCandidate.status === 'rejected' ? 'Final Rejected' :
+                        {selectedCandidate.status === 'final_shortlisted' ? 'Final Shortlisted' :
+                         selectedCandidate.status === 'final_rejected' ? 'Final Rejected' :
                          selectedCandidate.status === 'cv_rejected' ? 'CV Rejected' :
                          selectedCandidate.status === 'interview_completed' ? 'Interview Completed' :
                          selectedCandidate.status === 'cv_shortlisted' ? 'CV Shortlisted' :
@@ -901,14 +905,14 @@ const AllCandidates = () => {
                       {selectedCandidate.status === 'interview_completed' && (
                         <>
                           <button
-                            onClick={() => updateApplicationStatus('shortlisted')}
+                            onClick={() => updateApplicationStatus('final_shortlisted')}
                             className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-xs"
                             disabled={updatingStatus}
                           >
                             Final Shortlist
                           </button>
                           <button
-                            onClick={() => updateApplicationStatus('rejected')}
+                            onClick={() => updateApplicationStatus('final_rejected')}
                             className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-xs"
                             disabled={updatingStatus}
                           >
@@ -919,7 +923,7 @@ const AllCandidates = () => {
                     </div>
                   </div>
 
-                  {(selectedCandidate.status === 'interview_completed' || selectedCandidate.status === 'shortlisted') && (
+                  {(selectedCandidate.status === 'interview_completed' || selectedCandidate.status === 'final_shortlisted') && (
                     <div className="bg-white border rounded-lg p-4 shadow-sm">
                       <div className="flex items-center justify-between mb-3">
                         <h3 className="text-sm font-bold text-gray-900">Interview Evaluation</h3>

@@ -399,7 +399,8 @@ router.post(
           gender,
           date_of_birth,
           nationality,
-          user_id
+          user_id,
+          status: 'submitted'
         }])
         .select()
         .single();
@@ -553,7 +554,7 @@ router.get('/all/detailed', cache.middleware(120), async (req, res) => {
         research_experiences (*),
         research_info (*)
       `)
-      .neq('status', 'rejected');
+      .neq('status', 'final_rejected');
 
     if (department && department !== 'All') {
       query = query.eq('department', department);

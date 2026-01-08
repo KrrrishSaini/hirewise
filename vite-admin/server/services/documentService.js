@@ -122,7 +122,7 @@ async generateInitialReport(applicationId) {
         otherPublications: application.other_publications_path
       },
       status: {
-        currentStatus: application.status || 'in_review',
+        currentStatus: application.status || 'submitted',
         createdAt: application.created_at,
         lastUpdated: new Date().toISOString()
       }

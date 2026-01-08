@@ -45,8 +45,8 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
         if (error) throw error;
 
         // Calculate counts from the single query result
-        const shortlisted = data?.filter(app => app.status === 'shortlisted').length || 0;
-        const rejected = data?.filter(app => app.status === 'rejected' || app.status === 'cv_rejected').length || 0;
+        const shortlisted = data?.filter(app => app.status === 'final_shortlisted').length || 0;
+        const rejected = data?.filter(app => app.status === 'final_rejected' || app.status === 'cv_rejected').length || 0;
 
         setStats({
           total: count || 0,
@@ -82,11 +82,11 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
       }
 
       if (kind === 'shortlisted') {
-        query = query.eq('status', 'shortlisted')
+        query = query.eq('status', 'final_shortlisted')
       }
 
       if (kind === 'rejected') {
-        query = query.in('status', ['rejected', 'cv_rejected'])
+        query = query.in('status', ['final_rejected', 'cv_rejected'])
       }
 
       const { data, error: selErr } = await query
@@ -118,7 +118,7 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
       setPanelLoading(true);
       
       // Build query to delete rejected applications based on current view
-      let query = supabase.from('faculty_applications').delete().eq('status', 'rejected');
+      let query = supabase.from('faculty_applications').delete().eq('status', 'final_rejected');
       
       // Filter by teaching/non-teaching
       if (selectedView === 'teaching') {
@@ -156,7 +156,7 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
       setPanelLoading(true);
       
       // Build query to delete shortlisted applications based on current view
-      let query = supabase.from('faculty_applications').delete().eq('status', 'shortlisted');
+      let query = supabase.from('faculty_applications').delete().eq('status', 'final_shortlisted');
       
       // Filter by teaching/non-teaching
       if (selectedView === 'teaching') {
@@ -353,12 +353,12 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
                         <td className="px-4 py-2 text-sm text-gray-700">{a.department || '—'}</td>
                         <td className="px-4 py-2 text-xs">
                           <span className={`inline-flex px-2 py-0.5 rounded-full font-medium ${
-                            a.status === 'shortlisted' ? 'bg-green-100 text-green-700' :
-                            a.status === 'rejected' || a.status === 'cv_rejected' ? 'bg-red-100 text-red-700' :
+                            a.status === 'final_shortlisted' ? 'bg-green-100 text-green-700' :
+                            a.status === 'final_rejected' || a.status === 'cv_rejected' ? 'bg-red-100 text-red-700' :
                             'bg-gray-100 text-gray-700'
                           }`}>
-                            {a.status === 'shortlisted' ? 'shortlisted' :
-                             a.status === 'rejected' ? 'rejected' :
+                            {a.status === 'final_shortlisted' ? 'shortlisted' :
+                             a.status === 'final_rejected' ? 'rejected' :
                              a.status === 'cv_rejected' ? 'cv rejected' :
                              'pending'}
                           </span>

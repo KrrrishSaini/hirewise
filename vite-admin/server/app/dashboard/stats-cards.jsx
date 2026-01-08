@@ -11,17 +11,17 @@ export default async function StatsCards() {
   const { count: inReview } = await supabase
     .from('faculty_applications')
     .select('*', { count: 'exact' })
-    .eq('status', 'in_review')
+    .eq('status', 'submitted')
 
   const { count: shortlisted } = await supabase
     .from('faculty_applications')
     .select('*', { count: 'exact' })
-    .eq('status', 'shortlisted')
+    .eq('status', 'final_shortlisted')
 
   const { count: rejected } = await supabase
     .from('faculty_applications')
     .select('*', { count: 'exact' })
-    .eq('status', 'rejected')
+    .eq('status', 'final_rejected')
 
   const stats = {
     total: total || 0,

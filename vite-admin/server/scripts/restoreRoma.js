@@ -41,7 +41,7 @@ async function run() {
       gender: 'Female',
       date_of_birth: '2000-02-02',
       nationality: 'Indian',
-      status: 'in_review'
+      status: 'submitted'
     }])
     .select()
     .single();
