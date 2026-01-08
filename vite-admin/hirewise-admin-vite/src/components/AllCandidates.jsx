@@ -71,7 +71,7 @@ const AllCandidates = () => {
 
   const matchesStage = (candidate, stage) => {
     const rawStatus = (candidate.status || '').toString().trim().toLowerCase();
-    const normalizedStatus = rawStatus === '' || rawStatus === 'pending' || rawStatus === 'new'
+    const normalizedStatus = rawStatus === '' || rawStatus === 'pending' || rawStatus === 'new' || rawStatus === 'in_review'
       ? 'submitted'
       : rawStatus;
     switch (stage) {
