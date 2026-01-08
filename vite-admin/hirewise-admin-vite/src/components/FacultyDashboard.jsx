@@ -215,6 +215,14 @@ const FacultyDashboard = () => {
     return lines.join('\n');
   };
 
+  const extractEvaluationComments = (remarks) => {
+    if (!remarks || typeof remarks !== 'string') return '';
+    const marker = 'Comments:';
+    const idx = remarks.indexOf(marker);
+    if (idx === -1) return '';
+    return remarks.slice(idx + marker.length).trim();
+  };
+
   const committeeInfo = location.state?.committeeInfo || JSON.parse(localStorage.getItem('committeeInfo') || '{}');
   const committeeCode = (committeeInfo.code || '').toLowerCase();
   const isArchivedView = location.pathname.includes('/faculty-portal/archived');
@@ -1174,20 +1182,18 @@ const FacultyDashboard = () => {
                         </button>
                       </div>
                       {candidateEvaluation ? (
-                        <div className="space-y-2 text-sm text-gray-700">
-                          <p><span className="font-semibold">Faculty:</span> {candidateEvaluation.faculty_name || 'N/A'}</p>
-                          <p><span className="font-semibold">Teaching:</span> {candidateEvaluation.teaching_competence}/10</p>
-                          <p><span className="font-semibold">Research:</span> {candidateEvaluation.research_potential}/10</p>
-                          <p><span className="font-semibold">Industry:</span> {candidateEvaluation.industry_experience}/10</p>
-                          <p><span className="font-semibold">Communication:</span> {candidateEvaluation.communication_skills}/10</p>
-                          <p><span className="font-semibold">Subject Knowledge:</span> {candidateEvaluation.subject_knowledge}/10</p>
-                          <p><span className="font-semibold">Overall:</span> {candidateEvaluation.overall_suitability}/10</p>
-                          {candidateEvaluation.remarks && (
-                            <div>
-                              <p className="font-semibold">Remarks</p>
-                              <p className="text-xs text-gray-600 whitespace-pre-wrap">{candidateEvaluation.remarks}</p>
-                            </div>
-                          )}
+                        <div className="space-y-3 text-sm text-gray-700">
+                          <p><span className="font-semibold">Evaluation Committee:</span> {candidateEvaluation.faculty_name || 'N/A'}</p>
+                          <p><span className="font-semibold">I. Teaching:</span> {candidateEvaluation.teaching_competence ?? 'N/A'}/10</p>
+                          <p><span className="font-semibold">II. Research:</span> {candidateEvaluation.research_potential ?? 'N/A'}/10</p>
+                          <p><span className="font-semibold">III. General: Culture Alignment:</span> {candidateEvaluation.industry_experience ?? 'N/A'}/10</p>
+                          <p><span className="font-semibold">Combined Score:</span> {candidateEvaluation.overall_suitability ?? 'N/A'}/10</p>
+                          <div>
+                            <p className="font-semibold">Remarks</p>
+                            <p className="text-xs text-gray-600 whitespace-pre-wrap">
+                              {extractEvaluationComments(candidateEvaluation.remarks) || 'No additional comments.'}
+                            </p>
+                          </div>
                         </div>
                       ) : (
                         <p className="text-xs text-gray-500">No evaluation found.</p>
