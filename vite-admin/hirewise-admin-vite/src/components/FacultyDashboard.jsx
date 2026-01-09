@@ -41,6 +41,14 @@ const FacultyDashboard = () => {
       .join(' ');
   };
 
+  const normalizeCandidateStatus = (status) => {
+    const normalized = (status || '').toString().toLowerCase();
+    if (!normalized || normalized === 'pending') return 'submitted';
+    if (normalized === 'shortlisted') return 'final_shortlisted';
+    if (normalized === 'rejected') return 'final_rejected';
+    return normalized;
+  };
+
   const normalizeDegreeRank = (deg) => {
     if (!deg) return 0;
     const d = deg.toLowerCase();
@@ -288,8 +296,13 @@ const FacultyDashboard = () => {
       const validCandidates = (data || []).filter(c =>
         c.status !== 'deleted' && c.status !== 'Deleted'
       );
+
+      const normalizedCandidates = validCandidates.map(candidate => ({
+        ...candidate,
+        status: normalizeCandidateStatus(candidate.status)
+      }));
       
-      setCandidates(validCandidates);
+      setCandidates(normalizedCandidates);
     } catch (err) {
       console.error('Error fetching candidates:', err);
       setError(err.message);
@@ -324,8 +337,8 @@ const FacultyDashboard = () => {
       console.log('Full candidate data fetched:', fullData);
       
       // Flatten researchInfo fields to top level
-      const candidateStatus = (candidate.status || '').toString();
-      const fullStatus = (fullData.status || '').toString();
+      const candidateStatus = normalizeCandidateStatus(candidate.status);
+      const fullStatus = normalizeCandidateStatus(fullData.status);
       const finalStatusSet = new Set(['final_shortlisted', 'final_rejected', 'cv_rejected']);
       const normalizedCandidateStatus = candidateStatus.toLowerCase();
       const normalizedFullStatus = fullStatus.toLowerCase();
