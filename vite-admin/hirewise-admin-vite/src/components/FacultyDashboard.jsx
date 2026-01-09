@@ -611,7 +611,7 @@ const FacultyDashboard = () => {
 
   const cvCandidates = candidates.filter((candidate) => candidate.status === 'cv_assigned');
   const interviewCandidates = candidates.filter((candidate) => candidate.status === 'interview_assigned');
-  const archivedCandidates = candidates.filter((candidate) => isArchivedStatus(candidate.status));
+  const archivedCandidates = candidates.filter((candidate) => archivedIdSet.has(candidate.id));
   const allCandidates = candidates;
   const filteredCandidates = selectedStage === 'all'
     ? allCandidates.filter((candidate) => !archivedIdSet.has(candidate.id))
@@ -772,7 +772,7 @@ const FacultyDashboard = () => {
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
-                All ({allCandidates.length})
+                All ({filteredCandidates.length})
               </button>
               <button
                 type="button"
