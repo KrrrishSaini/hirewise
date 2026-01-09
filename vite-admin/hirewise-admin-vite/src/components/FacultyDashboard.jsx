@@ -327,6 +327,7 @@ const FacultyDashboard = () => {
       const flattened = {
         ...candidate,
         ...fullData,
+        status: candidate.status || fullData.status,
         // Extract research info fields to top level
         scopus_general_papers: fullData.researchInfo?.scopus_general_papers || 0,
         conference_papers: fullData.researchInfo?.conference_papers || 0,
