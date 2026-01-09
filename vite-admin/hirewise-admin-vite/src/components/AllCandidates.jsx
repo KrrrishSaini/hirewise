@@ -63,6 +63,76 @@ const AllCandidates = () => {
       .join(' ');
   };
 
+  const normalizeDegreeRank = (deg) => {
+    if (!deg) return 0;
+    const d = deg.toLowerCase();
+    if (d.includes('phd') || d.includes('doctor')) return 3;
+    if (d.includes('master')) return 2;
+    if (d.includes('bachelor') || d.includes('b.tech')) return 1;
+    return 0;
+  };
+
+  const getAdditionalEducation = (candidate) => {
+    if (!candidate) return null;
+    const degrees = [
+      {
+        rank: 3,
+        degree: candidate.phd_degree_name || candidate.phdDegreeName || candidate.phdDegree || candidate.highest_degree,
+        institute: candidate.phd_institute || candidate.phdInstitute,
+        year: candidate.phd_year || candidate.phdYear,
+      },
+      {
+        rank: 2,
+        degree: candidate.master_degree_name || candidate.masterDegreeName || candidate.masterDegree,
+        institute: candidate.master_institute || candidate.masterInstitute,
+        year: candidate.master_year || candidate.masterYear,
+      },
+      {
+        rank: 1,
+        degree: candidate.bachelor_degree_name || candidate.bachelorDegreeName || candidate.bachelorDegree,
+        institute: candidate.bachelor_institute || candidate.bachelorInstitute,
+        year: candidate.bachelor_year || candidate.bachelorYear,
+      },
+    ].filter((d) => d.degree || d.institute || d.year);
+
+    if (degrees.length === 0) return null;
+    const sorted = degrees.sort((a, b) => b.rank - a.rank || normalizeDegreeRank(b.degree) - normalizeDegreeRank(a.degree));
+    const highest = sorted[0];
+    const next = sorted.find((d) => d.rank < highest.rank);
+    return next || null;
+  };
+
+  const computeExperienceFromArrays = (teaching = [], research = []) => {
+    const parseDate = (v) => (v ? new Date(v) : null);
+    const monthsBetween = (start, end) => {
+      if (!start || !end) return 0;
+      const s = parseDate(start);
+      const e = parseDate(end);
+      if (!s || !e || isNaN(s) || isNaN(e)) return 0;
+      let months = (e.getFullYear() - s.getFullYear()) * 12 + (e.getMonth() - s.getMonth());
+      if (e.getDate() < s.getDate()) months -= 1;
+      return Math.max(0, months);
+    };
+
+    const teachingMonths = teaching.reduce(
+      (sum, exp) => sum + monthsBetween(exp.start_date || exp.teachingStartDate, exp.end_date || exp.teachingEndDate || new Date()),
+      0
+    );
+    const researchMonths = research.reduce(
+      (sum, exp) => sum + monthsBetween(exp.start_date || exp.researchStartDate, exp.end_date || exp.researchEndDate || new Date()),
+      0
+    );
+
+    const totalMonths = teachingMonths + researchMonths;
+    if (totalMonths <= 0) return 'N/A';
+    const years = Math.floor(totalMonths / 12);
+    const months = totalMonths % 12;
+    const parts = [];
+    if (years > 0) parts.push(`${years} year${years !== 1 ? 's' : ''}`);
+    if (months > 0) parts.push(`${months} month${months !== 1 ? 's' : ''}`);
+    return parts.join(' ') || '0 months';
+  };
+
   const formatCandidateName = (candidate) => {
     if (!candidate) return '';
     const title = candidate.title ? `${toTitleCase(candidate.title)} ` : '';
@@ -316,6 +386,11 @@ const AllCandidates = () => {
       </div>
     );
   }
+
+  const additionalEducation = selectedCandidate ? getAdditionalEducation(selectedCandidate) : null;
+  const teachingExperiences = selectedCandidate?.teachingExperiences || [];
+  const researchExperiences = selectedCandidate?.researchExperiences || [];
+  const derivedExperience = selectedCandidate?.experience || computeExperienceFromArrays(teachingExperiences, researchExperiences);
 
   return (
     <>
@@ -617,64 +692,9 @@ const AllCandidates = () => {
                   {/* Education */}
                   <div className="bg-white border rounded-lg p-4 shadow-sm">
                     <h3 className="text-lg font-bold text-gray-900 mb-3 border-b pb-2">Education</h3>
-                    <div className="space-y-4">
-                      {/* PhD */}
-                      {selectedCandidate.phd_status && selectedCandidate.phd_status !== 'Not done' && (
-                        <div className="border-l-4 border-indigo-500 pl-4">
-                          <p className="text-xs font-semibold text-indigo-600 uppercase">PhD</p>
-                          <p className="text-sm font-medium text-gray-900">{selectedCandidate.phd_institute || selectedCandidate.institution || 'N/A'}</p>
-                          <p className="text-xs text-gray-600">
-                            {selectedCandidate.phd_degree_name || 'N/A'} | Year: {selectedCandidate.phd_year || 'N/A'}
-                          </p>
-                          {selectedCandidate.phd_specialization && (
-                            <p className="text-xs text-gray-600 mt-1">Specialization: {selectedCandidate.phd_specialization}</p>
-                          )}
-                          {(selectedCandidate.phd_cgpa || selectedCandidate.phd_percentage) && (
-                            <p className="text-xs text-gray-600 mt-1">
-                              {selectedCandidate.phd_cgpa && `CGPA: ${selectedCandidate.phd_cgpa}${selectedCandidate.phd_cgpa_scale ? ` (Out of ${selectedCandidate.phd_cgpa_scale})` : ''}`}
-                              {selectedCandidate.phd_percentage && `${selectedCandidate.phd_cgpa ? ' | ' : ''}Percentage: ${selectedCandidate.phd_percentage}%`}
-                            </p>
-                          )}
-                        </div>
-                      )}
-                      
-                      {/* Master's */}
-                      {selectedCandidate.master_institute && (
-                        <div className="border-l-4 border-blue-500 pl-4">
-                          <p className="text-xs font-semibold text-blue-600 uppercase">Master's Degree</p>
-                          <p className="text-sm font-medium text-gray-900">{selectedCandidate.master_institute}</p>
-                          <p className="text-xs text-gray-600">
-                            {selectedCandidate.master_degree_name || 'N/A'} | Year: {selectedCandidate.master_year || 'N/A'}
-                          </p>
-                          {(selectedCandidate.master_cgpa || selectedCandidate.master_percentage) && (
-                            <p className="text-xs text-gray-600 mt-1">
-                              {selectedCandidate.master_cgpa && `CGPA: ${selectedCandidate.master_cgpa}${selectedCandidate.master_cgpa_scale ? ` (Out of ${selectedCandidate.master_cgpa_scale})` : ''}`}
-                              {selectedCandidate.master_percentage && `${selectedCandidate.master_cgpa ? ' | ' : ''}Percentage: ${selectedCandidate.master_percentage}%`}
-                            </p>
-                          )}
-                        </div>
-                      )}
-                      
-                      {/* Bachelor's */}
-                      {selectedCandidate.bachelor_institute && (
-                        <div className="border-l-4 border-green-500 pl-4">
-                          <p className="text-xs font-semibold text-green-600 uppercase">Bachelor's Degree</p>
-                          <p className="text-sm font-medium text-gray-900">{selectedCandidate.bachelor_institute}</p>
-                          <p className="text-xs text-gray-600">
-                            {selectedCandidate.bachelor_degree_name || 'N/A'} | Year: {selectedCandidate.bachelor_year || 'N/A'}
-                          </p>
-                          {(selectedCandidate.bachelor_cgpa || selectedCandidate.bachelor_percentage) && (
-                            <p className="text-xs text-gray-600 mt-1">
-                              {selectedCandidate.bachelor_cgpa && `CGPA: ${selectedCandidate.bachelor_cgpa}${selectedCandidate.bachelor_cgpa_scale ? ` (Out of ${selectedCandidate.bachelor_cgpa_scale})` : ''}`}
-                              {selectedCandidate.bachelor_percentage && `${selectedCandidate.bachelor_cgpa ? ' | ' : ''}Percentage: ${selectedCandidate.bachelor_percentage}%`}
-                            </p>
-                          )}
-                        </div>
-                      )}
-                      
-                      {/* Highest Qualification Summary */}
-                      <div className="bg-gray-50 rounded p-3 mt-2">
-                        <p className="text-xs font-semibold text-gray-500 uppercase">Highest Qualification</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="bg-indigo-50 rounded p-3">
+                        <p className="text-xs font-semibold text-indigo-600 uppercase">Highest Qualification</p>
                         <p className="text-sm font-medium text-gray-900">
                           {selectedCandidate.highest_degree || 'Not specified'}
                         </p>
@@ -685,6 +705,21 @@ const AllCandidates = () => {
                           <p className="text-xs text-gray-600">Graduated: {selectedCandidate.graduation_year}</p>
                         )}
                       </div>
+                      <div className="bg-indigo-50 rounded p-3">
+                        <p className="text-xs font-semibold text-indigo-600 uppercase">Additional Qualification</p>
+                        <p className="text-sm font-medium text-gray-900">
+                          {additionalEducation?.degree || 'Not provided'}
+                        </p>
+                        {additionalEducation?.institute && (
+                          <p className="text-xs text-gray-600">{additionalEducation.institute}</p>
+                        )}
+                        {additionalEducation?.year && (
+                          <p className="text-xs text-gray-600">Graduated: {additionalEducation.year}</p>
+                        )}
+                        {!additionalEducation && (
+                          <p className="text-xs text-gray-600">No additional education details available.</p>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -693,17 +728,17 @@ const AllCandidates = () => {
                     <h3 className="text-lg font-bold text-gray-900 mb-3 border-b pb-2">Experience</h3>
                     <div className="bg-green-50 rounded p-3 mb-3">
                       <p className="text-xs font-semibold text-green-600 uppercase">Total Experience</p>
-                      <p className="text-lg font-bold text-gray-900">{selectedCandidate.experience}</p>
+                      <p className="text-lg font-bold text-gray-900">{derivedExperience}</p>
                     </div>
 
                     {/* Teaching Experience */}
-                    {selectedCandidate.teachingExperiences && selectedCandidate.teachingExperiences.length > 0 && (
+                    {teachingExperiences.length > 0 && (
                       <div className="mb-3">
                         <p className="text-xs font-bold text-gray-700 uppercase mb-2">Teaching Experience</p>
-                        {selectedCandidate.teachingExperiences.slice(0, 2).map((exp, index) => (
+                        {teachingExperiences.slice(0, 2).map((exp, index) => (
                           <div key={index} className="border-l-4 border-blue-500 pl-3 mb-2">
                             <p className="text-sm font-medium text-gray-900">
-                              {exp.position || exp.teachingPost || 'Position not specified'}
+                              {exp.post || exp.position || exp.teachingPost || 'Position not specified'}
                             </p>
                             <p className="text-xs text-gray-600">
                               {exp.institution || exp.teachingInstitution || 'Institution not specified'}
@@ -717,13 +752,13 @@ const AllCandidates = () => {
                     )}
 
                     {/* Research Experience */}
-                    {selectedCandidate.researchExperiences && selectedCandidate.researchExperiences.length > 0 && (
+                    {researchExperiences.length > 0 && (
                       <div>
                         <p className="text-xs font-bold text-gray-700 uppercase mb-2">Research Experience</p>
-                        {selectedCandidate.researchExperiences.slice(0, 2).map((exp, index) => (
+                        {researchExperiences.slice(0, 2).map((exp, index) => (
                           <div key={index} className="border-l-4 border-green-500 pl-3 mb-2">
                             <p className="text-sm font-medium text-gray-900">
-                              {exp.position || exp.researchPost || 'Position not specified'}
+                              {exp.post || exp.position || exp.researchPost || 'Position not specified'}
                             </p>
                             <p className="text-xs text-gray-600">
                               {exp.institution || exp.researchInstitution || 'Institution not specified'}
