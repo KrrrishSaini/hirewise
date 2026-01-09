@@ -63,6 +63,16 @@ const AllCandidates = () => {
       .join(' ');
   };
 
+  const normalizeCandidateStatus = (status) => {
+    const normalized = (status || '').toString().trim().toLowerCase();
+    if (!normalized || normalized === 'pending' || normalized === 'new' || normalized === 'in_review') {
+      return 'submitted';
+    }
+    if (normalized === 'shortlisted') return 'final_shortlisted';
+    if (normalized === 'rejected') return 'final_rejected';
+    return normalized;
+  };
+
   const normalizeDegreeRank = (deg) => {
     if (!deg) return 0;
     const d = deg.toLowerCase();
@@ -167,14 +177,7 @@ const AllCandidates = () => {
   };
 
   const matchesStage = (candidate, stage) => {
-    const rawStatus = (candidate.status || '').toString().trim().toLowerCase();
-    const normalizedStatus = rawStatus === '' || rawStatus === 'pending' || rawStatus === 'new' || rawStatus === 'in_review'
-      ? 'submitted'
-      : rawStatus === 'shortlisted'
-      ? 'final_shortlisted'
-      : rawStatus === 'rejected'
-      ? 'final_rejected'
-      : rawStatus;
+    const normalizedStatus = normalizeCandidateStatus(candidate.status);
     switch (stage) {
       case 'new':
         return normalizedStatus === 'submitted';
@@ -224,7 +227,11 @@ const AllCandidates = () => {
       console.log('All statuses in DB:', [...new Set(data?.map(c => c.status))]);
       console.log('First few candidates:', filteredData.slice(0, 5).map(c => ({ id: c.id, name: c.first_name, status: c.status })));
       
-      setCandidates(filteredData);
+      const normalized = filteredData.map(candidate => ({
+        ...candidate,
+        status: normalizeCandidateStatus(candidate.status)
+      }));
+      setCandidates(normalized);
     } catch (err) {
       console.error('Error fetching candidates:', err);
       setError(err.message);
@@ -249,10 +256,28 @@ const AllCandidates = () => {
       console.log('Full candidate data fetched:', fullData);
       
       // Flatten researchInfo fields to top level
+      const candidateStatus = normalizeCandidateStatus(candidate.status);
+      const fullStatus = normalizeCandidateStatus(fullData.status);
+      const finalStatusSet = new Set(['final_shortlisted', 'final_rejected', 'cv_rejected']);
+      const normalizedCandidateStatus = candidateStatus.toLowerCase();
+      const normalizedFullStatus = fullStatus.toLowerCase();
+      const resolvedStatus = (() => {
+        if (finalStatusSet.has(normalizedFullStatus) && !finalStatusSet.has(normalizedCandidateStatus)) {
+          return fullStatus;
+        }
+        if (normalizedFullStatus === 'interview_completed' && normalizedCandidateStatus !== 'interview_completed') {
+          return fullStatus;
+        }
+        if (!candidateStatus) {
+          return fullStatus || candidateStatus;
+        }
+        return candidateStatus;
+      })();
+
       const flattened = {
         ...candidate,
         ...fullData,
-        status: candidate.status || fullData.status,
+        status: resolvedStatus,
         // Extract research info fields to top level
         scopus_general_papers: fullData.researchInfo?.scopus_general_papers || 0,
         conference_papers: fullData.researchInfo?.conference_papers || 0,
