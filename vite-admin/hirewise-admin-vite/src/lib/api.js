@@ -155,8 +155,17 @@ export const candidatesApi = {
   getAllDetailed: (department = 'All') => 
     api.get('/api/applications/all/detailed', { query: department !== 'All' ? { department } : {} }),
   
-  getById: (id) => 
-    api.get(`/api/applications/${id}`),
+  getById: (id, options = {}) => {
+    const { fresh = false, query, ...rest } = options;
+    const mergedQuery = fresh
+      ? { _t: Date.now(), ...(query || {}) }
+      : query;
+    return api.get(`/api/applications/${id}`, {
+      ...rest,
+      query: mergedQuery,
+      skipCache: fresh || rest.skipCache,
+    });
+  },
   
   submitApplication: (formData) => 
     api.post('/api/applications', formData, { retries: 1 }),

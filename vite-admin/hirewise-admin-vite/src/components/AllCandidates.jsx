@@ -245,7 +245,7 @@ const AllCandidates = () => {
     
     try {
       // Fetch complete application details from API
-      const fullData = await candidatesApi.getById(candidate.id);
+      const fullData = await candidatesApi.getById(candidate.id, { fresh: true });
       console.log('Full candidate data fetched:', fullData);
       
       // Flatten researchInfo fields to top level

@@ -257,7 +257,7 @@ const getPositionFilterOptions = () => {
     
     // Fetch complete application details including education, experience, etc.
     try {
-      const fullData = await candidatesApi.getById(candidate.id);
+      const fullData = await candidatesApi.getById(candidate.id, { fresh: true });
       console.log('Full candidate data fetched:', fullData); // Debug log
       
       // Fetch faculty evaluations for this candidate
