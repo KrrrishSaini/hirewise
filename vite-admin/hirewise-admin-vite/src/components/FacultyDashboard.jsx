@@ -324,10 +324,28 @@ const FacultyDashboard = () => {
       console.log('Full candidate data fetched:', fullData);
       
       // Flatten researchInfo fields to top level
+      const candidateStatus = (candidate.status || '').toString();
+      const fullStatus = (fullData.status || '').toString();
+      const finalStatusSet = new Set(['final_shortlisted', 'final_rejected', 'cv_rejected']);
+      const normalizedCandidateStatus = candidateStatus.toLowerCase();
+      const normalizedFullStatus = fullStatus.toLowerCase();
+      const resolvedStatus = (() => {
+        if (finalStatusSet.has(normalizedFullStatus) && !finalStatusSet.has(normalizedCandidateStatus)) {
+          return fullStatus;
+        }
+        if (normalizedFullStatus === 'interview_completed' && normalizedCandidateStatus !== 'interview_completed') {
+          return fullStatus;
+        }
+        if (!candidateStatus) {
+          return fullStatus || candidateStatus;
+        }
+        return candidateStatus;
+      })();
+
       const flattened = {
         ...candidate,
         ...fullData,
-        status: candidate.status || fullData.status,
+        status: resolvedStatus,
         // Extract research info fields to top level
         scopus_general_papers: fullData.researchInfo?.scopus_general_papers || 0,
         conference_papers: fullData.researchInfo?.conference_papers || 0,
