@@ -185,7 +185,7 @@ const AllCandidates = () => {
       case 'interview_assigned':
         return normalizedStatus === 'interview_assigned';
       case 'interview_completed':
-        return normalizedStatus === 'interview_completed' || normalizedStatus === 'final_shortlisted' || normalizedStatus === 'final_rejected';
+        return normalizedStatus === 'interview_completed';
       case 'accepted':
         return normalizedStatus === 'final_shortlisted';
       case 'rejected':
