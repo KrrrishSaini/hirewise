@@ -2197,6 +2197,8 @@ const CombinedMultiStepForm = () => {
   const [completedSteps, setCompletedSteps] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  const [submissionSuccess, setSubmissionSuccess] = useState(false);
+  const [redirectSeconds, setRedirectSeconds] = useState(15);
   const sanitizeDraftData = (data) => {
     // Strip File objects (cannot be serialized to JSON) and reset to null
     const {
@@ -2419,6 +2421,22 @@ const CombinedMultiStepForm = () => {
     return () => clearTimeout(timer);
   }, [formData, currentStep, autoSaveEnabled, draftLoaded]);
 
+  useEffect(() => {
+    if (!submissionSuccess) return undefined;
+    setRedirectSeconds(15);
+    const intervalId = setInterval(() => {
+      setRedirectSeconds((prev) => {
+        if (prev <= 1) {
+          clearInterval(intervalId);
+          navigate('/');
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(intervalId);
+  }, [submissionSuccess, navigate]);
+
   const onSubmitFinalApplication = async () => {
   // Client-side double-submit guard: prevents multiple rapid clicks
   if (submitting) {
@@ -2637,8 +2655,7 @@ const CombinedMultiStepForm = () => {
       return;
     }
 
-    const result = await response.json();
-    alert('✅ Application submitted successfully!\n\nYour application is being processed. You will receive confirmation via email.');
+    await response.json();
     
     // Delete draft after successful submission
     try {
@@ -2649,20 +2666,20 @@ const CombinedMultiStepForm = () => {
     } catch (draftErr) {
       console.log('Draft cleanup warning:', draftErr);
     }
-    
-    navigate('/register');
+
+    setSubmissionSuccess(true);
+    setSubmitting(false);
+    return;
   } catch (err) {
     console.error('Submission error:', err);
     
     // Handle different error types
     if (err.name === 'AbortError' || err.name === 'TimeoutError') {
       // Don't show scary message - application likely still processing
-      alert('✅ Application submitted! Processing may take a moment.\n\nYou will receive email confirmation shortly at: ' + formData.email);
-      // Navigate anyway since backend processes in background
-    navigate('/register');
-    return;
-  }
-  
+      setSubmissionSuccess(true);
+      setSubmitting(false);
+      return;
+    }
   if (err.name === 'TypeError' && err.message.includes('fetch')) {
     alert('❌ Network error. Please check your internet connection and try again.');
   } else {
@@ -2734,6 +2751,27 @@ const CombinedMultiStepForm = () => {
         return null;
     }
   };
+
+  if (submissionSuccess) {
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center bg-gray-50">
+        <div className="bg-white shadow-xl rounded-2xl p-10 max-w-xl w-full text-center border border-gray-200">
+          <div className="mx-auto w-20 h-20 rounded-full bg-green-100 flex items-center justify-center">
+            <svg className="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <h2 className="mt-6 text-2xl font-bold text-gray-900">Application Submitted</h2>
+          <p className="mt-2 text-gray-600">
+            Your application is submitted. Please wait for further contact.
+          </p>
+          <div className="mt-6 text-sm text-gray-500">
+            Redirecting to home in {redirectSeconds}s...
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="multi-step-form">
