@@ -652,7 +652,15 @@ const FacultyDashboard = () => {
     }
   }, [archivedIds]);
 
-  const archivedIdSet = useMemo(() => new Set(archivedIds), [archivedIds]);
+  const autoArchivedIds = useMemo(
+    () => candidates.filter((candidate) => isArchivedStatus(candidate.status)).map((candidate) => candidate.id),
+    [candidates]
+  );
+  const archivedIdSet = useMemo(() => {
+    const merged = new Set(archivedIds);
+    autoArchivedIds.forEach((id) => merged.add(id));
+    return merged;
+  }, [archivedIds, autoArchivedIds]);
 
   const archiveCandidateFromAll = (candidate) => {
     if (!candidate || !isArchivedStatus(candidate.status)) return;
