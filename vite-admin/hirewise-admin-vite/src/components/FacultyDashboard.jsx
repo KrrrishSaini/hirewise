@@ -744,6 +744,31 @@ const FacultyDashboard = () => {
 
   const showAllProgress = !isArchivedView && selectedStage === 'all';
   const showDetailActions = !isArchivedView && selectedStage !== 'all';
+  const getStatusBadge = (status) => {
+    const normalized = (status || '').toLowerCase();
+    if (normalized === 'final_shortlisted') {
+      return { label: 'Final Shortlisted', className: 'bg-green-100 text-green-700' };
+    }
+    if (normalized === 'final_rejected') {
+      return { label: 'Final Rejected', className: 'bg-red-100 text-red-700' };
+    }
+    if (normalized === 'cv_rejected') {
+      return { label: 'CV Rejected', className: 'bg-red-100 text-red-700' };
+    }
+    if (normalized === 'interview_completed') {
+      return { label: 'Interview Completed', className: 'bg-blue-100 text-blue-700' };
+    }
+    if (normalized === 'interview_assigned') {
+      return { label: 'Interview Assigned', className: 'bg-blue-100 text-blue-700' };
+    }
+    if (normalized === 'cv_shortlisted') {
+      return { label: 'CV Shortlisted', className: 'bg-green-100 text-green-700' };
+    }
+    if (normalized === 'cv_assigned') {
+      return { label: 'CV Assigned', className: 'bg-gray-100 text-gray-700' };
+    }
+    return { label: 'Submitted', className: 'bg-gray-100 text-gray-700' };
+  };
 
   return (
     <>
@@ -1325,17 +1350,14 @@ const FacultyDashboard = () => {
                     <h3 className="text-sm font-bold text-gray-900 mb-3">Application Status</h3>
                     <div className="space-y-3">
                       <div className="flex items-center space-x-2">
-                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                          selectedCandidate.status === 'cv_shortlisted' ? 'bg-green-100 text-green-700' :
-                          selectedCandidate.status === 'cv_rejected' ? 'bg-red-100 text-red-700' :
-                          selectedCandidate.status === 'interview_assigned' ? 'bg-blue-100 text-blue-700' :
-                          'bg-gray-100 text-gray-700'
-                        }`}>
-                          {selectedCandidate.status === 'cv_shortlisted' ? 'CV Shortlisted' :
-                           selectedCandidate.status === 'cv_rejected' ? 'CV Rejected' :
-                           selectedCandidate.status === 'interview_assigned' ? 'Interview Assigned' :
-                           'CV Assigned'}
-                        </span>
+                        {(() => {
+                          const badge = getStatusBadge(selectedCandidate.status);
+                          return (
+                            <span className={`px-3 py-1 rounded-full text-sm font-medium ${badge.className}`}>
+                              {badge.label}
+                            </span>
+                          );
+                        })()}
                       </div>
                       
                       {showDetailActions && selectedCandidate.status === 'cv_assigned' && (
