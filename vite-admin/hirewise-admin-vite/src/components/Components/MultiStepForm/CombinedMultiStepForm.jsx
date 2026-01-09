@@ -2199,6 +2199,7 @@ const CombinedMultiStepForm = () => {
   const [submitError, setSubmitError] = useState('');
   const [submissionSuccess, setSubmissionSuccess] = useState(false);
   const [redirectSeconds, setRedirectSeconds] = useState(15);
+  const [submittedAlready, setSubmittedAlready] = useState(false);
   const sanitizeDraftData = (data) => {
     // Strip File objects (cannot be serialized to JSON) and reset to null
     const {
@@ -2422,7 +2423,38 @@ const CombinedMultiStepForm = () => {
   }, [formData, currentStep, autoSaveEnabled, draftLoaded]);
 
   useEffect(() => {
-    if (!submissionSuccess) return undefined;
+    let active = true;
+    const checkExistingSubmission = async () => {
+      try {
+        if (submissionSuccess) return;
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) throw sessionError;
+        const user = session?.user;
+        if (!user) return;
+        const { data, error } = await supabase
+          .from('faculty_applications')
+          .select('id')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (error) throw error;
+        if (data && active) {
+          setSubmittedAlready(true);
+          setSubmissionSuccess(true);
+        }
+      } catch (err) {
+        console.error('Error checking submission status:', err);
+      }
+    };
+    checkExistingSubmission();
+    return () => {
+      active = false;
+    };
+  }, [submissionSuccess]);
+
+  useEffect(() => {
+    if (!submissionSuccess || submittedAlready) return undefined;
     setRedirectSeconds(15);
     const intervalId = setInterval(() => {
       setRedirectSeconds((prev) => {
@@ -2763,11 +2795,22 @@ const CombinedMultiStepForm = () => {
           </div>
           <h2 className="mt-6 text-2xl font-bold text-gray-900">Application Submitted</h2>
           <p className="mt-2 text-gray-600">
-            Your application is submitted. Please wait for further contact.
+            Your application is submitted. The university will contact you.
           </p>
-          <div className="mt-6 text-sm text-gray-500">
-            Redirecting to home in {redirectSeconds}s...
-          </div>
+          {!submittedAlready && (
+            <div className="mt-6 text-sm text-gray-500">
+              Redirecting to home in {redirectSeconds}s...
+            </div>
+          )}
+          {submittedAlready && (
+            <button
+              type="button"
+              onClick={() => navigate('/')}
+              className="mt-6 inline-flex items-center justify-center px-4 py-2 text-sm font-semibold bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            >
+              Go to Home
+            </button>
+          )}
         </div>
       </div>
     );
