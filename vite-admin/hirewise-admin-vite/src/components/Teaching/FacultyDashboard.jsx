@@ -918,8 +918,8 @@ const FacultyDashboard = () => {
                     </div>
 
                     {showProgress && progress && (
-                      <div className="flex-1 max-w-md px-4 flex flex-col justify-center min-w-[260px]">
-                        <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
+                      <div className="flex-1 max-w-md px-4 flex flex-col justify-center min-w-[260px] ml-auto items-end text-right">
+                        <div className="flex items-center justify-between text-xs text-gray-500 mb-2 w-full">
                           <span>CV Review</span>
                           <span>Interview</span>
                           <span>Final</span>
@@ -930,7 +930,7 @@ const FacultyDashboard = () => {
                             style={{ width: `${progress.percent}%` }}
                           />
                         </div>
-                        <div className="mt-2 text-xs font-semibold text-gray-600">{progress.label}</div>
+                        <div className="mt-2 text-xs font-semibold text-gray-600 w-full">{progress.label}</div>
                       </div>
                     )}
 
