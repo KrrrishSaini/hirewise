@@ -23,6 +23,13 @@ const PositionSelection = ({ formData, setFormData, onNext, onSaveExit, savingDr
   const [errors, setErrors] = useState({});
   const [departments, setDepartments] = useState([]);
   const [branches, setBranches] = useState([]);
+  const teachingPosts = [
+    { id: 'assistant_professor', name: 'Assistant Professor' },
+    { id: 'associate_professor', name: 'Associate Professor' },
+    { id: 'professor', name: 'Professor' },
+    { id: 'professor_of_practice', name: 'Professor of Practice' },
+    { id: 'lecturer', name: 'Lecturer' },
+  ];
   const teachingDepartments = [
     { id: 'engineering', name: 'School of Engineering & Technology' },
     { id: 'law', name: 'School of Law' },
@@ -94,6 +101,9 @@ const PositionSelection = ({ formData, setFormData, onNext, onSaveExit, savingDr
     if (!formData.department) {
       newErrors.department = 'Please select a department';
     }
+    if (formData.position === 'teaching' && !formData.teachingPost) {
+      newErrors.teachingPost = 'Please select a teaching post';
+    }
     if (formData.position === 'teaching' && !formData.branch) {
       newErrors.branch = 'Please select a branch';
     }
@@ -130,6 +140,7 @@ const PositionSelection = ({ formData, setFormData, onNext, onSaveExit, savingDr
             setFormData({
               ...formData,
               position: newPosition,
+              teachingPost: '',
               department: '',
               branch: '',
             });
@@ -141,6 +152,28 @@ const PositionSelection = ({ formData, setFormData, onNext, onSaveExit, savingDr
         </select>
         {errors.position && <span className="error">{errors.position}</span>}
       </div>
+      {formData.position === 'teaching' && (
+        <div className="form-field">
+          <label>Teaching Post Applied For*</label>
+          <div className="option-grid">
+            {teachingPosts.map((post) => {
+              const isSelected = formData.teachingPost === post.id;
+              return (
+                <button
+                  key={post.id}
+                  type="button"
+                  className={`option-chip ${isSelected ? 'option-chip--selected' : ''}`}
+                  onClick={() => setFormData({ ...formData, teachingPost: post.id })}
+                >
+                  {post.name}
+                </button>
+              );
+            })}
+          </div>
+          {errors.teachingPost && <span className="error">{errors.teachingPost}</span>}
+        </div>
+      )}
+
       <div className="form-field">
         <label htmlFor="department">Schools*</label>
         <select
@@ -2084,6 +2117,7 @@ const CombinedMultiStepForm = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
     position: '',
+    teachingPost: '',
     department: '',
     branch: '',
     countryCode: '+91',

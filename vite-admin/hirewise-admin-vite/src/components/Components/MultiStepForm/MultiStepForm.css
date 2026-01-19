@@ -528,6 +528,37 @@ h3.degree-section-title {
   pointer-events: none;
 }
 
+/* Teaching post selection grid */
+.option-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.option-chip {
+  border: 1px solid #d4d8e1;
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: #fff;
+  color: #1f2a44;
+  font-weight: 600;
+  text-align: left;
+  transition: all 0.15s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+}
+
+.option-chip:hover {
+  border-color: #0b6efd;
+  box-shadow: 0 4px 10px rgba(11, 110, 253, 0.12);
+}
+
+.option-chip--selected {
+  border-color: #0b6efd;
+  background: linear-gradient(135deg, #0b6efd 0%, #2d9cdb 100%);
+  color: white;
+  box-shadow: 0 6px 12px rgba(11, 110, 253, 0.2);
+}
+
 /* Loading spinner animation */
 @keyframes spin {
   0% { transform: rotate(0deg); }
