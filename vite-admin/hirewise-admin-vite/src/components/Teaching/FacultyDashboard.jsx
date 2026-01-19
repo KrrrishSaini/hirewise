@@ -780,6 +780,8 @@ const FacultyDashboard = () => {
       candidate?.teaching_post_applied_for ||
       candidate?.teaching_post_applied ||
       candidate?.post ||
+      candidate?.positionApplied ||
+      candidate?.position ||
       '';
     if (!raw) return '';
     return toTitleCase(raw.replace(/_/g, ' '));
@@ -914,11 +916,9 @@ const FacultyDashboard = () => {
                           <h3 className="text-lg font-semibold text-gray-900">
                             {formatCandidateName(candidate)}
                           </h3>
-                          {formatTeachingPost(candidate) && (
-                            <span className="text-xs font-medium text-blue-600 bg-blue-100 px-2 py-1 rounded-full">
-                              {formatTeachingPost(candidate)}
-                            </span>
-                          )}
+                          <span className="text-xs font-medium text-blue-600 bg-blue-100 px-2 py-1 rounded-full">
+                            {formatTeachingPost(candidate) || 'Teaching'}
+                          </span>
                         </div>
                         <p className="text-sm text-gray-600 mb-1">
                           {branchLabels[candidate.branch] || toTitleCase(candidate.branch || '')}
