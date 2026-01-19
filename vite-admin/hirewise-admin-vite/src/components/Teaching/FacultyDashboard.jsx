@@ -800,7 +800,8 @@ const FacultyDashboard = () => {
     return { percent: 10, color: 'bg-gray-300', label: 'Pending' };
   };
 
-  const showAllProgress = !isArchivedView && selectedStage === 'all';
+  // Show progress bars in active "All" view and also in archived view.
+  const showProgress = isArchivedView || selectedStage === 'all';
   const showDetailActions = !isArchivedView && selectedStage !== 'all';
   const getStatusBadge = (status) => {
     const normalized = (status || '').toLowerCase();
@@ -886,8 +887,8 @@ const FacultyDashboard = () => {
         <div className="divide-y divide-gray-200">
           {visibleCandidates.length > 0 ? (
             visibleCandidates.map((candidate, index) => {
-              const progress = showAllProgress ? getProgressMeta(candidate.status) : null;
-              const showAllActions = showAllProgress;
+              const progress = showProgress ? getProgressMeta(candidate.status) : null;
+              const showAllActions = !isArchivedView && selectedStage === 'all';
               return (
                 <div key={candidate.id} className="p-6 hover:bg-gray-50 transition-colors">
                   <div className="flex items-center justify-between gap-6">
@@ -916,7 +917,7 @@ const FacultyDashboard = () => {
                       </div>
                     </div>
 
-                    {showAllProgress && (
+                    {showProgress && progress && (
                       <div className="flex-1 max-w-md px-4">
                         <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
                           <span>CV Review</span>
