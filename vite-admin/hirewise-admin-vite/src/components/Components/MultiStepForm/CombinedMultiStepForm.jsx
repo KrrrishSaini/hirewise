@@ -154,22 +154,17 @@ const PositionSelection = ({ formData, setFormData, onNext, onSaveExit, savingDr
       </div>
       {formData.position === 'teaching' && (
         <div className="form-field">
-          <label>Teaching Post Applied For*</label>
-          <div className="option-grid">
-            {teachingPosts.map((post) => {
-              const isSelected = formData.teachingPost === post.id;
-              return (
-                <button
-                  key={post.id}
-                  type="button"
-                  className={`option-chip ${isSelected ? 'option-chip--selected' : ''}`}
-                  onClick={() => setFormData({ ...formData, teachingPost: post.id })}
-                >
-                  {post.name}
-                </button>
-              );
-            })}
-          </div>
+          <label htmlFor="teachingPost">Teaching Post Applied For*</label>
+          <select
+            id="teachingPost"
+            value={formData.teachingPost}
+            onChange={(e) => setFormData({ ...formData, teachingPost: e.target.value })}
+          >
+            <option value="">Select Teaching Post</option>
+            {teachingPosts.map((post) => (
+              <option key={post.id} value={post.id}>{post.name}</option>
+            ))}
+          </select>
           {errors.teachingPost && <span className="error">{errors.teachingPost}</span>}
         </div>
       )}
