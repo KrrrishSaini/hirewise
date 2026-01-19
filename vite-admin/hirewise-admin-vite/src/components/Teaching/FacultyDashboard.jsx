@@ -773,6 +773,11 @@ const FacultyDashboard = () => {
     history: 'History',
     sociology: 'Sociology'
   };
+  const formatTeachingPost = (candidate) => {
+    const raw = candidate?.teachingPost || candidate?.teaching_post || candidate?.post || '';
+    if (!raw) return '';
+    return toTitleCase(raw.replace(/_/g, ' '));
+  };
   const formatCandidateName = (candidate) => {
     if (!candidate) return '';
     const title = candidate.title ? `${toTitleCase(candidate.title)} ` : '';
@@ -904,13 +909,15 @@ const FacultyDashboard = () => {
                             {formatCandidateName(candidate)}
                           </h3>
                           <span className="text-xs font-medium text-blue-600 bg-blue-100 px-2 py-1 rounded-full">
-                            {toTitleCase(candidate.department)}
+                            {formatTeachingPost(candidate) || 'Teaching'}
                           </span>
                         </div>
                         <p className="text-sm text-gray-600 mb-1">
-                          {branchLabels[candidate.branch] || toTitleCase(candidate.branch || candidate.department || '')}
+                          {branchLabels[candidate.branch] || toTitleCase(candidate.branch || '')}
                         </p>
-                        <p className="text-sm text-gray-500">{candidate.email}</p>
+                        <p className="text-sm text-gray-600">
+                          {toTitleCase(candidate.department || '')}
+                        </p>
                         <div className="flex items-center space-x-4 mt-2">
                           <span className="text-sm text-gray-600">{candidate.experience}</span>
                         </div>
