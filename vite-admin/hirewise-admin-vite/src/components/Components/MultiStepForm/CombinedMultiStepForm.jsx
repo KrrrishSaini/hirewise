@@ -130,89 +130,93 @@ const PositionSelection = ({ formData, setFormData, onNext, onSaveExit, savingDr
   };
   return (
     <form onSubmit={handleSubmit} noValidate>
-      <div className="form-field">
-        <label htmlFor="position">Position Applying For*</label>
-        <select
-          id="position"
-          value={formData.position}
-          onChange={(e) => {
-            const newPosition = e.target.value;
-            setFormData({
-              ...formData,
-              position: newPosition,
-              teachingPost: '',
-              department: '',
-              branch: '',
-            });
-          }}
-        >
-          <option value="">Select Position</option>
-          <option value="teaching">Teaching</option>
-          <option value="non-teaching" disabled style={{ color: '#999' }}>Non-Teaching</option>
-        </select>
-        {errors.position && <span className="error">{errors.position}</span>}
-      </div>
-      {formData.position === 'teaching' && (
+      <div className="two-column-row">
         <div className="form-field">
-          <label htmlFor="teachingPost">Teaching Post Applied For*</label>
+          <label htmlFor="position">Position Applying For*</label>
           <select
-            id="teachingPost"
-            value={formData.teachingPost}
-            onChange={(e) => setFormData({ ...formData, teachingPost: e.target.value })}
+            id="position"
+            value={formData.position}
+            onChange={(e) => {
+              const newPosition = e.target.value;
+              setFormData({
+                ...formData,
+                position: newPosition,
+                teachingPost: '',
+                department: '',
+                branch: '',
+              });
+            }}
           >
-            <option value="">Select Teaching Post</option>
-            {teachingPosts.map((post) => (
-              <option key={post.id} value={post.id}>{post.name}</option>
-            ))}
+            <option value="">Select Position</option>
+            <option value="teaching">Teaching</option>
+            <option value="non-teaching" disabled style={{ color: '#999' }}>Non-Teaching</option>
           </select>
-          {errors.teachingPost && <span className="error">{errors.teachingPost}</span>}
+          {errors.position && <span className="error">{errors.position}</span>}
         </div>
-      )}
 
-      <div className="form-field">
-        <label htmlFor="department">Schools*</label>
-        <select
-          id="department"
-          value={formData.department}
-          onChange={(e) => {
-            setFormData({
-              ...formData,
-              department: e.target.value,
-              branch: '',
-            });
-          }}
-          disabled={!formData.position}
-        >
-          <option value="">Select School</option>
-          {departments.map((dept) => (
-            <option key={dept.id} value={dept.id}>
-              {dept.name}
-            </option>
-          ))}
-        </select>
-        {errors.department && <span className="error">{errors.department}</span>}
-      </div>
-      {formData.position === 'teaching' && (
+        {formData.position === 'teaching' && (
+          <div className="form-field">
+            <label htmlFor="teachingPost">Teaching Post Applied For*</label>
+            <select
+              id="teachingPost"
+              value={formData.teachingPost}
+              onChange={(e) => setFormData({ ...formData, teachingPost: e.target.value })}
+            >
+              <option value="">Select Teaching Post</option>
+              {teachingPosts.map((post) => (
+                <option key={post.id} value={post.id}>{post.name}</option>
+              ))}
+            </select>
+            {errors.teachingPost && <span className="error">{errors.teachingPost}</span>}
+          </div>
+        )}
+
         <div className="form-field">
-          <label htmlFor="branch">Department/Domain*</label>
+          <label htmlFor="department">Schools*</label>
           <select
-            id="branch"
-            value={formData.branch}
-            onChange={(e) =>
-              setFormData({ ...formData, branch: e.target.value })
-            }
-            disabled={!formData.department}
+            id="department"
+            value={formData.department}
+            onChange={(e) => {
+              setFormData({
+                ...formData,
+                department: e.target.value,
+                branch: '',
+              });
+            }}
+            disabled={!formData.position}
           >
-            <option value="">Select Department</option>
-            {branches.map((branch) => (
-              <option key={branch.id} value={branch.id}>
-                {branch.name}
+            <option value="">Select School</option>
+            {departments.map((dept) => (
+              <option key={dept.id} value={dept.id}>
+                {dept.name}
               </option>
             ))}
           </select>
-          {errors.branch && <span className="error">{errors.branch}</span>}
+          {errors.department && <span className="error">{errors.department}</span>}
         </div>
-      )}
+
+        {formData.position === 'teaching' && (
+          <div className="form-field">
+            <label htmlFor="branch">Department/Domain*</label>
+            <select
+              id="branch"
+              value={formData.branch}
+              onChange={(e) =>
+                setFormData({ ...formData, branch: e.target.value })
+              }
+              disabled={!formData.department}
+            >
+              <option value="">Select Department</option>
+              {branches.map((branch) => (
+                <option key={branch.id} value={branch.id}>
+                  {branch.name}
+                </option>
+              ))}
+            </select>
+            {errors.branch && <span className="error">{errors.branch}</span>}
+          </div>
+        )}
+      </div>
       <div className="form-buttons">
         <div style={{ flex: 1 }}></div>
         <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>

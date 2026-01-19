@@ -319,6 +319,12 @@ h2 {
   text-align: left;
 }
 
+.two-column-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+
 small {
   color: #6a7c93;
   font-size: 0.95rem; /* Slightly larger than before */
