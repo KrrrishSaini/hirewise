@@ -780,8 +780,6 @@ const FacultyDashboard = () => {
       candidate?.teaching_post_applied_for ||
       candidate?.teaching_post_applied ||
       candidate?.post ||
-      candidate?.positionApplied ||
-      candidate?.position ||
       '';
     if (!raw) return '';
     return toTitleCase(raw.replace(/_/g, ' '));
