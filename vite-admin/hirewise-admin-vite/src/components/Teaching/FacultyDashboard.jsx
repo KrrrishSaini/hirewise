@@ -774,7 +774,15 @@ const FacultyDashboard = () => {
     sociology: 'Sociology'
   };
   const formatTeachingPost = (candidate) => {
-    const raw = candidate?.teachingPost || candidate?.teaching_post || candidate?.post || '';
+    const raw =
+      candidate?.teachingPost ||
+      candidate?.teaching_post ||
+      candidate?.teaching_post_applied_for ||
+      candidate?.teaching_post_applied ||
+      candidate?.post ||
+      candidate?.positionApplied ||
+      candidate?.position ||
+      '';
     if (!raw) return '';
     return toTitleCase(raw.replace(/_/g, ' '));
   };
