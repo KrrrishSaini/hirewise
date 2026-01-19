@@ -918,7 +918,7 @@ const FacultyDashboard = () => {
                     </div>
 
                     {showProgress && progress && (
-                      <div className="flex-1 max-w-md px-4">
+                      <div className="flex-1 max-w-md px-4 flex flex-col justify-center min-w-[260px]">
                         <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
                           <span>CV Review</span>
                           <span>Interview</span>
