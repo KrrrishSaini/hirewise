@@ -582,7 +582,7 @@ const AllCandidates = () => {
                 ))}
               </select>
             </div>
-
+                
             <div className="flex space-x-3">
               <button
                 onClick={async () => {
