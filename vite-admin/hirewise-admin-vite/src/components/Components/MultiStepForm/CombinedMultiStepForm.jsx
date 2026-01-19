@@ -2024,6 +2024,30 @@ const Documentation = ({ formData, setFormData, onPrevious, onSubmit, onSaveExit
     }
   };
 
+  const otherPublicationFiles = normalizeFileArray(formData.otherPublications);
+  const otherPublicationSlots = Math.max(otherPublicationFiles.length, 1);
+
+  const handleOtherPublicationChange = (index, file) => {
+    setFormData((prev) => {
+      const existing = normalizeFileArray(prev.otherPublications);
+      const updated = [...existing];
+      while (updated.length <= index) {
+        updated.push(null);
+      }
+      updated[index] = file;
+      return { ...prev, otherPublications: updated };
+    });
+    setErrors((prev) => ({ ...prev, otherPublications: '' }));
+  };
+
+  const addOtherPublicationSlot = () => {
+    setFormData((prev) => {
+      const existing = normalizeFileArray(prev.otherPublications);
+      if (existing.length >= 3) return prev;
+      return { ...prev, otherPublications: [...existing, null] };
+    });
+  };
+
   return (
     <form>
       <div className="form-field">
@@ -2053,7 +2077,32 @@ const Documentation = ({ formData, setFormData, onPrevious, onSubmit, onSaveExit
       </div>
       <div className="form-field">
         <label>Best Published Papers* (up to 3 files)</label>
-        <input type="file" multiple onChange={(e) => handleFileChange(e, 'otherPublications')} aria-describedby="papers-hint" />
+        <div className="stacked-inputs">
+          {Array.from({ length: Math.min(otherPublicationSlots, 3) }).map((_, idx) => (
+            <div key={idx} className="stacked-input-row">
+              <input
+                type="file"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleOtherPublicationChange(idx, file);
+                }}
+                aria-describedby="papers-hint"
+              />
+              {otherPublicationFiles[idx] && (
+                <span className="file-name">{otherPublicationFiles[idx].name}</span>
+              )}
+            </div>
+          ))}
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={addOtherPublicationSlot}
+            disabled={otherPublicationFiles.length >= 3}
+            style={{ alignSelf: 'flex-start', marginTop: '8px' }}
+          >
+            Add another file
+          </button>
+        </div>
         <div id="papers-hint" style={{ fontSize: '0.85rem', color: '#6b7280', marginTop: '6px' }}>Upload up to 3 files</div>
         {errors.otherPublications && <span className="error">{errors.otherPublications}</span>}
       </div>
