@@ -34,6 +34,7 @@ const AllCandidates = () => {
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [evaluationData, setEvaluationData] = useState(null);
   const [evaluationLoading, setEvaluationLoading] = useState(false);
+  const [showEvaluationModal, setShowEvaluationModal] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [candidateToAssign, setCandidateToAssign] = useState(null);
   const [assignType, setAssignType] = useState('cv');
@@ -51,6 +52,12 @@ const AllCandidates = () => {
       submitted: { label: 'Submitted', color: 'bg-gray-100 text-gray-700', dot: 'bg-gray-500' },
     };
     return map[status] || map.submitted;
+  };
+
+  const handleShowEvaluation = async () => {
+    if (!selectedCandidate?.id) return;
+    await loadEvaluation(selectedCandidate.id);
+    setShowEvaluationModal(true);
   };
 
   const departments = ['All', 'law', 'liberal', 'engineering', 'management'];
@@ -318,6 +325,7 @@ const AllCandidates = () => {
     setFiles({});
     setEvaluationData(null);
     setEvaluationLoading(false);
+    setShowEvaluationModal(false);
   };
 
   const loadEvaluation = async (applicationId) => {
@@ -676,14 +684,23 @@ const AllCandidates = () => {
               )}
             </div>
           </div>
-          <button
-            onClick={closeModal}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleShowEvaluation}
+                disabled={evaluationLoading}
+                className="px-3 py-1.5 text-sm font-semibold bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300"
+              >
+                {evaluationLoading ? 'Loading...' : 'Show Evaluation'}
+              </button>
+              <button
+                onClick={closeModal}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
+            </div>
             </div>
 
             {/* Content */}
@@ -997,49 +1014,6 @@ const AllCandidates = () => {
                     </div>
                   </div>
 
-                  {(selectedCandidate.status === 'interview_completed' || selectedCandidate.status === 'final_shortlisted') && (
-                    <div className="bg-white border rounded-lg p-4 shadow-sm">
-                      <div className="flex items-center justify-between mb-3">
-                        <h3 className="text-sm font-bold text-gray-900">Interview Evaluation</h3>
-                        <button
-                          onClick={() => loadEvaluation(selectedCandidate.id)}
-                          disabled={evaluationLoading}
-                          className="text-xs px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300"
-                        >
-                          {evaluationLoading ? 'Loading...' : 'Load Evaluation'}
-                        </button>
-                      </div>
-                      {evaluationData ? (
-                        <div className="space-y-3 text-sm text-gray-700">
-                          {(() => {
-                            const parsed = parseEvaluationAverages(evaluationData.remarks);
-                            const teaching = parsed.teaching ?? (typeof evaluationData.teaching_competence === 'number' ? evaluationData.teaching_competence / 2 : null);
-                            const research = parsed.research ?? (typeof evaluationData.research_potential === 'number' ? evaluationData.research_potential / 2 : null);
-                            const general = parsed.general ?? (typeof evaluationData.industry_experience === 'number' ? evaluationData.industry_experience / 2 : null);
-                            const total = parsed.total ?? (teaching !== null && research !== null && general !== null ? teaching + research + general : null);
-                            const formatScore = (value) => (value === null ? 'N/A' : value.toFixed(2));
-                            return (
-                              <>
-                                <p><span className="font-semibold">Evaluation Committee:</span> {evaluationData.faculty_name || 'N/A'}</p>
-                                <p><span className="font-semibold">I. Teaching:</span> {formatScore(teaching)}/5</p>
-                                <p><span className="font-semibold">II. Research:</span> {formatScore(research)}/5</p>
-                                <p><span className="font-semibold">III. General: Culture Alignment:</span> {formatScore(general)}/5</p>
-                                <p><span className="font-semibold">Combined Score:</span> {formatScore(total)}/15</p>
-                                <div>
-                                  <p className="font-semibold">Remarks</p>
-                                  <p className="text-xs text-gray-600 whitespace-pre-wrap">
-                                    {extractEvaluationComments(evaluationData.remarks) || 'No additional comments.'}
-                                  </p>
-                                </div>
-                              </>
-                            );
-                          })()}
-                        </div>
-                      ) : (
-                        <p className="text-xs text-gray-500">No evaluation loaded.</p>
-                      )}
-                    </div>
-                  )}
                 </div>
               </div>
               )}
@@ -1050,6 +1024,64 @@ const AllCandidates = () => {
               <button
                 onClick={closeModal}
                 className="px-5 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors font-medium"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showEvaluationModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-xl max-h-[85vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between px-4 py-3 border-b">
+              <h3 className="text-lg font-bold text-gray-900">Interview Evaluation</h3>
+              <button onClick={() => setShowEvaluationModal(false)} className="text-gray-400 hover:text-gray-600">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4">
+              {evaluationLoading ? (
+                <div className="flex items-center justify-center py-10">
+                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+                </div>
+              ) : evaluationData ? (
+                <div className="space-y-3 text-sm text-gray-700">
+                  {(() => {
+                    const parsed = parseEvaluationAverages(evaluationData.remarks);
+                    const teaching = parsed.teaching ?? (typeof evaluationData.teaching_competence === 'number' ? evaluationData.teaching_competence / 2 : null);
+                    const research = parsed.research ?? (typeof evaluationData.research_potential === 'number' ? evaluationData.research_potential / 2 : null);
+                    const general = parsed.general ?? (typeof evaluationData.industry_experience === 'number' ? evaluationData.industry_experience / 2 : null);
+                    const total = parsed.total ?? (teaching !== null && research !== null && general !== null ? teaching + research + general : null);
+                    const formatScore = (value) => (value === null ? 'N/A' : value.toFixed(2));
+                    return (
+                      <>
+                        <p><span className="font-semibold">Evaluation Committee:</span> {evaluationData.faculty_name || 'N/A'}</p>
+                        <p><span className="font-semibold">I. Teaching:</span> {formatScore(teaching)}/5</p>
+                        <p><span className="font-semibold">II. Research:</span> {formatScore(research)}/5</p>
+                        <p><span className="font-semibold">III. General: Culture Alignment:</span> {formatScore(general)}/5</p>
+                        <p><span className="font-semibold">Combined Score:</span> {formatScore(total)}/15</p>
+                        <div>
+                          <p className="font-semibold">Remarks</p>
+                          <p className="text-xs text-gray-600 whitespace-pre-wrap">
+                            {extractEvaluationComments(evaluationData.remarks) || 'No additional comments.'}
+                          </p>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-600">No evaluation loaded.</p>
+              )}
+            </div>
+            <div className="px-4 py-3 border-t bg-gray-50 flex justify-end">
+              <button
+                onClick={() => setShowEvaluationModal(false)}
+                className="px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-100"
               >
                 Close
               </button>

@@ -23,6 +23,7 @@ const FacultyDashboard = () => {
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [candidateEvaluation, setCandidateEvaluation] = useState(null);
   const [candidateEvaluationLoading, setCandidateEvaluationLoading] = useState(false);
+  const [showEvaluationModal, setShowEvaluationModal] = useState(false);
   const [archivedIds, setArchivedIds] = useState(() => {
     try {
       const raw = localStorage.getItem('facultyArchivedIds');
@@ -432,6 +433,7 @@ const FacultyDashboard = () => {
     setSelectedCandidate(null);
     setCandidateEvaluation(null);
     setCandidateEvaluationLoading(false);
+    setShowEvaluationModal(false);
   };
 
   const closeCvPreview = () => {
@@ -499,6 +501,12 @@ const FacultyDashboard = () => {
 
   const handleRemarksChange = (value) => {
     setEvaluationScores((prev) => ({ ...prev, remarks: value }));
+  };
+
+  const handleShowEvaluation = async () => {
+    if (!selectedCandidate?.id) return;
+    await loadCandidateEvaluation(selectedCandidate.id);
+    setShowEvaluationModal(true);
   };
 
   const submitEvaluation = async () => {
@@ -1107,31 +1115,40 @@ const FacultyDashboard = () => {
             <div className="flex items-center justify-between p-6 border-b bg-gradient-to-r from-blue-50 to-indigo-50">
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">
-                {formatCandidateName(selectedCandidate)}
-              </h2>
-              <div className="flex items-center space-x-2 mt-1">
-                <p className="text-sm text-gray-600">{toTitleCase(selectedCandidate.position)}</p>
-                <span className="text-xs font-medium text-blue-600 bg-blue-100 px-2 py-1 rounded-full">
-                  {toTitleCase(selectedCandidate.department)}
-                </span>
-                {selectedCandidate.status && (
-                  <span
-                    className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getStatusMeta(normalizeCandidateStatus(selectedCandidate.status)).color}`}
-                  >
-                    <span className={`w-2 h-2 rounded-full mr-1.5 ${getStatusMeta(normalizeCandidateStatus(selectedCandidate.status)).dot}`} />
-                    {getStatusMeta(normalizeCandidateStatus(selectedCandidate.status)).label}
+                  {formatCandidateName(selectedCandidate)}
+                </h2>
+                <div className="flex items-center space-x-2 mt-1">
+                  <p className="text-sm text-gray-600">{toTitleCase(selectedCandidate.position)}</p>
+                  <span className="text-xs font-medium text-blue-600 bg-blue-100 px-2 py-1 rounded-full">
+                    {toTitleCase(selectedCandidate.department)}
                   </span>
-                )}
+                  {selectedCandidate.status && (
+                    <span
+                      className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getStatusMeta(normalizeCandidateStatus(selectedCandidate.status)).color}`}
+                    >
+                      <span className={`w-2 h-2 rounded-full mr-1.5 ${getStatusMeta(normalizeCandidateStatus(selectedCandidate.status)).dot}`} />
+                      {getStatusMeta(normalizeCandidateStatus(selectedCandidate.status)).label}
+                    </span>
+                  )}
+                </div>
               </div>
-            </div>
-            <button
-                onClick={closeModal}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handleShowEvaluation}
+                  disabled={candidateEvaluationLoading}
+                  className="px-3 py-1.5 text-sm font-semibold bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300"
+                >
+                  {candidateEvaluationLoading ? 'Loading...' : 'Show Evaluation'}
+                </button>
+                <button
+                  onClick={closeModal}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
             </div>
 
             {/* Content */}
@@ -1445,49 +1462,6 @@ const FacultyDashboard = () => {
                     </div>
                   </div>
 
-                  {(isArchivedStatus(selectedCandidate.status) || selectedCandidate.status === 'interview_completed') && (
-                    <div className="bg-white border rounded-lg p-4 shadow-sm">
-                      <div className="flex items-center justify-between mb-3">
-                        <h3 className="text-sm font-bold text-gray-900">Interview Evaluation</h3>
-                        <button
-                          onClick={() => loadCandidateEvaluation(selectedCandidate.id)}
-                          disabled={candidateEvaluationLoading}
-                          className="text-xs px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300"
-                        >
-                          {candidateEvaluationLoading ? 'Loading...' : 'Refresh'}
-                        </button>
-                      </div>
-                      {candidateEvaluation ? (
-                        <div className="space-y-3 text-sm text-gray-700">
-                          {(() => {
-                            const parsed = parseEvaluationAverages(candidateEvaluation.remarks);
-                            const teaching = parsed.teaching ?? (typeof candidateEvaluation.teaching_competence === 'number' ? candidateEvaluation.teaching_competence / 2 : null);
-                            const research = parsed.research ?? (typeof candidateEvaluation.research_potential === 'number' ? candidateEvaluation.research_potential / 2 : null);
-                            const general = parsed.general ?? (typeof candidateEvaluation.industry_experience === 'number' ? candidateEvaluation.industry_experience / 2 : null);
-                            const total = parsed.total ?? (teaching !== null && research !== null && general !== null ? teaching + research + general : null);
-                            const formatScore = (value) => (value === null ? 'N/A' : value.toFixed(2));
-                            return (
-                              <>
-                                <p><span className="font-semibold">Evaluation Committee:</span> {candidateEvaluation.faculty_name || 'N/A'}</p>
-                                <p><span className="font-semibold">I. Teaching:</span> {formatScore(teaching)}/5</p>
-                                <p><span className="font-semibold">II. Research:</span> {formatScore(research)}/5</p>
-                                <p><span className="font-semibold">III. General: Culture Alignment:</span> {formatScore(general)}/5</p>
-                                <p><span className="font-semibold">Combined Score:</span> {formatScore(total)}/15</p>
-                                <div>
-                                  <p className="font-semibold">Remarks</p>
-                                  <p className="text-xs text-gray-600 whitespace-pre-wrap">
-                                    {extractEvaluationComments(candidateEvaluation.remarks) || 'No additional comments.'}
-                                  </p>
-                                </div>
-                              </>
-                            );
-                          })()}
-                        </div>
-                      ) : (
-                        <p className="text-xs text-gray-500">No evaluation found.</p>
-                      )}
-                    </div>
-                  )}
                 </div>
               </div>
               )}
@@ -1498,6 +1472,64 @@ const FacultyDashboard = () => {
               <button
                 onClick={closeModal}
                 className="px-5 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors font-medium"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showEvaluationModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-xl max-h-[85vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between px-4 py-3 border-b">
+              <h3 className="text-lg font-bold text-gray-900">Interview Evaluation</h3>
+              <button onClick={() => setShowEvaluationModal(false)} className="text-gray-400 hover:text-gray-600">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4">
+              {candidateEvaluationLoading ? (
+                <div className="flex items-center justify-center py-10">
+                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+                </div>
+              ) : candidateEvaluation ? (
+                <div className="space-y-3 text-sm text-gray-700">
+                  {(() => {
+                    const parsed = parseEvaluationAverages(candidateEvaluation.remarks);
+                    const teaching = parsed.teaching ?? (typeof candidateEvaluation.teaching_competence === 'number' ? candidateEvaluation.teaching_competence / 2 : null);
+                    const research = parsed.research ?? (typeof candidateEvaluation.research_potential === 'number' ? candidateEvaluation.research_potential / 2 : null);
+                    const general = parsed.general ?? (typeof candidateEvaluation.industry_experience === 'number' ? candidateEvaluation.industry_experience / 2 : null);
+                    const total = parsed.total ?? (teaching !== null && research !== null && general !== null ? teaching + research + general : null);
+                    const formatScore = (value) => (value === null ? 'N/A' : value.toFixed(2));
+                    return (
+                      <>
+                        <p><span className="font-semibold">Evaluation Committee:</span> {candidateEvaluation.faculty_name || 'N/A'}</p>
+                        <p><span className="font-semibold">I. Teaching:</span> {formatScore(teaching)}/5</p>
+                        <p><span className="font-semibold">II. Research:</span> {formatScore(research)}/5</p>
+                        <p><span className="font-semibold">III. General: Culture Alignment:</span> {formatScore(general)}/5</p>
+                        <p><span className="font-semibold">Combined Score:</span> {formatScore(total)}/15</p>
+                        <div>
+                          <p className="font-semibold">Remarks</p>
+                          <p className="text-xs text-gray-600 whitespace-pre-wrap">
+                            {extractEvaluationComments(candidateEvaluation.remarks) || 'No additional comments.'}
+                          </p>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-600">No evaluation found.</p>
+              )}
+            </div>
+            <div className="px-4 py-3 border-t bg-gray-50 flex justify-end">
+              <button
+                onClick={() => setShowEvaluationModal(false)}
+                className="px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-100"
               >
                 Close
               </button>
