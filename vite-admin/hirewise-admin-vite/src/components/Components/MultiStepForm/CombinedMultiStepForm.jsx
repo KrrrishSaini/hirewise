@@ -30,6 +30,12 @@ const PositionSelection = ({ formData, setFormData, onNext, onSaveExit, savingDr
     { id: 'professor_of_practice', name: 'Professor of Practice' },
     { id: 'lecturer', name: 'Lecturer' },
   ];
+  const nonTeachingPosts = [
+    { id: 'admin_officer', name: 'Administrative Officer' },
+    { id: 'it_support', name: 'IT Support' },
+    { id: 'security_officer', name: 'Security Officer' },
+    { id: 'lab_technician', name: 'Lab Technician' },
+  ];
   const teachingDepartments = [
     { id: 'engineering', name: 'School of Engineering & Technology' },
     { id: 'law', name: 'School of Law' },
@@ -107,6 +113,9 @@ const PositionSelection = ({ formData, setFormData, onNext, onSaveExit, savingDr
     if (formData.position === 'teaching' && !formData.branch) {
       newErrors.branch = 'Please select a branch';
     }
+    if (formData.position === 'non-teaching' && !formData.nonTeachingPost) {
+      newErrors.nonTeachingPost = 'Please select a non-teaching post';
+    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -142,6 +151,7 @@ const PositionSelection = ({ formData, setFormData, onNext, onSaveExit, savingDr
                 ...formData,
                 position: newPosition,
                 teachingPost: '',
+                nonTeachingPost: '',
                 department: '',
                 branch: '',
               });
@@ -149,7 +159,7 @@ const PositionSelection = ({ formData, setFormData, onNext, onSaveExit, savingDr
           >
             <option value="">Select Position</option>
             <option value="teaching">Teaching</option>
-            <option value="non-teaching" disabled style={{ color: '#999' }}>Non-Teaching</option>
+            <option value="non-teaching">Non-Teaching</option>
           </select>
           {errors.position && <span className="error">{errors.position}</span>}
         </div>
@@ -171,8 +181,25 @@ const PositionSelection = ({ formData, setFormData, onNext, onSaveExit, savingDr
           </div>
         )}
 
+        {formData.position === 'non-teaching' && (
+          <div className="form-field">
+            <label htmlFor="nonTeachingPost">Non-Teaching Post Applied For*</label>
+            <select
+              id="nonTeachingPost"
+              value={formData.nonTeachingPost}
+              onChange={(e) => setFormData({ ...formData, nonTeachingPost: e.target.value })}
+            >
+              <option value="">Select Non-Teaching Post</option>
+              {nonTeachingPosts.map((post) => (
+                <option key={post.id} value={post.id}>{post.name}</option>
+              ))}
+            </select>
+            {errors.nonTeachingPost && <span className="error">{errors.nonTeachingPost}</span>}
+          </div>
+        )}
+
         <div className="form-field">
-          <label htmlFor="department">Schools*</label>
+          <label htmlFor="department">{formData.position === 'non-teaching' ? 'Department' : 'Schools'}*</label>
           <select
             id="department"
             value={formData.department}
@@ -185,7 +212,7 @@ const PositionSelection = ({ formData, setFormData, onNext, onSaveExit, savingDr
             }}
             disabled={!formData.position}
           >
-            <option value="">Select School</option>
+            <option value="">{formData.position === 'non-teaching' ? 'Select Department' : 'Select School'}</option>
             {departments.map((dept) => (
               <option key={dept.id} value={dept.id}>
                 {dept.name}
@@ -836,8 +863,28 @@ const EducationDetails = ({ formData, setFormData, onNext, onPrevious, onSaveExi
                 <option value="BA in Psychology">BA in Psychology</option>
               </>
             )}
-            {(!formData.department || !['engineering', 'management', 'law', 'liberal'].includes(formData.department)) && (
-              <option value="Other">Other</option>
+            {/* All teaching degree options available for non-teaching departments */}
+            {['admin', 'it', 'security', 'lab'].includes(formData.department) && (
+              <>
+                {/* Engineering options */}
+                <option value="B.Tech in Computer Science & Engineering">B.Tech in Computer Science & Engineering</option>
+                <option value="B.Tech in Mechanical Engineering">B.Tech in Mechanical Engineering</option>
+                <option value="B.Tech in Electronics & Communication">B.Tech in Electronics & Communication</option>
+                {/* Management options */}
+                <option value="BBA in Finance">BBA in Finance</option>
+                <option value="BBA in Marketing">BBA in Marketing</option>
+                <option value="BBA in Human Resources">BBA in Human Resources</option>
+                <option value="B.Com">B.Com</option>
+                {/* Law options */}
+                <option value="LLB in Criminal Law">LLB in Criminal Law</option>
+                <option value="LLB in Corporate Law">LLB in Corporate Law</option>
+                <option value="LLB in Civil Law">LLB in Civil Law</option>
+                {/* Liberal options */}
+                <option value="BA in English">BA in English</option>
+                <option value="BA in History">BA in History</option>
+                <option value="BA in Sociology">BA in Sociology</option>
+                <option value="BA in Psychology">BA in Psychology</option>
+              </>
             )}
             <option value="Other">Other</option>
           </select>
@@ -989,6 +1036,30 @@ const EducationDetails = ({ formData, setFormData, onNext, onPrevious, onSaveExi
                 <option value="MA in Psychology">MA in Psychology</option>
               </>
             )}
+            {/* All teaching degree options available for non-teaching departments */}
+            {['admin', 'it', 'security', 'lab'].includes(formData.department) && (
+              <>
+                {/* Engineering options */}
+                <option value="M.Tech in Computer Science">M.Tech in Computer Science</option>
+                <option value="M.Tech in Mechanical Engineering">M.Tech in Mechanical Engineering</option>
+                <option value="M.Tech in Electronics & Communication">M.Tech in Electronics & Communication</option>
+                <option value="ME in Computer Science">ME in Computer Science</option>
+                {/* Management options */}
+                <option value="MBA in Finance">MBA in Finance</option>
+                <option value="MBA in Marketing">MBA in Marketing</option>
+                <option value="MBA in Human Resources">MBA in Human Resources</option>
+                <option value="M.Com">M.Com</option>
+                {/* Law options */}
+                <option value="LLM in Criminal Law">LLM in Criminal Law</option>
+                <option value="LLM in Corporate Law">LLM in Corporate Law</option>
+                <option value="LLM in Civil Law">LLM in Civil Law</option>
+                {/* Liberal options */}
+                <option value="MA in English">MA in English</option>
+                <option value="MA in History">MA in History</option>
+                <option value="MA in Sociology">MA in Sociology</option>
+                <option value="MA in Psychology">MA in Psychology</option>
+              </>
+            )}
             <option value="Other">Other</option>
           </select>
           {formData.masterDegreeName === 'Other' && (
@@ -1052,104 +1123,108 @@ const EducationDetails = ({ formData, setFormData, onNext, onPrevious, onSaveExi
         </div>
       </div>
 
-      <h3 className="degree-section-title" style={{ 
-        fontSize: '1.4rem', 
-        fontWeight: '600', 
-        color: '#1e40af', 
-        marginBottom: '1.5rem',
-        marginTop: '2.5rem',
-        paddingBottom: '0.75rem',
-        borderBottom: '2px solid #3b82f6'
-      }}>
-        Ph.D.
-      </h3>
-      <div className="degree-fields-row">
-        <div className="form-field" style={{ flex: '0 0 auto', width: '180px' }}>
-          <label htmlFor="phdStatus">Status*</label>
-          <select
-            id="phdStatus"
-            name="phdStatus"
-            value={formData.phdStatus || 'Not done'}
-            onChange={handleInputChange}
-          >
-            <option value="Not done">Not done</option>
-            <option value="Pursuing">Pursuing</option>
-            <option value="Submitted">Submitted</option>
-            <option value="Awarded">Awarded</option>
-          </select>
-        </div>
-        {formData.phdStatus !== 'Not done' && (
-          <>
-            <div className="form-field" style={{ flex: '0 0 auto', width: '150px' }}>
-              <label htmlFor="phdYear">
-                {formData.phdStatus === 'Pursuing' 
-                  ? 'Pursuing Year*' 
-                  : (formData.phdStatus === 'Awarded' ? 'Passed Year*' : 'Passing Year*')}
-              </label>
-              <input
-                type="number"
-                id="phdYear"
-                name="phdYear"
-                value={formData.phdYear || ''}
-                onChange={handleInputChange}
-                min={formData.masterYear || formData.bachelorYear || 1950}
-                max={formData.phdStatus === 'Awarded' ? new Date().getFullYear() : 2050}
-              />
-              {errors.phdYear && <span className="error">{errors.phdYear}</span>}
-            </div>
-            <div className="form-field" style={{ flex: '1.5' }}>
-              <label htmlFor="phdInstitute">Institution/University*</label>
+      {formData.position === 'teaching' && (
+        <>
+          <h3 className="degree-section-title" style={{ 
+            fontSize: '1.4rem', 
+            fontWeight: '600', 
+            color: '#1e40af', 
+            marginBottom: '1.5rem',
+            marginTop: '2.5rem',
+            paddingBottom: '0.75rem',
+            borderBottom: '2px solid #3b82f6'
+          }}>
+            Ph.D.
+          </h3>
+          <div className="degree-fields-row">
+            <div className="form-field" style={{ flex: '0 0 auto', width: '180px' }}>
+              <label htmlFor="phdStatus">Status*</label>
               <select
-                id="phdInstitute"
-                name="phdInstitute"
-                value={formData.phdInstitute || ''}
+                id="phdStatus"
+                name="phdStatus"
+                value={formData.phdStatus || 'Not done'}
                 onChange={handleInputChange}
               >
-                <option value="">Select Institution</option>
-                {COLLEGES.map((u) => (
-                  <option key={u} value={u}>{u}</option>
-                ))}
-                <option value="Other">Other</option>
+                <option value="Not done">Not done</option>
+                <option value="Pursuing">Pursuing</option>
+                <option value="Submitted">Submitted</option>
+                <option value="Awarded">Awarded</option>
               </select>
-              {formData.phdInstitute === 'Other' && (
+            </div>
+            {formData.phdStatus !== 'Not done' && (
+              <>
+                <div className="form-field" style={{ flex: '0 0 auto', width: '150px' }}>
+                  <label htmlFor="phdYear">
+                    {formData.phdStatus === 'Pursuing' 
+                      ? 'Pursuing Year*' 
+                      : (formData.phdStatus === 'Awarded' ? 'Passed Year*' : 'Passing Year*')}
+                  </label>
+                  <input
+                    type="number"
+                    id="phdYear"
+                    name="phdYear"
+                    value={formData.phdYear || ''}
+                    onChange={handleInputChange}
+                    min={formData.masterYear || formData.bachelorYear || 1950}
+                    max={formData.phdStatus === 'Awarded' ? new Date().getFullYear() : 2050}
+                  />
+                  {errors.phdYear && <span className="error">{errors.phdYear}</span>}
+                </div>
+                <div className="form-field" style={{ flex: '1.5' }}>
+                  <label htmlFor="phdInstitute">Institution/University*</label>
+                  <select
+                    id="phdInstitute"
+                    name="phdInstitute"
+                    value={formData.phdInstitute || ''}
+                    onChange={handleInputChange}
+                  >
+                    <option value="">Select Institution</option>
+                    {COLLEGES.map((u) => (
+                      <option key={u} value={u}>{u}</option>
+                    ))}
+                    <option value="Other">Other</option>
+                  </select>
+                  {formData.phdInstitute === 'Other' && (
+                    <input
+                      type="text"
+                      placeholder="Enter college/university"
+                      value={formData.phdInstituteOther || ''}
+                      onChange={(e) => setFormData({ ...formData, phdInstituteOther: e.target.value })}
+                      style={{ marginTop: '8px' }}
+                    />
+                  )}
+                  {errors.phdInstitute && <span className="error">{errors.phdInstitute}</span>}
+                </div>
+              </>
+            )}
+          </div>
+          {formData.phdStatus !== 'Not done' && (
+            <div className="degree-fields-row" style={{ marginTop: '1rem' }}>
+              <div className="form-field" style={{ flex: '1' }}>
+                <label htmlFor="phdAreaSpecialization">Area of Specialization*</label>
                 <input
                   type="text"
-                  placeholder="Enter college/university"
-                  value={formData.phdInstituteOther || ''}
-                  onChange={(e) => setFormData({ ...formData, phdInstituteOther: e.target.value })}
-                  style={{ marginTop: '8px' }}
+                  id="phdAreaSpecialization"
+                  name="phdAreaSpecialization"
+                  value={formData.phdAreaSpecialization || ''}
+                  onChange={handleInputChange}
                 />
-              )}
-              {errors.phdInstitute && <span className="error">{errors.phdInstitute}</span>}
+                {errors.phdAreaSpecialization && <span className="error">{errors.phdAreaSpecialization}</span>}
+              </div>
+              <div className="form-field" style={{ flex: '1' }}>
+                <label htmlFor="phdTitle">Title*</label>
+                <input
+                  type="text"
+                  id="phdTitle"
+                  name="phdTitle"
+                  value={formData.phdTitle || ''}
+                  onChange={handleInputChange}
+                />
+                {errors.phdTitle && <span className="error">{errors.phdTitle}</span>}
+              </div>
             </div>
-          </>
-        )}
-      </div>
-      {formData.phdStatus !== 'Not done' && (
-        <div className="degree-fields-row" style={{ marginTop: '1rem' }}>
-          <div className="form-field" style={{ flex: '1' }}>
-            <label htmlFor="phdAreaSpecialization">Area of Specialization*</label>
-            <input
-              type="text"
-              id="phdAreaSpecialization"
-              name="phdAreaSpecialization"
-              value={formData.phdAreaSpecialization || ''}
-              onChange={handleInputChange}
-            />
-            {errors.phdAreaSpecialization && <span className="error">{errors.phdAreaSpecialization}</span>}
-          </div>
-          <div className="form-field" style={{ flex: '1' }}>
-            <label htmlFor="phdTitle">Title*</label>
-            <input
-              type="text"
-              id="phdTitle"
-              name="phdTitle"
-              value={formData.phdTitle || ''}
-              onChange={handleInputChange}
-            />
-            {errors.phdTitle && <span className="error">{errors.phdTitle}</span>}
-          </div>
-        </div>
+          )}
+        </>
       )}
 
       <div className="form-buttons">
@@ -1410,7 +1485,7 @@ const Experience = ({ formData, setFormData, onNext, onPrevious, onSaveExit, sav
         paddingBottom: '0.75rem',
         borderBottom: '2px solid #3b82f6'
       }}>
-        Teaching Experience
+        {formData.position === 'teaching' ? 'Teaching Experience' : 'Non-Teaching Experience'}
       </h3>
       {(formData.teachingExperiences || []).map((exp, idx) => (
         <div
@@ -1558,145 +1633,149 @@ const Experience = ({ formData, setFormData, onNext, onPrevious, onSaveExit, sav
         </button>
       </div>
 
-      <h3 className="degree-section-title" style={{ 
-        fontSize: '1.4rem', 
-        fontWeight: '600', 
-        color: '#1e40af', 
-        marginBottom: '1.5rem',
-        marginTop: '2.5rem',
-        paddingBottom: '0.75rem',
-        borderBottom: '2px solid #3b82f6'
-      }}>
-        Research Experience
-      </h3>
-      {(formData.researchExperiences || []).map((exp, idx) => (
-        <div
-          className="degree-fields-row"
-          key={idx}
-          style={{ marginBottom: '1.5rem', borderBottom: '1px solid #eee', paddingBottom: '1rem', position: 'relative' }}
-        >
-          {idx > 0 && (
+      {formData.position === 'teaching' && (
+        <>
+          <h3 className="degree-section-title" style={{ 
+            fontSize: '1.4rem', 
+            fontWeight: '600', 
+            color: '#1e40af', 
+            marginBottom: '1.5rem',
+            marginTop: '2.5rem',
+            paddingBottom: '0.75rem',
+            borderBottom: '2px solid #3b82f6'
+          }}>
+            Research Experience
+          </h3>
+          {(formData.researchExperiences || []).map((exp, idx) => (
+            <div
+              className="degree-fields-row"
+              key={idx}
+              style={{ marginBottom: '1.5rem', borderBottom: '1px solid #eee', paddingBottom: '1rem', position: 'relative' }}
+            >
+              {idx > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const researchArr = [...formData.researchExperiences];
+                    researchArr.splice(idx, 1);
+                    setFormData((prev) => ({ ...prev, researchExperiences: researchArr }));
+                  }}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    right: 0,
+                    background: '#f8d7da',
+                    color: '#721c24',
+                    border: 'none',
+                    borderRadius: '50%',
+                    width: '24px',
+                    height: '24px',
+                    fontSize: '1.1rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                  aria-label="Remove Research Experience"
+                >
+                  &minus;
+                </button>
+              )}
+              <div className="form-field">
+                <label htmlFor={`researchPost${idx}`}>Post</label>
+                <input
+                  type="text"
+                  id={`researchPost${idx}`}
+                  name="researchPost"
+                  value={exp.researchPost}
+                  onChange={(e) => handleResearchChange(idx, e)}
+                  placeholder="e.g., Research Associate"
+                />
+                {errors.research && errors.research[idx] && errors.research[idx].researchPost && (
+                  <span className="error">{errors.research[idx].researchPost}</span>
+                )}
+              </div>
+              <div className="form-field">
+                <label htmlFor={`researchInstitution${idx}`}>Institution/University</label>
+                <select
+                  id={`researchInstitution${idx}`}
+                  name="researchInstitution"
+                  value={exp.researchInstitution}
+                  onChange={(e) => handleResearchChange(idx, e)}
+                >
+                  <option value="">Select Institution</option>
+                  {COLLEGES.map((u) => (
+                    <option key={u} value={u}>
+                      {u}
+                    </option>
+                  ))}
+                  <option value="Other">Other</option>
+                </select>
+                {errors.research && errors.research[idx] && errors.research[idx].researchInstitution && (
+                  <span className="error">{errors.research[idx].researchInstitution}</span>
+                )}
+              </div>
+              {exp.researchInstitution === 'Other' && (
+                <div className="form-field">
+                  <label htmlFor={`researchInstitutionOther${idx}`}>Please specify Institution/University</label>
+                  <input
+                    type="text"
+                    id={`researchInstitutionOther${idx}`}
+                    name="researchInstitutionOther"
+                    value={exp.researchInstitutionOther || ''}
+                    onChange={(e) => handleResearchChange(idx, e)}
+                    placeholder="Enter your institution name"
+                  />
+                </div>
+              )}
+              <div className="form-field">
+                <label htmlFor={`researchStartDate${idx}`}>Start Date</label>
+                <input
+                type="date"
+                id={`researchStartDate${idx}`}
+                name="researchStartDate"
+                value={exp.researchStartDate}
+                min="1970-01-01"
+                max={new Date().toISOString().split('T')[0]}
+                onChange={(e) => handleResearchChange(idx, e)}
+              />
+                {errors.research && errors.research[idx] && errors.research[idx].researchStartDate && (
+                  <span className="error">{errors.research[idx].researchStartDate}</span>
+                )}
+              </div>
+              <div className="form-field">
+                <label htmlFor={`researchEndDate${idx}`}>End Date</label>
+                <input
+                type="date"
+                id={`researchEndDate${idx}`}
+                name="researchEndDate"
+                value={exp.researchEndDate}
+                min="1970-01-01"
+                max={new Date().toISOString().split('T')[0]}
+                onChange={(e) => handleResearchChange(idx, e)}
+              />
+                {errors.research && errors.research[idx] && errors.research[idx].researchEndDate && (
+                  <span className="error">{errors.research[idx].researchEndDate}</span>
+                )}
+              </div>
+              <div className="form-field">
+                <label>Experience</label>
+                <input type="text" value={exp.researchExperience} readOnly className="readonly-field" />
+              </div>
+            </div>
+          ))}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '2rem' }}>
             <button
               type="button"
-              onClick={() => {
-                const researchArr = [...formData.researchExperiences];
-                researchArr.splice(idx, 1);
-                setFormData((prev) => ({ ...prev, researchExperiences: researchArr }));
-              }}
-              style={{
-                position: 'absolute',
-                top: 0,
-                right: 0,
-                background: '#f8d7da',
-                color: '#721c24',
-                border: 'none',
-                borderRadius: '50%',
-                width: '24px',
-                height: '24px',
-                fontSize: '1.1rem',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-              aria-label="Remove Research Experience"
+              className="btn btn-primary"
+              onClick={addResearchExperience}
+              style={{ fontSize: '0.9rem', padding: '0.5rem 1.2rem', borderRadius: '6px' }}
             >
-              &minus;
+              + Add Research Experience
             </button>
-          )}
-          <div className="form-field">
-            <label htmlFor={`researchPost${idx}`}>Post</label>
-            <input
-              type="text"
-              id={`researchPost${idx}`}
-              name="researchPost"
-              value={exp.researchPost}
-              onChange={(e) => handleResearchChange(idx, e)}
-              placeholder="e.g., Research Associate"
-            />
-            {errors.research && errors.research[idx] && errors.research[idx].researchPost && (
-              <span className="error">{errors.research[idx].researchPost}</span>
-            )}
           </div>
-          <div className="form-field">
-            <label htmlFor={`researchInstitution${idx}`}>Institution/University</label>
-            <select
-              id={`researchInstitution${idx}`}
-              name="researchInstitution"
-              value={exp.researchInstitution}
-              onChange={(e) => handleResearchChange(idx, e)}
-            >
-              <option value="">Select Institution</option>
-              {COLLEGES.map((u) => (
-                <option key={u} value={u}>
-                  {u}
-                </option>
-              ))}
-              <option value="Other">Other</option>
-            </select>
-            {errors.research && errors.research[idx] && errors.research[idx].researchInstitution && (
-              <span className="error">{errors.research[idx].researchInstitution}</span>
-            )}
-          </div>
-          {exp.researchInstitution === 'Other' && (
-            <div className="form-field">
-              <label htmlFor={`researchInstitutionOther${idx}`}>Please specify Institution/University</label>
-              <input
-                type="text"
-                id={`researchInstitutionOther${idx}`}
-                name="researchInstitutionOther"
-                value={exp.researchInstitutionOther || ''}
-                onChange={(e) => handleResearchChange(idx, e)}
-                placeholder="Enter your institution name"
-              />
-            </div>
-          )}
-          <div className="form-field">
-            <label htmlFor={`researchStartDate${idx}`}>Start Date</label>
-            <input
-            type="date"
-            id={`researchStartDate${idx}`}
-            name="researchStartDate"
-            value={exp.researchStartDate}
-            min="1970-01-01"
-            max={new Date().toISOString().split('T')[0]}
-            onChange={(e) => handleResearchChange(idx, e)}
-          />
-            {errors.research && errors.research[idx] && errors.research[idx].researchStartDate && (
-              <span className="error">{errors.research[idx].researchStartDate}</span>
-            )}
-          </div>
-          <div className="form-field">
-            <label htmlFor={`researchEndDate${idx}`}>End Date</label>
-            <input
-            type="date"
-            id={`researchEndDate${idx}`}
-            name="researchEndDate"
-            value={exp.researchEndDate}
-            min="1970-01-01"
-            max={new Date().toISOString().split('T')[0]}
-            onChange={(e) => handleResearchChange(idx, e)}
-          />
-            {errors.research && errors.research[idx] && errors.research[idx].researchEndDate && (
-              <span className="error">{errors.research[idx].researchEndDate}</span>
-            )}
-          </div>
-          <div className="form-field">
-            <label>Experience</label>
-            <input type="text" value={exp.researchExperience} readOnly className="readonly-field" />
-          </div>
-        </div>
-      ))}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '2rem' }}>
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={addResearchExperience}
-          style={{ fontSize: '0.9rem', padding: '0.5rem 1.2rem', borderRadius: '6px' }}
-        >
-          + Add Research Experience
-        </button>
-      </div>
+        </>
+      )}
 
       <div className="form-field total-experience">
         <label>Total Experience</label>
@@ -1998,16 +2077,30 @@ const Documentation = ({ formData, setFormData, onPrevious, onSubmit, onSaveExit
     if (!(formData.teachingStatement instanceof File) && !formData.existingTeachingStatementPath) {
       newErrors.teachingStatement = 'Teaching Statement is required';
     }
-    if (!(formData.researchStatement instanceof File) && !formData.existingResearchStatementPath) {
-      newErrors.researchStatement = 'Research Statement is required';
+    
+    // Research Statement only required for teaching candidates
+    if (formData.position === 'teaching') {
+      if (!(formData.researchStatement instanceof File) && !formData.existingResearchStatementPath) {
+        newErrors.researchStatement = 'Research Statement is required';
+      }
     }
+    
     if (!(formData.cvPath instanceof File) && !formData.existingCvPath) {
       newErrors.cvPath = 'CV is required';
     }
-    if (!hasExistingOther && otherPublicationFiles.length === 0) {
-      newErrors.otherPublications = 'Best published papers are required';
-    } else if (otherPublicationFiles.length > 3) {
-      newErrors.otherPublications = 'You can upload a maximum of 3 files';
+    
+    // Published Papers required for teaching, optional for non-teaching
+    if (formData.position === 'teaching') {
+      if (!hasExistingOther && otherPublicationFiles.length === 0) {
+        newErrors.otherPublications = 'Best published papers are required';
+      } else if (otherPublicationFiles.length > 3) {
+        newErrors.otherPublications = 'You can upload a maximum of 3 files';
+      }
+    } else {
+      // Non-teaching: published papers optional but validate file count if provided
+      if (otherPublicationFiles.length > 3) {
+        newErrors.otherPublications = 'You can upload a maximum of 3 files';
+      }
     }
 
     setErrors(newErrors);
@@ -2060,12 +2153,14 @@ const Documentation = ({ formData, setFormData, onPrevious, onSubmit, onSaveExit
         <div id="teaching-hint" style={{ fontSize: '0.85rem', color: '#6b7280', marginTop: '6px' }}>Max 250 words</div>
         {errors.teachingStatement && <span className="error">{errors.teachingStatement}</span>}
       </div>
-      <div className="form-field">
-        <label>Research Statement * <span style={{ color: '#6b7280', fontWeight: 500 }}>(Max 500 words)</span></label>
-        <input type="file" onChange={(e) => handleFileChange(e, 'researchStatement')} aria-describedby="research-hint" />
-        <div id="research-hint" style={{ fontSize: '0.85rem', color: '#6b7280', marginTop: '6px' }}>Max 500 words</div>
-        {errors.researchStatement && <span className="error">{errors.researchStatement}</span>}
-      </div>
+      {formData.position === 'teaching' && (
+        <div className="form-field">
+          <label>Research Statement * <span style={{ color: '#6b7280', fontWeight: 500 }}>(Max 500 words)</span></label>
+          <input type="file" onChange={(e) => handleFileChange(e, 'researchStatement')} aria-describedby="research-hint" />
+          <div id="research-hint" style={{ fontSize: '0.85rem', color: '#6b7280', marginTop: '6px' }}>Max 500 words</div>
+          {errors.researchStatement && <span className="error">{errors.researchStatement}</span>}
+        </div>
+      )}
       <div className="form-field">
         <label>Upload CV *</label>
         <input 
@@ -2076,7 +2171,7 @@ const Documentation = ({ formData, setFormData, onPrevious, onSubmit, onSaveExit
         {errors.cvPath && <span className="error">{errors.cvPath}</span>}
       </div>
       <div className="form-field">
-        <label>Best Published Papers* (up to 3 files)</label>
+        <label>Best Published Papers{formData.position === 'teaching' ? '*' : ''} (up to 3 files)</label>
         <div className="stacked-inputs">
           {Array.from({ length: Math.min(otherPublicationSlots, 3) }).map((_, idx) => (
             <div key={idx} className="stacked-input-row">
@@ -2328,18 +2423,37 @@ const CombinedMultiStepForm = () => {
     return map[dept] || dept;
   };
 
-  const steps = [
-    { id: 1, name: 'Position Selection' },
-    { id: 2, name: 'Personal Information' },
-    { id: 3, name: 'Education Details' },
-    { id: 4, name: 'Experience' },
-    { id: 5, name: 'Research Information' },
-    { id: 6, name: 'Documentation' },
-  ];
+  // Get steps based on position
+  const getSteps = () => {
+    const baseSteps = [
+      { id: 1, name: 'Position Selection' },
+      { id: 2, name: 'Personal Information' },
+      { id: 3, name: 'Education Details' },
+      { id: 4, name: 'Experience' },
+      { id: 5, name: 'Research Information' },
+      { id: 6, name: 'Documentation' },
+    ];
+    
+    // For non-teaching, skip Research Information (step 5)
+    if (formData.position === 'non-teaching') {
+      return [
+        baseSteps[0], // Position Selection
+        baseSteps[1], // Personal Information
+        baseSteps[2], // Education Details
+        baseSteps[3], // Experience
+        { id: 5, name: 'Documentation', displayOrder: 5 }, // Documentation becomes step 5
+      ];
+    }
+    
+    return baseSteps;
+  };
+
+  const steps = getSteps();
 
   const handleNext = () => {
-    if (currentStep < steps.length) {
-      setCurrentStep(currentStep + 1);
+    const nextStep = currentStep + 1;
+    if (nextStep <= steps.length) {
+      setCurrentStep(nextStep);
       if (!completedSteps.includes(currentStep)) {
         setCompletedSteps([...completedSteps, currentStep]);
       }
@@ -2347,8 +2461,9 @@ const CombinedMultiStepForm = () => {
   };
 
   const handlePrevious = () => {
-    if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
+    const prevStep = currentStep - 1;
+    if (prevStep >= 1) {
+      setCurrentStep(prevStep);
     }
   };
 
@@ -2570,9 +2685,11 @@ const CombinedMultiStepForm = () => {
   // Final guard for required docs (in case UI validation is bypassed)
   const missingDocs = [];
   if (!(formData.teachingStatement instanceof File) && !formData.existingTeachingStatementPath) missingDocs.push('Teaching Statement');
-  if (!(formData.researchStatement instanceof File) && !formData.existingResearchStatementPath) missingDocs.push('Research Statement');
+  // Research Statement only required for teaching candidates
+  if (formData.position === 'teaching' && !(formData.researchStatement instanceof File) && !formData.existingResearchStatementPath) missingDocs.push('Research Statement');
   if (!(formData.cvPath instanceof File) && !formData.existingCvPath) missingDocs.push('CV');
-  if (!hasExistingOtherPublications && otherPublicationFiles.length === 0) {
+  // Published Papers only required for teaching candidates
+  if (formData.position === 'teaching' && !hasExistingOtherPublications && otherPublicationFiles.length === 0) {
     missingDocs.push('Best Published Papers');
   }
   if (otherPublicationFiles.length > 3) {
@@ -2842,15 +2959,32 @@ const CombinedMultiStepForm = () => {
           savingDraft={savingDraft}
         />;
       case 5:
-        return <ResearchInformation 
-          formData={formData} 
-          setFormData={setFormData} 
-          onNext={handleNext} 
-          onPrevious={handlePrevious}
-          onSaveExit={saveDraftAndExit}
-          savingDraft={savingDraft}
-        />;
+        // For teaching: show Research Information
+        // For non-teaching: show Documentation
+        if (formData.position === 'teaching') {
+          return <ResearchInformation 
+            formData={formData} 
+            setFormData={setFormData} 
+            onNext={handleNext} 
+            onPrevious={handlePrevious}
+            onSaveExit={saveDraftAndExit}
+            savingDraft={savingDraft}
+          />;
+        } else {
+          // Non-teaching goes directly to Documentation at step 5
+          return <Documentation 
+            formData={formData} 
+            setFormData={setFormData} 
+            onPrevious={handlePrevious} 
+            onSubmit={onSubmitFinalApplication}
+            onSaveExit={saveDraftAndExit}
+            submitting={submitting}
+            savingDraft={savingDraft}
+            submitError={submitError}
+          />;
+        }
       case 6:
+        // Only reachable by teaching candidates
         return <Documentation 
           formData={formData} 
           setFormData={setFormData} 
@@ -2920,7 +3054,7 @@ const CombinedMultiStepForm = () => {
               BML Munjal University
             </div>
             <div className="recruitment-text" style={{ color: '#555', fontSize: '1.15rem' }}>
-              Faculty Recruitment {new Date().getFullYear()}
+              {formData.position === 'non-teaching' ? 'Non-Teaching Recruitment' : 'Faculty Recruitment'} {new Date().getFullYear()}
             </div>
           </div>
         </div>

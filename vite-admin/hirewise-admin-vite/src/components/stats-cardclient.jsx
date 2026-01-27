@@ -1,7 +1,14 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase-client'
+import { API_BASE } from '../lib/config'
+import { Users, CheckCircle, XCircle, Trash2, Star, Calendar, X } from 'lucide-react'
+import CandidateDetailsModal from './CandidateDetailsModal'
 
-import { Users, CheckCircle, XCircle, Trash2, Star } from 'lucide-react'
+// Helper function to capitalize first letter of a string
+const capitalize = (str) => {
+  if (!str) return '—'
+  return str.charAt(0).toUpperCase() + str.slice(1)
+}
 
 export default function StatsCardsClient({ selectedView = 'teaching' }) {
   const [stats, setStats] = useState({
@@ -22,6 +29,17 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
   const [selectedEvaluation, setSelectedEvaluation] = useState(null)
   const [evaluationData, setEvaluationData] = useState(null)
   const [evaluationLoading, setEvaluationLoading] = useState(false)
+
+  // Interview confirmation state
+  const [confirmationStates, setConfirmationStates] = useState({})
+  const [sendingConfirmation, setSendingConfirmation] = useState({})
+  const [schedulingInterview, setSchedulingInterview] = useState({})
+  
+  // Candidate details modal
+  const [selectedCandidate, setSelectedCandidate] = useState(null)
+  const [candidateDetails, setCandidateDetails] = useState(null)
+  const [loadingDetails, setLoadingDetails] = useState(false)
+  const [isPopupOpen, setIsPopupOpen] = useState(false)
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -64,13 +82,51 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
     fetchStats()
   }, [selectedView]) // Re-fetch when selectedView changes
 
+  // Load all confirmation response states on mount and when activePanel changes
+  useEffect(() => {
+    const loadConfirmationStates = async () => {
+      try {
+        let query = supabase
+          .from('faculty_applications')
+          .select('id, confirmation_response, status, first_name, last_name')
+          .eq('status', 'final_shortlisted'); // Only load for shortlisted candidates
+        
+        const { data, error } = await query;
+        
+        if (error) {
+          console.error('❌ Error loading confirmation states:', error);
+          return;
+        }
+
+        console.log('📊 Raw data from DB:', data);
+
+        // Build confirmation states object - include ALL values including NULL, PENDING, ACCEPTED, REJECTED
+        const states = {};
+        if (Array.isArray(data)) {
+          data.forEach(item => {
+            // Log each item's confirmation response
+            console.log(`ID ${item.id} (${item.first_name} ${item.last_name}):`, item.confirmation_response);
+            // Set state for all items, regardless of confirmation_response value
+            states[item.id] = item.confirmation_response;
+          });
+        }
+        console.log('✅ Final confirmation states:', states);
+        setConfirmationStates(states);
+      } catch (err) {
+        console.error('❌ Exception loading confirmation states:', err);
+      }
+    };
+
+    loadConfirmationStates();
+  }, [selectedView, activePanel]);
+
   const fetchList = async (kind) => {
     setPanelLoading(true)
     setPanelError(null)
     try {
       let query = supabase
         .from('faculty_applications')
-        .select('id, first_name, last_name, email, position, department, status, created_at')
+        .select('id, first_name, last_name, email, position, department, status, created_at, confirmation_response')
         .order('created_at', { ascending: false })
         .limit(50)
 
@@ -91,6 +147,19 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
 
       const { data, error: selErr } = await query
       if (selErr) throw selErr
+      
+      // Update confirmation states from fetched data
+      if (Array.isArray(data)) {
+        const confirmStates = {}
+        data.forEach(item => {
+          // Load all confirmation responses (NULL, PENDING, ACCEPTED, REJECTED)
+          if (item.confirmation_response) {
+            confirmStates[item.id] = item.confirmation_response
+          }
+        })
+        setConfirmationStates(confirmStates)
+      }
+      
       setPanelItems(Array.isArray(data) ? data : [])
     } catch (e) {
       setPanelError(e.message)
@@ -212,6 +281,121 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
   const closeEvaluationModal = () => {
     setSelectedEvaluation(null)
     setEvaluationData(null)
+  }
+
+  const openCandidateDetails = async (candidate) => {
+    try {
+      setSelectedCandidate({ ...candidate, loading: true })
+      setIsPopupOpen(true)
+      setLoadingDetails(true)
+      
+      const response = await fetch(`${API_BASE}/api/applications/${candidate.id}`)
+      if (!response.ok) throw new Error('Failed to fetch details')
+      const details = await response.json()
+      setSelectedCandidate(prev => ({ 
+        ...prev, 
+        ...details,
+        loading: false 
+      }))
+    } catch (err) {
+      console.error('Error fetching candidate details:', err)
+      alert('Failed to load candidate details: ' + err.message)
+      setSelectedCandidate(prev => ({ ...prev, loading: false }))
+    } finally {
+      setLoadingDetails(false)
+    }
+  }
+
+  const closeCandidatePopup = () => {
+    setSelectedCandidate(null)
+    setIsPopupOpen(false)
+  }
+
+  const getDepartmentColor = (department) => {
+    switch (department) {
+      case 'SOET': return 'bg-blue-100 text-blue-800';
+      case 'SOL': return 'bg-purple-100 text-purple-800';
+      case 'engineering': return 'bg-blue-100 text-blue-800';
+      case 'law': return 'bg-purple-100 text-purple-800';
+      case 'Research': return 'bg-green-100 text-green-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  }
+
+  const sendInterviewConfirmation = async (candidate) => {
+    try {
+      console.log('📧 Sending confirmation for candidate:', candidate.id, candidate.first_name);
+      setSendingConfirmation(prev => ({ ...prev, [candidate.id]: true }))
+      
+      const response = await fetch(`${API_BASE}/api/applications/send-confirmation/${candidate.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: candidate.email,
+          name: candidate.first_name + ' ' + candidate.last_name,
+          position: candidate.position,
+          department: candidate.department
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to send confirmation');
+      }
+
+      const result = await response.json();
+      console.log('✅ Backend response:', result);
+      
+      setConfirmationStates(prev => {
+        const newStates = { ...prev, [candidate.id]: 'PENDING' };
+        console.log('📝 Local state updated to PENDING:', newStates);
+        return newStates;
+      });
+      alert('Interview confirmation sent! Email sent to: ' + candidate.email);
+      
+      // Poll database every 5 seconds to check if candidate has responded
+      const pollInterval = setInterval(async () => {
+        try {
+          const { data, error } = await supabase
+            .from('faculty_applications')
+            .select('confirmation_response')
+            .eq('id', candidate.id)
+            .single()
+          
+          if (data && data.confirmation_response && data.confirmation_response !== 'PENDING') {
+            // Candidate has responded - update state
+            setConfirmationStates(prev => ({ ...prev, [candidate.id]: data.confirmation_response }))
+            clearInterval(pollInterval)
+          }
+        } catch (err) {
+          console.error('Error polling for response:', err)
+        }
+      }, 5000)
+      
+      // Stop polling after 1 hour
+      setTimeout(() => clearInterval(pollInterval), 3600000)
+    } catch (err) {
+      console.error('Error sending confirmation:', err)
+      alert('Failed to send confirmation: ' + err.message)
+    } finally {
+      setSendingConfirmation(prev => ({ ...prev, [candidate.id]: false }))
+    }
+  }
+
+  const scheduleInterview = (candidate) => {
+    const startTime = new Date()
+    startTime.setDate(startTime.getDate() + 7) // 1 week from now
+    startTime.setHours(14, 0, 0, 0)
+    
+    const endTime = new Date(startTime)
+    endTime.setHours(15, 0, 0, 0)
+    
+    // Include candidate email in the Google Calendar event
+    const googleCalendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=Interview%20-%20${encodeURIComponent(candidate.first_name + ' ' + candidate.last_name)}&dates=${startTime.toISOString().split('.')[0].replace(/[-:]/g, '')}/${endTime.toISOString().split('.')[0].replace(/[-:]/g, '')}&details=Candidate%20Interview%20for%20${encodeURIComponent(candidate.position)}&add=${encodeURIComponent(candidate.email)}`
+    
+    window.open(googleCalendarUrl, '_blank')
+    setSchedulingInterview(prev => ({ ...prev, [candidate.id]: true }))
+    setTimeout(() => setSchedulingInterview(prev => ({ ...prev, [candidate.id]: false })), 2000)
   }
 
   if (loading) return <div>Loading stats...</div>
@@ -339,6 +523,10 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
                       <th className="px-4 py-2">Position</th>
                       <th className="px-4 py-2">Department</th>
                       <th className="px-4 py-2">Status</th>
+                      <th className="px-4 py-2">Profile</th>
+                      {activePanel === 'shortlisted' && (
+                        <th className="px-4 py-2">Schedule</th>
+                      )}
                       {(activePanel === 'shortlisted' || activePanel === 'rejected') && (
                         <th className="px-4 py-2">Evaluation</th>
                       )}
@@ -349,20 +537,56 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
                     {panelItems.map((a) => (
                       <tr key={a.id} className="border-b hover:bg-gray-50">
                         <td className="px-4 py-2 text-sm text-gray-900">{`${a.first_name || ''} ${a.last_name || ''}`.trim() || 'N/A'}</td>
-                        <td className="px-4 py-2 text-sm text-gray-700">{a.position || '—'}</td>
-                        <td className="px-4 py-2 text-sm text-gray-700">{a.department || '—'}</td>
+                        <td className="px-4 py-2 text-sm text-gray-700">{capitalize(a.position)}</td>
+                        <td className="px-4 py-2 text-sm text-gray-700">{capitalize(a.department)}</td>
                         <td className="px-4 py-2 text-xs">
                           <span className={`inline-flex px-2 py-0.5 rounded-full font-medium ${
                             a.status === 'final_shortlisted' ? 'bg-green-100 text-green-700' :
                             a.status === 'final_rejected' || a.status === 'cv_rejected' ? 'bg-red-100 text-red-700' :
                             'bg-gray-100 text-gray-700'
                           }`}>
-                            {a.status === 'final_shortlisted' ? 'shortlisted' :
-                             a.status === 'final_rejected' ? 'rejected' :
-                             a.status === 'cv_rejected' ? 'cv rejected' :
-                             'pending'}
+                            {a.status === 'final_shortlisted' ? 'Shortlisted' :
+                             a.status === 'final_rejected' ? 'Rejected' :
+                             a.status === 'cv_rejected' ? 'CV Rejected' :
+                             'Pending'}
                           </span>
                         </td>
+                        <td className="px-4 py-2">
+                          <button
+                            onClick={() => openCandidateDetails(a)}
+                            className="px-3 py-1 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                          >
+                            View Details
+                          </button>
+                        </td>
+                        {activePanel === 'shortlisted' && (
+                          <td className="px-4 py-2 text-sm">
+                            {!confirmationStates[a.id] ? (
+                              <button
+                                onClick={() => sendInterviewConfirmation(a)}
+                                disabled={sendingConfirmation[a.id]}
+                                className="text-blue-600 hover:text-blue-800 text-xs font-medium hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {sendingConfirmation[a.id] ? 'Sending...' : 'Send Confirmation'}
+                              </button>
+                            ) : confirmationStates[a.id] === 'PENDING' ? (
+                              <span className="text-gray-500 text-xs font-medium">⏳ Pending</span>
+                            ) : confirmationStates[a.id] === 'ACCEPTED' ? (
+                              <button
+                                onClick={() => scheduleInterview(a)}
+                                disabled={schedulingInterview[a.id]}
+                                className="text-green-600 hover:text-green-800 text-xs font-medium hover:underline disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                              >
+                                <Calendar className="h-3 w-3" />
+                                {schedulingInterview[a.id] ? 'Opening...' : 'Schedule'}
+                              </button>
+                            ) : confirmationStates[a.id] === 'REJECTED' ? (
+                              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                                ✗ Rejected
+                              </span>
+                            ) : null}
+                          </td>
+                        )}
                         {(activePanel === 'shortlisted' || activePanel === 'rejected') && (
                           <td className="px-4 py-2 text-sm">
                             <button
@@ -490,6 +714,114 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
           </div>
         </div>
       )}
+
+      {/* Candidate Details Modal - Full Detailed View */}
+      {isPopupOpen && selectedCandidate && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b bg-gradient-to-r from-blue-50 to-indigo-50">
+              <div className="flex items-center gap-4">
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold text-white ${
+                  (selectedCandidate.gender || '').toLowerCase() === 'female' ? 'bg-pink-500' : 'bg-blue-500'
+                }`}>
+                  {selectedCandidate.first_name?.charAt(0) || '?'}
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    {selectedCandidate.first_name 
+                      ? `${selectedCandidate.first_name}${selectedCandidate.middle_name ? ' ' + selectedCandidate.middle_name : ''}${selectedCandidate.last_name ? ' ' + selectedCandidate.last_name : ''}`
+                      : 'N/A'
+                    }
+                  </h2>
+                  <p className="text-sm text-gray-600">{selectedCandidate.email}</p>
+                </div>
+              </div>
+              <button
+                onClick={closeCandidatePopup}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {selectedCandidate.loading ? (
+                <div className="text-center py-8 text-gray-500">Loading details...</div>
+              ) : (
+                <div className="space-y-6">
+                  {/* Basic Info */}
+                  <div className="bg-white border rounded-lg p-4">
+                    <h3 className="text-lg font-bold text-gray-900 mb-4 border-b pb-2">Basic Information</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-xs font-semibold text-gray-500 uppercase">Email</p>
+                        <p className="text-sm text-gray-900">{selectedCandidate.email || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-gray-500 uppercase">Position Applied</p>
+                        <p className="text-sm text-gray-900">{selectedCandidate.position || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-gray-500 uppercase">Department</p>
+                        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getDepartmentColor(selectedCandidate.department)}`}>
+                          {selectedCandidate.department || 'N/A'}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-gray-500 uppercase">Phone</p>
+                        <p className="text-sm text-gray-900">{selectedCandidate.phone || 'N/A'}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Education */}
+                  <div className="bg-white border rounded-lg p-4">
+                    <h3 className="text-lg font-bold text-gray-900 mb-4 border-b pb-2">Education</h3>
+                    <div className="space-y-3">
+                      {selectedCandidate.highest_degree && (
+                        <div className="bg-blue-50 rounded p-3">
+                          <p className="text-xs font-semibold text-blue-600 uppercase">Highest Qualification</p>
+                          <p className="text-sm text-gray-900">{selectedCandidate.highest_degree}</p>
+                          <p className="text-xs text-gray-600">{selectedCandidate.university || 'N/A'}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Experience */}
+                  <div className="bg-white border rounded-lg p-4">
+                    <h3 className="text-lg font-bold text-gray-900 mb-4 border-b pb-2">Experience</h3>
+                    <div className="bg-blue-50 rounded p-3">
+                      <p className="text-xs font-semibold text-blue-600 uppercase">Total Experience</p>
+                      <p className="text-lg font-bold text-gray-900">{selectedCandidate.total_experience || selectedCandidate.experience || 'N/A'}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t bg-gray-50 flex justify-end">
+              <button
+                onClick={closeCandidatePopup}
+                className="px-6 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-medium transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Candidate Details Modal */}
+      <CandidateDetailsModal
+        isOpen={isPopupOpen}
+        candidate={selectedCandidate}
+        onClose={closeCandidatePopup}
+        getDepartmentColor={getDepartmentColor}
+      />
 
       {/* Loading State */}
       {evaluationLoading && (
