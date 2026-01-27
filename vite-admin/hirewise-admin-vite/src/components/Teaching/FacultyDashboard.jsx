@@ -818,6 +818,20 @@ const FacultyDashboard = () => {
   // Show progress bars in active "All" view and also in archived view.
   const showProgress = isArchivedView || selectedStage === 'all';
   const showDetailActions = !isArchivedView && selectedStage !== 'all';
+  const getStatusMeta = (status) => {
+    const meta = {
+      final_shortlisted: { label: 'Final Shortlisted', color: 'bg-green-100 text-green-700', dot: 'bg-green-600' },
+      final_rejected: { label: 'Final Rejected', color: 'bg-red-100 text-red-700', dot: 'bg-red-600' },
+      cv_rejected: { label: 'CV Rejected', color: 'bg-red-100 text-red-700', dot: 'bg-red-600' },
+      interview_completed: { label: 'Interview Completed', color: 'bg-blue-100 text-blue-700', dot: 'bg-blue-600' },
+      cv_shortlisted: { label: 'CV Shortlisted', color: 'bg-emerald-100 text-emerald-700', dot: 'bg-emerald-600' },
+      interview_assigned: { label: 'Interview Assigned', color: 'bg-yellow-100 text-yellow-700', dot: 'bg-yellow-500' },
+      cv_assigned: { label: 'CV Assigned', color: 'bg-yellow-100 text-yellow-700', dot: 'bg-yellow-500' },
+      submitted: { label: 'Submitted', color: 'bg-gray-100 text-gray-700', dot: 'bg-gray-500' },
+    };
+    const normalized = normalizeCandidateStatus(status);
+    return meta[normalized] || meta.submitted;
+  };
   const getStatusBadge = (status) => {
     const normalized = (status || '').toLowerCase();
     if (normalized === 'final_shortlisted') {
@@ -1093,16 +1107,24 @@ const FacultyDashboard = () => {
             <div className="flex items-center justify-between p-6 border-b bg-gradient-to-r from-blue-50 to-indigo-50">
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">
-                  {formatCandidateName(selectedCandidate)}
-                </h2>
-                <div className="flex items-center space-x-2 mt-1">
-                  <p className="text-sm text-gray-600">{toTitleCase(selectedCandidate.position)}</p>
-                  <span className="text-xs font-medium text-blue-600 bg-blue-100 px-2 py-1 rounded-full">
-                    {toTitleCase(selectedCandidate.department)}
+                {formatCandidateName(selectedCandidate)}
+              </h2>
+              <div className="flex items-center space-x-2 mt-1">
+                <p className="text-sm text-gray-600">{toTitleCase(selectedCandidate.position)}</p>
+                <span className="text-xs font-medium text-blue-600 bg-blue-100 px-2 py-1 rounded-full">
+                  {toTitleCase(selectedCandidate.department)}
+                </span>
+                {selectedCandidate.status && (
+                  <span
+                    className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getStatusMeta(normalizeCandidateStatus(selectedCandidate.status)).color}`}
+                  >
+                    <span className={`w-2 h-2 rounded-full mr-1.5 ${getStatusMeta(normalizeCandidateStatus(selectedCandidate.status)).dot}`} />
+                    {getStatusMeta(normalizeCandidateStatus(selectedCandidate.status)).label}
                   </span>
-                </div>
+                )}
               </div>
-              <button
+            </div>
+            <button
                 onClick={closeModal}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
               >
