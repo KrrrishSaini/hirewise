@@ -1443,54 +1443,6 @@ const FacultyDashboard = () => {
                     </div>
                   </div>
 
-                  {/* Status Update Section */}
-                  <div className="bg-white border rounded-lg p-4 shadow-sm">
-                    <h3 className="text-sm font-bold text-gray-900 mb-3">Application Status</h3>
-                    <div className="space-y-3">
-                      <div className="flex items-center space-x-2">
-                        {(() => {
-                          const badge = getStatusBadge(selectedCandidate.status);
-                          return (
-                            <span className={`px-3 py-1 rounded-full text-sm font-medium ${badge.className}`}>
-                              {badge.label}
-                            </span>
-                          );
-                        })()}
-                      </div>
-                      
-                      {showDetailActions && selectedCandidate.status === 'cv_assigned' && (
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => updateCvStatus(selectedCandidate, 'cv_shortlisted')}
-                            disabled={updatingStatus}
-                            className="flex-1 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium text-sm"
-                          >
-                            Shortlist for Interview
-                          </button>
-                          <button
-                            onClick={() => updateCvStatus(selectedCandidate, 'cv_rejected')}
-                            disabled={updatingStatus}
-                            className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium text-sm"
-                          >
-                            Reject CV
-                          </button>
-                        </div>
-                      )}
-
-                      {showDetailActions && selectedCandidate.status === 'interview_assigned' && (
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleEvaluate(selectedCandidate)}
-                            disabled={updatingStatus}
-                            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium text-sm"
-                          >
-                            Start Interview Evaluation
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
                   {(isArchivedStatus(selectedCandidate.status) || selectedCandidate.status === 'interview_completed') && (
                     <div className="bg-white border rounded-lg p-4 shadow-sm">
                       <div className="flex items-center justify-between mb-3">
