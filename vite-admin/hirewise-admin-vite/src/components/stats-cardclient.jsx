@@ -524,7 +524,9 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
                       <th className="px-4 py-2">Department</th>
                       <th className="px-4 py-2">Status</th>
                       <th className="px-4 py-2">Profile</th>
-                      <th className="px-4 py-2">Schedule</th>
+                      {activePanel === 'shortlisted' && (
+                        <th className="px-4 py-2">Schedule</th>
+                      )}
                       {(activePanel === 'shortlisted' || activePanel === 'rejected') && (
                         <th className="px-4 py-2">Evaluation</th>
                       )}
@@ -557,32 +559,34 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
                             View Details
                           </button>
                         </td>
-                        <td className="px-4 py-2 text-sm">
-                          {!confirmationStates[a.id] ? (
-                            <button
-                              onClick={() => sendInterviewConfirmation(a)}
-                              disabled={sendingConfirmation[a.id]}
-                              className="text-blue-600 hover:text-blue-800 text-xs font-medium hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              {sendingConfirmation[a.id] ? 'Sending...' : 'Send Confirmation'}
-                            </button>
-                          ) : confirmationStates[a.id] === 'PENDING' ? (
-                            <span className="text-gray-500 text-xs font-medium">⏳ Pending</span>
-                          ) : confirmationStates[a.id] === 'ACCEPTED' ? (
-                            <button
-                              onClick={() => scheduleInterview(a)}
-                              disabled={schedulingInterview[a.id]}
-                              className="text-green-600 hover:text-green-800 text-xs font-medium hover:underline disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
-                            >
-                              <Calendar className="h-3 w-3" />
-                              {schedulingInterview[a.id] ? 'Opening...' : 'Schedule'}
-                            </button>
-                          ) : confirmationStates[a.id] === 'REJECTED' ? (
-                            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
-                              ✗ Rejected
-                            </span>
-                          ) : null}
-                        </td>
+                        {activePanel === 'shortlisted' && (
+                          <td className="px-4 py-2 text-sm">
+                            {!confirmationStates[a.id] ? (
+                              <button
+                                onClick={() => sendInterviewConfirmation(a)}
+                                disabled={sendingConfirmation[a.id]}
+                                className="text-blue-600 hover:text-blue-800 text-xs font-medium hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {sendingConfirmation[a.id] ? 'Sending...' : 'Send Confirmation'}
+                              </button>
+                            ) : confirmationStates[a.id] === 'PENDING' ? (
+                              <span className="text-gray-500 text-xs font-medium">⏳ Pending</span>
+                            ) : confirmationStates[a.id] === 'ACCEPTED' ? (
+                              <button
+                                onClick={() => scheduleInterview(a)}
+                                disabled={schedulingInterview[a.id]}
+                                className="text-green-600 hover:text-green-800 text-xs font-medium hover:underline disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                              >
+                                <Calendar className="h-3 w-3" />
+                                {schedulingInterview[a.id] ? 'Opening...' : 'Schedule'}
+                              </button>
+                            ) : confirmationStates[a.id] === 'REJECTED' ? (
+                              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                                ✗ Rejected
+                              </span>
+                            ) : null}
+                          </td>
+                        )}
                         {(activePanel === 'shortlisted' || activePanel === 'rejected') && (
                           <td className="px-4 py-2 text-sm">
                             <button
