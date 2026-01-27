@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Users, Eye, CheckCircle, XCircle, User, Building, ChevronDown, Filter, X, Star } from 'lucide-react';
+import { Users, Eye, CheckCircle, XCircle, User, Building, ChevronDown, Filter, X, Star, Calendar } from 'lucide-react';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import Charts from './charts'; // Adjust path as needed
 import { candidatesApi } from '../lib/api';
 import { supabase } from '../../lib/supabase-client';
+import { API_BASE } from '../lib/config';
 
 
 
@@ -26,6 +27,9 @@ const Dashboard = () => {
   const [researchMetric, setResearchMetric] = useState('Papers'); // Research metric: Papers or H-Index
   const [isResearchMetricOpen, setIsResearchMetricOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [confirmationStates, setConfirmationStates] = useState({}); // Track confirmation status per application
+  const [sendingConfirmation, setSendingConfirmation] = useState({}); // Track which confirmations are being sent
+  const [schedulingInterview, setSchedulingInterview] = useState({}); // Track which interviews are being scheduled
   
 
   // Remove default margins from body and html
@@ -73,6 +77,17 @@ const Dashboard = () => {
         const arr = Array.isArray(data) ? data : [];
         const unique = dedupeCandidates(arr);
         setCandidates(unique);
+
+        // Load confirmation states for all candidates
+        if (unique.length > 0) {
+          const confirmStates = {};
+          unique.forEach(cand => {
+            if (cand.confirmation_response) {
+              confirmStates[cand.id] = cand.confirmation_response; // ACCEPTED or REJECTED
+            }
+          });
+          setConfirmationStates(confirmStates);
+        }
       } catch (error) {
         console.error('Error fetching candidates:', error);
         // No fallback dummy data — show empty state if the API fails
@@ -316,6 +331,60 @@ const getPositionFilterOptions = () => {
       console.error('Error generating report:', error);
       alert('Error generating report');
     }
+  };
+
+  // ⚡ NEW: Send interview confirmation email to candidate
+  const sendInterviewConfirmation = async (candidate) => {
+    if (!candidate || !candidate.id) {
+      alert('Error: Candidate information not available');
+      return;
+    }
+
+    setSendingConfirmation(prev => ({ ...prev, [candidate.id]: true }));
+    
+    try {
+      const response = await fetch(`${API_BASE}/api/applications/send-confirmation/${candidate.id}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Update confirmation state to 'PENDING'
+        setConfirmationStates(prev => ({
+          ...prev,
+          [candidate.id]: { status: 'PENDING', sentAt: new Date().toISOString() }
+        }));
+        alert('Interview confirmation email sent successfully!');
+      } else {
+        alert('Failed to send confirmation email: ' + (data.error || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error sending confirmation email:', error);
+      alert('Error sending confirmation email');
+    } finally {
+      setSendingConfirmation(prev => ({ ...prev, [candidate.id]: false }));
+    }
+  };
+
+  // ⚡ NEW: Open Google Calendar event creation
+  const scheduleInterview = (candidate) => {
+    if (!candidate || !candidate.email) {
+      alert('Error: Candidate email not available');
+      return;
+    }
+
+    const eventTitle = `Interview – ${candidate.position || candidate.positionApplied || 'Faculty Position'}`;
+    const eventDescription = `Interview with ${candidate.first_name} ${candidate.last_name || ''} for ${candidate.position || 'Faculty Position'} at BML Munjal University`;
+    
+    // Google Calendar event URL
+    const googleCalendarUrl = `https://calendar.google.com/calendar/u/0/r/eventedit?text=${encodeURIComponent(eventTitle)}&details=${encodeURIComponent(eventDescription)}&location=Google%20Meet&add=${encodeURIComponent(candidate.email)}`;
+    
+    // Open Google Calendar in a new tab
+    window.open(googleCalendarUrl, '_blank');
   };
 
   const getDepartmentColor = (department) => {
@@ -573,6 +642,8 @@ const getPositionFilterOptions = () => {
                       </div>
                     </div>
                   </th>
+                  <th className="text-left py-2 px-2 text-xl font-medium text-gray-700">Profile</th>
+                  <th className="text-left py-2 px-2 text-xl font-medium text-gray-700">Schedule</th>
                   <th className="text-left py-2 px-2 text-xl font-medium text-gray-700">Actions</th>
                 </tr>
               </thead>
@@ -640,14 +711,61 @@ const getPositionFilterOptions = () => {
                           );
                         })()}
                       </td>
+                      
+                      {/* Profile Column - View Details Button */}
+                      <td className="py-2 px-2">
+                        <button
+                          onClick={() => openCandidatePopup({ ...candidate, listRank: index + 1 })}
+                          className="px-4 py-1 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                        >
+                          View Details
+                        </button>
+                      </td>
+
+                      {/* Schedule Column - State Machine UI */}
+                      <td className="py-2 px-2">
+                        {(() => {
+                          const confirmState = confirmationStates[candidate.id];
+
+                          // If REJECTED, show rejected badge
+                          if (confirmState?.status === 'REJECTED') {
+                            return (
+                              <div className="inline-flex items-center px-3 py-1 rounded-full bg-red-100 text-red-800">
+                                <XCircle className="h-4 w-4 mr-1" />
+                                <span className="text-sm font-medium">Rejected</span>
+                              </div>
+                            );
+                          }
+
+                          // If ACCEPTED, show Schedule Interview button
+                          if (confirmState?.status === 'ACCEPTED') {
+                            return (
+                              <button
+                                onClick={() => scheduleInterview(candidate)}
+                                className="px-3 py-1 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors font-medium underline"
+                              >
+                                Schedule Interview
+                              </button>
+                            );
+                          }
+
+                          // If PENDING, show Pending status
+                          if (confirmState?.status === 'PENDING') {
+                            return (
+                              <div className="flex items-center text-gray-600">
+                                <div className="h-3 w-3 rounded-full bg-gray-400 animate-pulse mr-2"></div>
+                                <span className="text-sm font-medium">Pending</span>
+                              </div>
+                            );
+                          }
+
+                          // Default: Don't show Send Confirmation button in Top Selected Candidates section
+                          return null;
+                        })()}
+                      </td>
+
                       <td className="py-2 px-2">
                         <div className="flex space-x-1">
-                          <button
-                            onClick={() => openCandidatePopup({ ...candidate, listRank: index + 1 })}
-                            className="px-2 py-1 bg-blue-600 text-white text-xs rounded-md hover:bg-blue-700 transition-colors"
-                          >
-                            View
-                          </button>
                           <button
                             onClick={() => generateReport(candidate.id || candidate.rank)}
                             className="px-2 py-1 bg-green-600 text-white text-xs rounded-md hover:bg-green-700 transition-colors"
@@ -660,7 +778,7 @@ const getPositionFilterOptions = () => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="7" className="py-8 text-center text-gray-500">
+                    <td colSpan="9" className="py-8 text-center text-gray-500">
                       No candidates found for the selected filters.
                     </td>
                   </tr>

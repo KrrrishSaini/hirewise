@@ -7,6 +7,7 @@ import { createClient } from '@supabase/supabase-js';
 import documentService from '../../services/documentService.js';
 import scoringService from '../../services/scoringService.js';
 import cache from '../../config/cache.js';
+import emailService from '../../services/emailService.js';
 
 // Initialize Supabase client
 const supabase = createClient(
@@ -432,9 +433,15 @@ router.post(
 
       await uploadFile('coverLetterPath', 'application-reports', 'cover_letter');
       await uploadFile('teachingStatement', 'application-reports', 'teaching_statement');
-      await uploadFile('researchStatement', 'application-reports', 'research_statement');
+      // Research Statement only required for teaching candidates
+      if (position === 'teaching') {
+        await uploadFile('researchStatement', 'application-reports', 'research_statement');
+      }
       await uploadFile('cvPath', 'application-reports', 'cv');
-      await uploadFile('otherPublications', 'application-reports', 'other_publications', true);
+      // Published Papers only required for teaching candidates
+      if (position === 'teaching') {
+        await uploadFile('otherPublications', 'application-reports', 'other_publications', true);
+      }
       // Apply any existing paths provided (from draft uploads)
       applyExistingPaths(req, docPaths);
 
@@ -590,6 +597,235 @@ router.get('/all/detailed', cache.middleware(120), async (req, res) => {
   } catch (error) {
     console.error('Error fetching detailed applications:', error);
     res.status(500).json({ error: error.message || 'Failed to fetch applications' });
+  }
+});
+
+// ⚡ NEW: Send interview confirmation email to shortlisted candidate
+router.post('/send-confirmation/:id', async (req, res) => {
+  try {
+    const applicationId = parseInt(req.params.id);
+    
+    // Get application details from database
+    const { data: application, error: fetchError } = await supabase
+      .from('faculty_applications')
+      .select('*')
+      .eq('id', applicationId)
+      .single();
+    
+    if (fetchError || !application) {
+      return res.status(404).json({ error: 'Application not found' });
+    }
+
+    // Check if email is available
+    if (!application.email) {
+      return res.status(400).json({ error: 'Candidate email not found' });
+    }
+
+    // Construct base URL from environment or use PORT variable
+    const baseUrl = process.env.API_BASE_URL || (
+      process.env.NODE_ENV === 'production' 
+        ? 'https://your-production-domain.com'
+        : `http://localhost:${process.env.PORT || 5000}`
+    );
+
+    // Send the confirmation email
+    const emailResult = await emailService.sendInterviewConfirmationEmail(
+      applicationId,
+      application.email,
+      `${application.first_name} ${application.last_name}`,
+      application.position || application.positionApplied || 'Faculty Position',
+      application.department || 'Not specified',
+      baseUrl
+    );
+
+    if (!emailResult.success) {
+      return res.status(500).json({ error: emailResult.error || 'Failed to send email' });
+    }
+
+    // Update database to set confirmation_response = 'PENDING' after email is sent
+    const { data: updateData, error: updateError } = await supabase
+      .from('faculty_applications')
+      .update({ confirmation_response: 'PENDING' })
+      .eq('id', applicationId)
+      .select();
+
+    if (updateError) {
+      console.error('Error updating confirmation status:', updateError);
+      // Don't fail the request if update fails, email was sent
+    } else {
+      console.log('✅ Database updated to PENDING for application:', applicationId, updateData);
+    }
+
+    // Invalidate cache
+    cache.delPattern(`req:/api/applications/*`).catch(console.error);
+
+    res.json({ 
+      success: true, 
+      message: 'Interview confirmation email sent successfully',
+      messageId: emailResult.messageId
+    });
+
+  } catch (error) {
+    console.error('Error sending confirmation email:', error);
+    res.status(500).json({ error: error.message || 'Failed to send confirmation email' });
+  }
+});
+
+// ⚡ NEW: Handle candidate response to interview confirmation (ACCEPT/REJECT)
+// This endpoint is hit from email links: /api/applications/confirm-response/:id?response=ACCEPTED|REJECTED
+// Supports both GET (from email links) and POST (from API)
+router.get('/confirm-response/:id', async (req, res) => handleConfirmResponse(req, res));
+router.post('/confirm-response/:id', async (req, res) => handleConfirmResponse(req, res));
+
+const handleConfirmResponse = async (req, res) => {
+  try {
+    const applicationId = parseInt(req.params.id);
+    const response = req.query.response || req.body.response; // Support both query and body
+
+    console.log(`📧 Confirm-response endpoint hit: ID=${applicationId}, Response=${response}, Method=${req.method}`);
+
+    if (!response || !['ACCEPTED', 'REJECTED'].includes(response)) {
+      console.error('❌ Invalid response received:', response);
+      return res.status(400).json({ error: 'Invalid response. Must be ACCEPTED or REJECTED.' });
+    }
+
+    // Get application details first
+    const { data: application, error: fetchError } = await supabase
+      .from('faculty_applications')
+      .select('*')
+      .eq('id', applicationId)
+      .single();
+
+    if (fetchError || !application) {
+      console.error('❌ Application not found:', applicationId);
+      return res.status(404).json({ error: 'Application not found' });
+    }
+
+    // Update confirmation response in database
+    const { data: updateData, error: updateError } = await supabase
+      .from('faculty_applications')
+      .update({
+        confirmation_response: response
+      })
+      .eq('id', applicationId)
+      .select();
+
+    if (updateError) {
+      console.error('❌ Error updating confirmation response:', updateError);
+      return res.status(500).json({ error: 'Failed to update response' });
+    }
+
+    console.log('✅ Database updated to', response, 'for application:', applicationId, updateData);
+
+    // Return user-friendly response
+    // If this is from an email link (HTML request), return HTML page
+    if (req.get('accept') && req.get('accept').includes('text/html')) {
+      const htmlPage = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interview Response Confirmed</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            text-align: center;
+            max-width: 500px;
+        }
+        .icon {
+            font-size: 60px;
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #333;
+            margin: 0 0 10px 0;
+        }
+        p {
+            color: #666;
+            line-height: 1.6;
+        }
+        .message {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: ${response === 'ACCEPTED' ? '#d4edda' : '#f8d7da'};
+            border: 1px solid ${response === 'ACCEPTED' ? '#c3e6cb' : '#f5c6cb'};
+            border-radius: 5px;
+            color: ${response === 'ACCEPTED' ? '#155724' : '#721c24'};
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="icon">${response === 'ACCEPTED' ? '✓' : '✗'}</div>
+        <h1>${response === 'ACCEPTED' ? 'Response Confirmed!' : 'Response Recorded'}</h1>
+        <div class="message">
+            ${response === 'ACCEPTED' 
+              ? 'Thank you for confirming your availability. Our team will schedule your interview shortly and send you the details via email.' 
+              : 'Thank you for your response. We appreciate you letting us know.'}
+        </div>
+        <p>You can now close this page.</p>
+    </div>
+</body>
+</html>
+      `;
+      res.set('Content-Type', 'text/html');
+      res.send(htmlPage);
+    } else {
+      // JSON response for API calls
+      res.json({
+        success: true,
+        message: `Response recorded: ${response}`,
+        applicationId,
+        response
+      });
+    }
+
+  } catch (error) {
+    console.error('Error updating confirmation response:', error);
+    res.status(500).json({ error: error.message || 'Failed to update response' });
+  }
+};
+
+// DEBUG: Check a specific application and see its confirmation_response value
+router.get('/debug/check-confirmation/:id', async (req, res) => {
+  try {
+    const applicationId = parseInt(req.params.id);
+    console.log('🔍 DEBUG: Checking application:', applicationId);
+    
+    const { data, error } = await supabase
+      .from('faculty_applications')
+      .select('id, first_name, last_name, confirmation_response')
+      .eq('id', applicationId)
+      .single();
+    
+    if (error) {
+      console.error('❌ Error fetching application:', error);
+      return res.status(500).json({ error: error.message });
+    }
+    
+    console.log('✅ Application data:', data);
+    res.json({ 
+      success: true,
+      application: data,
+      confirmationResponse: data?.confirmation_response,
+      isEmpty: data?.confirmation_response === null || data?.confirmation_response === undefined
+    });
+  } catch (err) {
+    console.error('Error in debug endpoint:', err);
+    res.status(500).json({ error: err.message });
   }
 });
 
