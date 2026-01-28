@@ -272,7 +272,7 @@ export default function CandidateDetailsModal({
                       <div className={`w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold text-white ${
                         (candidate.gender || '').toLowerCase() === 'female' ? 'bg-pink-500' : 'bg-blue-500'
                       } shadow-xl`}>
-                        #{candidate.listRank || 1}
+                        {candidate.listRank || 1}
                       </div>
                     </div>
                   </div>

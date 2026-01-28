@@ -1015,7 +1015,7 @@ const getPositionFilterOptions = () => {
                           <div className={`w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold text-white ${
                             (selectedCandidate.gender || '').toLowerCase() === 'female' ? 'bg-pink-500' : 'bg-blue-500'
                           } shadow-xl`}>
-                            #{selectedCandidate.listRank || 1}
+                            {selectedCandidate.listRank || 1}
                           </div>
                         </div>
                       </div>
