@@ -52,6 +52,9 @@ const PositionSelection = ({ formData, setFormData, onNext, onSaveExit, savingDr
     { id: 'cse', name: 'Computer Science & Engineering' },
     { id: 'mech', name: 'Mechanical Engineering' },
     { id: 'ece', name: 'Electronics and Communication Engineering' },
+    { id: 'math', name: 'Mathematics' },
+    { id: 'chemistry', name: 'Chemistry' },
+    { id: 'physics', name: 'Physics' },
   ];
   const lawBranches = [
     { id: 'criminal', name: 'Criminal Law' },
