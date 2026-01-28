@@ -3,24 +3,24 @@ import nodemailer from 'nodemailer';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_KEY
 );
 
 // Configure email transporter with Gmail
 let transporter = null;
 
 const getTransporter = () => {
-  if (!transporter) {
-    transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASSWORD
-      }
-    });
-  }
-  return transporter;
+    if (!transporter) {
+        transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASSWORD
+            }
+        });
+    }
+    return transporter;
 };
 
 /**
@@ -34,29 +34,29 @@ const getTransporter = () => {
  * @returns {Promise<{success: boolean, messageId?: string, error?: string}>}
  */
 export const sendInterviewConfirmationEmail = async (
-  applicationId,
-  candidateEmail,
-  candidateName,
-  position,
-  department,
-  baseUrl
+    applicationId,
+    candidateEmail,
+    candidateName,
+    position,
+    department,
+    baseUrl
 ) => {
-  // Use environment variable if baseUrl not provided
-  if (!baseUrl) {
-    baseUrl = process.env.NODE_ENV === 'production' 
-      ? process.env.API_BASE_URL || 'https://your-production-domain.com'
-      : `http://localhost:${process.env.PORT || 5001}`;
-  }
-  try {
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
-      console.error('Email credentials not configured');
-      return { success: false, error: 'Email service not configured' };
+    // Use environment variable if baseUrl not provided
+    if (!baseUrl) {
+        baseUrl = process.env.NODE_ENV === 'production'
+            ? process.env.API_BASE_URL || 'https://your-production-domain.com'
+            : `http://localhost:${process.env.PORT || 5000}`;
     }
+    try {
+        if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
+            console.error('Email credentials not configured');
+            return { success: false, error: 'Email service not configured' };
+        }
 
-    const acceptLink = `${baseUrl}/api/applications/confirm-response/${applicationId}?response=ACCEPTED`;
-    const rejectLink = `${baseUrl}/api/applications/confirm-response/${applicationId}?response=REJECTED`;
+        const acceptLink = `${baseUrl}/api/applications/confirm-response/${applicationId}?response=ACCEPTED`;
+        const rejectLink = `${baseUrl}/api/applications/confirm-response/${applicationId}?response=REJECTED`;
 
-    const htmlContent = `
+        const htmlContent = `
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -200,7 +200,7 @@ export const sendInterviewConfirmationEmail = async (
 </html>
     `;
 
-    const textContent = `
+        const textContent = `
 Dear ${candidateName},
 
 We are pleased to invite you to an interview for the ${position} position at BML Munjal University.
@@ -222,30 +222,30 @@ BML Munjal University | Faculty Recruitment System
 © 2026 BML Munjal University. All rights reserved.
     `;
 
-    const transporter = getTransporter();
+        const transporter = getTransporter();
 
-    const mailOptions = {
-      from: process.env.EMAIL_FROM,
-      to: candidateEmail,
-      subject: `Interview Confirmation Required – ${position} Position at BML Munjal University`,
-      html: htmlContent,
-      text: textContent
-    };
+        const mailOptions = {
+            from: process.env.EMAIL_FROM,
+            to: candidateEmail,
+            subject: `Interview Confirmation Required – ${position} Position at BML Munjal University`,
+            html: htmlContent,
+            text: textContent
+        };
 
-    const info = await transporter.sendMail(mailOptions);
+        const info = await transporter.sendMail(mailOptions);
 
-    console.log('Interview confirmation email sent successfully:', info.response);
-    return {
-      success: true,
-      messageId: info.messageId
-    };
-  } catch (error) {
-    console.error('Error sending interview confirmation email:', error);
-    return {
-      success: false,
-      error: error.message
-    };
-  }
+        console.log('Interview confirmation email sent successfully:', info.response);
+        return {
+            success: true,
+            messageId: info.messageId
+        };
+    } catch (error) {
+        console.error('Error sending interview confirmation email:', error);
+        return {
+            success: false,
+            error: error.message
+        };
+    }
 };
 
 /**
@@ -260,21 +260,21 @@ BML Munjal University | Faculty Recruitment System
  * @returns {Promise<{success: boolean, messageId?: string, error?: string}>}
  */
 export const sendInterviewScheduledEmail = async (
-  applicationId,
-  candidateEmail,
-  candidateName,
-  position,
-  interviewDate,
-  interviewTime,
-  meetLink
+    applicationId,
+    candidateEmail,
+    candidateName,
+    position,
+    interviewDate,
+    interviewTime,
+    meetLink
 ) => {
-  try {
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
-      console.error('Email credentials not configured');
-      return { success: false, error: 'Email service not configured' };
-    }
+    try {
+        if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
+            console.error('Email credentials not configured');
+            return { success: false, error: 'Email service not configured' };
+        }
 
-    const htmlContent = `
+        const htmlContent = `
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -424,32 +424,32 @@ export const sendInterviewScheduledEmail = async (
 </html>
     `;
 
-    const transporter = getTransporter();
+        const transporter = getTransporter();
 
-    const mailOptions = {
-      from: process.env.EMAIL_FROM,
-      to: candidateEmail,
-      subject: `Interview Scheduled – ${position} at BML Munjal University`,
-      html: htmlContent
-    };
+        const mailOptions = {
+            from: process.env.EMAIL_FROM,
+            to: candidateEmail,
+            subject: `Interview Scheduled – ${position} at BML Munjal University`,
+            html: htmlContent
+        };
 
-    const info = await transporter.sendMail(mailOptions);
+        const info = await transporter.sendMail(mailOptions);
 
-    console.log('Interview scheduled email sent successfully:', info.response);
-    return {
-      success: true,
-      messageId: info.messageId
-    };
-  } catch (error) {
-    console.error('Error sending interview scheduled email:', error);
-    return {
-      success: false,
-      error: error.message
-    };
-  }
+        console.log('Interview scheduled email sent successfully:', info.response);
+        return {
+            success: true,
+            messageId: info.messageId
+        };
+    } catch (error) {
+        console.error('Error sending interview scheduled email:', error);
+        return {
+            success: false,
+            error: error.message
+        };
+    }
 };
 
 export default {
-  sendInterviewConfirmationEmail,
-  sendInterviewScheduledEmail
+    sendInterviewConfirmationEmail,
+    sendInterviewScheduledEmail
 };
