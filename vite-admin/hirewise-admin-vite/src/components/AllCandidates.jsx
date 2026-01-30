@@ -35,6 +35,22 @@ const AllCandidates = () => {
   const [evaluationData, setEvaluationData] = useState(null);
   const [evaluationLoading, setEvaluationLoading] = useState(false);
   const [showEvaluationModal, setShowEvaluationModal] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState({
+    position: 'all',
+    minExperienceMonths: '',
+    minScopus: '',
+    minConference: '',
+    minBooks: '',
+    qualification: 'all',
+    institute: '',
+    hasCv: false,
+    hasTeachingStmt: false,
+    hasResearchStmt: false,
+    hasScopusId: false,
+    hasScholar: false,
+    hasOrcid: false,
+  });
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [candidateToAssign, setCandidateToAssign] = useState(null);
   const [assignType, setAssignType] = useState('cv');
@@ -411,7 +427,34 @@ const AllCandidates = () => {
   const departmentFiltered = selectedDepartment === 'All' 
     ? candidates 
     : candidates.filter(candidate => candidate.department === selectedDepartment);
-  const filteredCandidates = departmentFiltered.filter(candidate => matchesStage(candidate, selectedStage));
+
+  const passesAdvancedFilters = (candidate) => {
+    const norm = (v) => (v === null || v === undefined ? 0 : Number(v) || 0);
+    const expMonths = norm(candidate.total_experience_months || candidate.totalMonths || candidate.experienceMonths);
+    const scopus = norm(candidate.scopus_general_papers);
+    const conf = norm(candidate.conference_papers);
+    const books = norm(candidate.edited_books);
+    const qualification = (candidate.highest_degree || candidate.highestQualification || '').toLowerCase();
+    const institute = (candidate.university || candidate.masterInstitute || candidate.phdInstitute || candidate.bachelorInstitute || '').toLowerCase();
+
+    if (filters.position !== 'all' && (candidate.position || '').toLowerCase() !== filters.position) return false;
+    if (filters.minExperienceMonths && expMonths < Number(filters.minExperienceMonths)) return false;
+    if (filters.minScopus && scopus < Number(filters.minScopus)) return false;
+    if (filters.minConference && conf < Number(filters.minConference)) return false;
+    if (filters.minBooks && books < Number(filters.minBooks)) return false;
+    if (filters.qualification !== 'all' && !qualification.includes(filters.qualification)) return false;
+    if (filters.institute && !institute.includes(filters.institute.toLowerCase())) return false;
+    if (filters.hasCv && !candidate.cv_path) return false;
+    if (filters.hasTeachingStmt && !candidate.teaching_statement_path) return false;
+    if (filters.hasResearchStmt && !candidate.research_statement_path) return false;
+    if (filters.hasScopusId && !candidate.scopus_id) return false;
+    if (filters.hasScholar && !candidate.google_scholar_id) return false;
+    if (filters.hasOrcid && !candidate.orchid_id && !candidate.orcid_id) return false;
+    return true;
+  };
+
+  const stageFiltered = departmentFiltered.filter(candidate => matchesStage(candidate, selectedStage));
+  const filteredCandidates = stageFiltered.filter(passesAdvancedFilters);
 
   if (loading) {
     return (
@@ -475,7 +518,138 @@ const AllCandidates = () => {
                 {stage.label}
               </button>
             ))}
+            <button
+              type="button"
+              onClick={() => setShowFilters((s) => !s)}
+              className="ml-2 px-3 py-1.5 rounded-full text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-100"
+            >
+              {showFilters ? 'Hide Filters' : 'Filters'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilters({
+                position: 'all',
+                minExperienceMonths: '',
+                minScopus: '',
+                minConference: '',
+                minBooks: '',
+                qualification: 'all',
+                institute: '',
+                hasCv: false,
+                hasTeachingStmt: false,
+                hasResearchStmt: false,
+                hasScopusId: false,
+                hasScholar: false,
+                hasOrcid: false,
+              })}
+              className="px-3 py-1.5 rounded-full text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-100"
+            >
+              Clear
+            </button>
           </div>
+
+          {showFilters && (
+            <div className="mt-4 bg-gray-50 border border-gray-200 rounded-lg p-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
+                <label className="text-sm font-medium text-gray-700">Position</label>
+                <select
+                  value={filters.position}
+                  onChange={(e) => setFilters({ ...filters, position: e.target.value })}
+                  className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                >
+                  <option value="all">All</option>
+                  <option value="teaching">Teaching</option>
+                  <option value="non-teaching">Non-teaching</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700">Min Experience (months)</label>
+                <input
+                  type="number"
+                  value={filters.minExperienceMonths}
+                  onChange={(e) => setFilters({ ...filters, minExperienceMonths: e.target.value })}
+                  className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                  min="0"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700">Highest Qualification</label>
+                <select
+                  value={filters.qualification}
+                  onChange={(e) => setFilters({ ...filters, qualification: e.target.value })}
+                  className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                >
+                  <option value="all">Any</option>
+                  <option value="phd">PhD</option>
+                  <option value="master">Master</option>
+                  <option value="bachelor">Bachelor</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700">Min Scopus Papers</label>
+                <input
+                  type="number"
+                  value={filters.minScopus}
+                  onChange={(e) => setFilters({ ...filters, minScopus: e.target.value })}
+                  className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                  min="0"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700">Min Conference Papers</label>
+                <input
+                  type="number"
+                  value={filters.minConference}
+                  onChange={(e) => setFilters({ ...filters, minConference: e.target.value })}
+                  className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                  min="0"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700">Min Edited Books</label>
+                <input
+                  type="number"
+                  value={filters.minBooks}
+                  onChange={(e) => setFilters({ ...filters, minBooks: e.target.value })}
+                  className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                  min="0"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="text-sm font-medium text-gray-700">Institute contains</label>
+                <input
+                  type="text"
+                  value={filters.institute}
+                  onChange={(e) => setFilters({ ...filters, institute: e.target.value })}
+                  className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                  placeholder="e.g., IIT, NIT, IIM"
+                />
+              </div>
+              <div className="flex flex-wrap gap-2 md:col-span-3">
+                {[
+                  { key: 'hasCv', label: 'Has CV' },
+                  { key: 'hasTeachingStmt', label: 'Has Teaching Statement' },
+                  { key: 'hasResearchStmt', label: 'Has Research Statement' },
+                  { key: 'hasScopusId', label: 'Has Scopus ID' },
+                  { key: 'hasScholar', label: 'Has Scholar Link' },
+                  { key: 'hasOrcid', label: 'Has ORCID' },
+                ].map((item) => (
+                  <button
+                    key={item.key}
+                    type="button"
+                    onClick={() => setFilters({ ...filters, [item.key]: !filters[item.key] })}
+                    className={`px-3 py-1.5 rounded-full text-sm font-semibold border ${
+                      filters[item.key]
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'bg-white text-gray-700 border-gray-300'
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
         
         <div className="divide-y divide-gray-200">
