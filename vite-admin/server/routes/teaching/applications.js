@@ -298,6 +298,7 @@ router.post(
         previous_positions,
         years_of_experience,
         phd_status,
+        phdStatus: phdStatusCamel,
         gender,
         date_of_birth,
         nationality,
@@ -348,10 +349,34 @@ router.post(
         return res.status(400).json({ error: 'Missing required fields' });
       }
 
+      const normalizePhdStatus = (value) => {
+        const normalized = (value || '').toString().trim().toLowerCase();
+        if (!normalized) return '';
+        if (normalized === 'not done' || normalized === 'not_done' || normalized === 'not-done') return 'Not done';
+        if (normalized === 'pursuing') return 'Pursuing';
+        if (normalized === 'submitted') return 'Submitted';
+        if (normalized === 'awarded') return 'Awarded';
+        return '';
+      };
+
       const normalizedPostAppliedFor = position === 'teaching'
         ? (post_applied_for || '').toString().trim()
         : '';
-      const normalizedPhdStatus = (phd_status || 'Not done').toString().trim() || 'Not done';
+      const normalizedHighestDegree = (highest_degree || '').toString().trim().toLowerCase();
+      const inferredPhdStatus = (() => {
+        if (!normalizedHighestDegree.includes('phd') && !normalizedHighestDegree.includes('doctor')) {
+          return 'Not done';
+        }
+        const gradYearNum = Number(graduation_year);
+        if (Number.isFinite(gradYearNum) && gradYearNum > new Date().getFullYear()) {
+          return 'Pursuing';
+        }
+        return 'Awarded';
+      })();
+      const normalizedPhdStatus =
+        normalizePhdStatus(phd_status) ||
+        normalizePhdStatus(phdStatusCamel) ||
+        inferredPhdStatus;
 
       // Idempotency/Duplicate guard: prevent multiple submissions for same user & role
       try {
