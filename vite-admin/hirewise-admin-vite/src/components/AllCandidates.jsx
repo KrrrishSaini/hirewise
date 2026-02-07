@@ -39,10 +39,8 @@ const AllCandidates = () => {
   const [filters, setFilters] = useState({
     position: 'all',
     minExperienceMonths: '',
-    minScopus: '',
-    minConference: '',
-    minBooks: '',
     qualification: 'all',
+    phdStatus: 'all',
     institute: '',
     hasCv: false,
     hasTeachingStmt: false,
@@ -431,18 +429,14 @@ const AllCandidates = () => {
   const passesAdvancedFilters = (candidate) => {
     const norm = (v) => (v === null || v === undefined ? 0 : Number(v) || 0);
     const expMonths = norm(candidate.total_experience_months || candidate.totalMonths || candidate.experienceMonths);
-    const scopus = norm(candidate.scopus_general_papers);
-    const conf = norm(candidate.conference_papers);
-    const books = norm(candidate.edited_books);
     const qualification = (candidate.highest_degree || candidate.highestQualification || '').toLowerCase();
+    const phdStatus = (candidate.phd_status || candidate.phdStatus || 'Not done').toLowerCase();
     const institute = (candidate.university || candidate.masterInstitute || candidate.phdInstitute || candidate.bachelorInstitute || '').toLowerCase();
 
     if (filters.position !== 'all' && (candidate.position || '').toLowerCase() !== filters.position) return false;
     if (filters.minExperienceMonths && expMonths < Number(filters.minExperienceMonths)) return false;
-    if (filters.minScopus && scopus < Number(filters.minScopus)) return false;
-    if (filters.minConference && conf < Number(filters.minConference)) return false;
-    if (filters.minBooks && books < Number(filters.minBooks)) return false;
     if (filters.qualification !== 'all' && !qualification.includes(filters.qualification)) return false;
+    if (filters.phdStatus !== 'all' && phdStatus !== filters.phdStatus.toLowerCase()) return false;
     if (filters.institute && !institute.includes(filters.institute.toLowerCase())) return false;
     if (filters.hasCv && !candidate.cv_path) return false;
     if (filters.hasTeachingStmt && !candidate.teaching_statement_path) return false;
@@ -530,10 +524,8 @@ const AllCandidates = () => {
               onClick={() => setFilters({
                 position: 'all',
                 minExperienceMonths: '',
-                minScopus: '',
-                minConference: '',
-                minBooks: '',
                 qualification: 'all',
+                phdStatus: 'all',
                 institute: '',
                 hasCv: false,
                 hasTeachingStmt: false,
@@ -586,34 +578,18 @@ const AllCandidates = () => {
                 </select>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-700">Min Scopus Papers</label>
-                <input
-                  type="number"
-                  value={filters.minScopus}
-                  onChange={(e) => setFilters({ ...filters, minScopus: e.target.value })}
+                <label className="text-sm font-medium text-gray-700">PhD Status</label>
+                <select
+                  value={filters.phdStatus}
+                  onChange={(e) => setFilters({ ...filters, phdStatus: e.target.value })}
                   className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-                  min="0"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-700">Min Conference Papers</label>
-                <input
-                  type="number"
-                  value={filters.minConference}
-                  onChange={(e) => setFilters({ ...filters, minConference: e.target.value })}
-                  className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-                  min="0"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-700">Min Edited Books</label>
-                <input
-                  type="number"
-                  value={filters.minBooks}
-                  onChange={(e) => setFilters({ ...filters, minBooks: e.target.value })}
-                  className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-                  min="0"
-                />
+                >
+                  <option value="all">Any</option>
+                  <option value="Not done">Not done</option>
+                  <option value="Pursuing">Pursuing</option>
+                  <option value="Submitted">Submitted</option>
+                  <option value="Awarded">Awarded</option>
+                </select>
               </div>
               <div className="md:col-span-2">
                 <label className="text-sm font-medium text-gray-700">Institute contains</label>
