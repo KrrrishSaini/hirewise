@@ -437,6 +437,7 @@ const AllCandidates = () => {
       candidate.teachingPostAppliedFor ||
       candidate.teaching_post ||
       candidate.teachingPost ||
+      (candidate.position === 'teaching' ? candidate.previous_positions : '') ||
       ''
     ).toLowerCase();
 

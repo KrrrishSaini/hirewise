@@ -270,62 +270,33 @@ const FacultyDashboard = () => {
   const fetchCandidates = async () => {
     try {
       setLoading(true);
-      
-      // Fetch candidates assigned to this committee from database
-      let { data, error } = await supabase
-        .from('faculty_applications')
-        .select('*')
-        .eq('assigned_committee_code', committeeCode)
-        .order('created_at', { ascending: false });
-      
-      if (error) {
-        const missingCommitteeColumn = typeof error.message === 'string' && error.message.toLowerCase().includes('assigned_committee_code');
-        if (missingCommitteeColumn) {
-          const fallback = await supabase
-            .from('faculty_applications')
-            .select('*')
-            .or(`assigned_faculty_email.eq.${committeeCode},assigned_faculty_name.eq.${committeeCode}`)
-            .order('created_at', { ascending: false });
-          if (fallback.error) throw fallback.error;
-          data = fallback.data;
-        } else {
-          throw error;
-        }
-      }
-      
-      // Keep all candidates assigned to this committee (exclude deleted)
-      const validCandidates = (data || []).filter(c =>
-        c.status !== 'deleted' && c.status !== 'Deleted'
-      );
 
-      // Enrich cards with the most recent teaching post from teaching experiences.
-      // This is the closest persisted source for "post applied for" in current schema.
-      const appIds = validCandidates.map((c) => c.id).filter(Boolean);
-      const postByApplicationId = new Map();
-      if (appIds.length > 0) {
-        const { data: teachingRows, error: teachingErr } = await supabase
-          .from('teaching_experiences')
-          .select('application_id, post, start_date')
-          .in('application_id', appIds)
-          .order('start_date', { ascending: false });
+      // Use backend detailed endpoint (service-key query) to avoid RLS gaps on client-side joins.
+      const allCandidates = await candidatesApi.getAllDetailed('All', { fresh: true });
 
-        if (!teachingErr && Array.isArray(teachingRows)) {
-          teachingRows.forEach((row) => {
-            if (row?.application_id && row?.post && !postByApplicationId.has(row.application_id)) {
-              postByApplicationId.set(row.application_id, row.post);
-            }
-          });
-        }
-      }
+      const validCandidates = (allCandidates || []).filter((c) => {
+        const assignedCode = (c.assigned_committee_code || '').toLowerCase();
+        const assignedEmail = (c.assigned_faculty_email || '').toLowerCase();
+        const assignedName = (c.assigned_faculty_name || '').toLowerCase();
+        const isAssigned =
+          assignedCode === committeeCode ||
+          assignedEmail === committeeCode ||
+          assignedName === committeeCode;
+        const notDeleted = c.status !== 'deleted' && c.status !== 'Deleted';
+        return isAssigned && notDeleted;
+      });
 
       const normalizedCandidates = validCandidates.map(candidate => ({
         ...candidate,
         teachingPost:
           candidate.post_applied_for ||
           candidate.postAppliedFor ||
+          candidate.teaching_post_applied_for ||
+          candidate.teachingPostAppliedFor ||
           candidate.teachingPost ||
           candidate.teaching_post ||
-          postByApplicationId.get(candidate.id) ||
+          (candidate.teachingExperiences || []).find((t) => t?.post)?.post ||
+          (candidate.position === 'teaching' ? candidate.previous_positions : '') ||
           '',
         nonTeachingPost:
           candidate.nonTeachingPost ||
@@ -823,6 +794,7 @@ const FacultyDashboard = () => {
       candidate?.teaching_post_applied ||
       candidate?.teachingPostAppliedFor ||
       candidate?.teaching_post_appliedfor ||
+      (candidate?.position === 'teaching' ? candidate?.previous_positions : '') ||
       candidate?.post ||
       '';
     if (!raw) return '';

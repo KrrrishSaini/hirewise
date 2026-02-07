@@ -19,6 +19,19 @@ FROM latest_teaching_post
 WHERE fa.id = latest_teaching_post.application_id
   AND NULLIF(TRIM(fa.post_applied_for), '') IS NULL;
 
+-- If older backend fallback stored teaching post in previous_positions, migrate it now.
+UPDATE public.faculty_applications
+SET post_applied_for = NULLIF(TRIM(previous_positions), '')
+WHERE position = 'teaching'
+  AND NULLIF(TRIM(post_applied_for), '') IS NULL
+  AND LOWER(NULLIF(TRIM(previous_positions), '')) IN (
+    'assistant professor',
+    'associate professor',
+    'professor',
+    'professor of practice',
+    'lecturer'
+  );
+
 -- Keep semantics strict: this column stores teaching post applied for only.
 UPDATE public.faculty_applications
 SET post_applied_for = NULL

@@ -152,7 +152,10 @@ router.get('/rankings/top', cache.middleware(30), async (req, res) => {
       const uniLower = (app.university || '').toLowerCase();
       let { nirf10, qs10 } = scoringService.getUniversityRankingScores(uniLower);
       
-      const teachingPost = app.post_applied_for || teachingPostMap.get(app.id);
+      const teachingPost =
+        app.post_applied_for ||
+        (app.position === 'teaching' ? app.previous_positions : '') ||
+        teachingPostMap.get(app.id);
       const research = researchMap.get(app.id);
 
       // Fallback to research or teaching institution if university not matched
@@ -426,6 +429,11 @@ router.post(
       ) {
         console.warn('post_applied_for column missing. Retrying insert without it. Run add_post_applied_for_column.sql.');
         const { post_applied_for: _ignored, ...legacyPayload } = insertPayload;
+        // Compatibility fallback for older DB schema:
+        // store teaching post in previous_positions so committee/admin UIs can still render it.
+        if (position === 'teaching' && normalizedPostAppliedFor && !legacyPayload.previous_positions) {
+          legacyPayload.previous_positions = normalizedPostAppliedFor;
+        }
         ({ data: appData, error: appError } = await supabase
           .from('faculty_applications')
           .insert([legacyPayload])
@@ -588,7 +596,8 @@ router.get('/all/detailed', cache.middleware(120), async (req, res) => {
         research_experiences (*),
         research_info (*)
       `)
-      .neq('status', 'final_rejected');
+      .neq('status', 'final_rejected')
+      .order('created_at', { ascending: false });
 
     if (department && department !== 'All') {
       query = query.eq('department', department);
