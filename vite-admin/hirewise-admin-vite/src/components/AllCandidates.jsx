@@ -37,9 +37,8 @@ const AllCandidates = () => {
   const [showEvaluationModal, setShowEvaluationModal] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
-    position: 'all',
+    postApplied: 'all',
     minExperienceMonths: '',
-    qualification: 'all',
     phdStatus: 'all',
     institute: '',
     hasCv: false,
@@ -429,14 +428,21 @@ const AllCandidates = () => {
   const passesAdvancedFilters = (candidate) => {
     const norm = (v) => (v === null || v === undefined ? 0 : Number(v) || 0);
     const expMonths = norm(candidate.total_experience_months || candidate.totalMonths || candidate.experienceMonths);
-    const qualification = (candidate.highest_degree || candidate.highestQualification || '').toLowerCase();
     const phdStatus = (candidate.phd_status || candidate.phdStatus || 'Not done').toLowerCase();
     const institute = (candidate.university || candidate.masterInstitute || candidate.phdInstitute || candidate.bachelorInstitute || '').toLowerCase();
+    const appliedPost = (
+      candidate.teaching_post ||
+      candidate.teachingPost ||
+      candidate.non_teaching_post ||
+      candidate.nonTeachingPost ||
+      candidate.post_applied_for ||
+      candidate.postAppliedFor ||
+      ''
+    ).toLowerCase();
 
-    if (filters.position !== 'all' && (candidate.position || '').toLowerCase() !== filters.position) return false;
     if (filters.minExperienceMonths && expMonths < Number(filters.minExperienceMonths)) return false;
-    if (filters.qualification !== 'all' && !qualification.includes(filters.qualification)) return false;
     if (filters.phdStatus !== 'all' && phdStatus !== filters.phdStatus.toLowerCase()) return false;
+    if (filters.postApplied !== 'all' && !appliedPost.includes(filters.postApplied.toLowerCase())) return false;
     if (filters.institute && !institute.includes(filters.institute.toLowerCase())) return false;
     if (filters.hasCv && !candidate.cv_path) return false;
     if (filters.hasTeachingStmt && !candidate.teaching_statement_path) return false;
@@ -522,9 +528,8 @@ const AllCandidates = () => {
             <button
               type="button"
               onClick={() => setFilters({
-                position: 'all',
+                postApplied: 'all',
                 minExperienceMonths: '',
-                qualification: 'all',
                 phdStatus: 'all',
                 institute: '',
                 hasCv: false,
@@ -543,15 +548,22 @@ const AllCandidates = () => {
           {showFilters && (
             <div className="mt-4 bg-gray-50 border border-gray-200 rounded-lg p-4 grid grid-cols-1 md:grid-cols-3 gap-3">
               <div>
-                <label className="text-sm font-medium text-gray-700">Position</label>
+                <label className="text-sm font-medium text-gray-700">Post Applied For</label>
                 <select
-                  value={filters.position}
-                  onChange={(e) => setFilters({ ...filters, position: e.target.value })}
+                  value={filters.postApplied}
+                  onChange={(e) => setFilters({ ...filters, postApplied: e.target.value })}
                   className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
                 >
-                  <option value="all">All</option>
-                  <option value="teaching">Teaching</option>
-                  <option value="non-teaching">Non-teaching</option>
+                  <option value="all">Any</option>
+                  <option value="assistant professor">Assistant Professor</option>
+                  <option value="associate professor">Associate Professor</option>
+                  <option value="professor">Professor</option>
+                  <option value="professor of practice">Professor of Practice</option>
+                  <option value="lecturer">Lecturer</option>
+                  <option value="administrative officer">Administrative Officer</option>
+                  <option value="it support">IT Support</option>
+                  <option value="security officer">Security Officer</option>
+                  <option value="lab technician">Lab Technician</option>
                 </select>
               </div>
               <div>
@@ -563,19 +575,6 @@ const AllCandidates = () => {
                   className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
                   min="0"
                 />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-700">Highest Qualification</label>
-                <select
-                  value={filters.qualification}
-                  onChange={(e) => setFilters({ ...filters, qualification: e.target.value })}
-                  className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-                >
-                  <option value="all">Any</option>
-                  <option value="phd">PhD</option>
-                  <option value="master">Master</option>
-                  <option value="bachelor">Bachelor</option>
-                </select>
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-700">PhD Status</label>
