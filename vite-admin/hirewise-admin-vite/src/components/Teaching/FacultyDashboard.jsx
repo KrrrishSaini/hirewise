@@ -42,17 +42,6 @@ const FacultyDashboard = () => {
       .join(' ');
   };
 
-  const isTeachingAppliedPost = (value) => {
-    const v = (value || '').toString().trim().toLowerCase();
-    return [
-      'assistant professor',
-      'associate professor',
-      'professor',
-      'professor of practice',
-      'lecturer',
-    ].includes(v);
-  };
-
   const normalizeCandidateStatus = (status) => {
     const normalized = (status || '').toString().toLowerCase();
     if (!normalized || normalized === 'pending') return 'submitted';
@@ -302,12 +291,6 @@ const FacultyDashboard = () => {
         teachingPost:
           candidate.post_applied_for ||
           candidate.postAppliedFor ||
-          candidate.teaching_post_applied_for ||
-          candidate.teachingPostAppliedFor ||
-          candidate.teachingPost ||
-          candidate.teaching_post ||
-          (candidate.position === 'teaching' && isTeachingAppliedPost(candidate.previous_positions) ? candidate.previous_positions : '') ||
-          (candidate.teachingExperiences || []).find((t) => t?.post)?.post ||
           '',
         nonTeachingPost:
           candidate.nonTeachingPost ||
@@ -800,13 +783,6 @@ const FacultyDashboard = () => {
       candidate?.post_applied_for ||
       candidate?.postAppliedFor ||
       candidate?.teachingPost ||
-      candidate?.teaching_post ||
-      candidate?.teaching_post_applied_for ||
-      candidate?.teaching_post_applied ||
-      candidate?.teachingPostAppliedFor ||
-      candidate?.teaching_post_appliedfor ||
-      (candidate?.position === 'teaching' && isTeachingAppliedPost(candidate?.previous_positions) ? candidate?.previous_positions : '') ||
-      candidate?.post ||
       '';
     if (!raw) return '';
     return toTitleCase(raw.replace(/_/g, ' '));

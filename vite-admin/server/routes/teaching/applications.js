@@ -91,14 +91,8 @@ router.get('/rankings/top', cache.middleware(30), async (req, res) => {
 
     const appIds = top.map(a => a.id).filter(Boolean);
     
-    // Fetch all teaching posts, research data, and teaching/research institutions in parallel
-    const [teachingPostsData, researchData, researchExpData, teachingExpData] = await Promise.all([
-      supabase
-        .from('teaching_experiences')
-        .select('application_id, post')
-        .in('application_id', appIds)
-        .order('start_date', { ascending: false }),
-      
+    // Fetch research data and teaching/research institutions in parallel
+    const [researchData, researchExpData, teachingExpData] = await Promise.all([
       supabase
         .from('research_info')
         .select('application_id, scopus_general_papers, conference_papers, scopus_id, orchid_id')
@@ -118,16 +112,9 @@ router.get('/rankings/top', cache.middleware(30), async (req, res) => {
     ]);
 
     // Create lookup maps for O(1) access
-    const teachingPostMap = new Map();
     const researchMap = new Map();
     const researchInstMap = new Map();
     const teachingInstMap = new Map();
-
-    (teachingPostsData.data || []).forEach(t => {
-      if (!teachingPostMap.has(t.application_id)) {
-        teachingPostMap.set(t.application_id, t.post);
-      }
-    });
 
     (researchData.data || []).forEach(r => {
       researchMap.set(r.application_id, {
@@ -152,21 +139,7 @@ router.get('/rankings/top', cache.middleware(30), async (req, res) => {
       const uniLower = (app.university || '').toLowerCase();
       let { nirf10, qs10 } = scoringService.getUniversityRankingScores(uniLower);
       
-      const isTeachingAppliedPost = (v) => {
-        const value = (v || '').toString().trim().toLowerCase();
-        return [
-          'assistant professor',
-          'associate professor',
-          'professor',
-          'professor of practice',
-          'lecturer'
-        ].includes(value);
-      };
-
-      const teachingPost =
-        app.post_applied_for ||
-        (app.position === 'teaching' && isTeachingAppliedPost(app.previous_positions) ? app.previous_positions : '') ||
-        teachingPostMap.get(app.id);
+      const teachingPost = app.post_applied_for || '';
       const research = researchMap.get(app.id);
 
       // Fallback to research or teaching institution if university not matched
@@ -417,40 +390,16 @@ router.post(
         gender,
         date_of_birth,
         nationality,
+        post_applied_for: normalizedPostAppliedFor || null,
         user_id,
         status: 'submitted'
       };
-      if (normalizedPostAppliedFor) {
-        insertPayload.post_applied_for = normalizedPostAppliedFor;
-      }
 
-      let appData;
-      let appError;
-      ({ data: appData, error: appError } = await supabase
+      const { data: appData, error: appError } = await supabase
         .from('faculty_applications')
         .insert([insertPayload])
         .select()
-        .single());
-
-      // Backward compatibility: if DB migration has not been applied yet, retry without the new column.
-      if (
-        appError &&
-        typeof appError.message === 'string' &&
-        appError.message.toLowerCase().includes('post_applied_for')
-      ) {
-        console.warn('post_applied_for column missing. Retrying insert without it. Run add_post_applied_for_column.sql.');
-        const { post_applied_for: _ignored, ...legacyPayload } = insertPayload;
-        // Compatibility fallback for older DB schema:
-        // store teaching post in previous_positions so committee/admin UIs can still render it.
-        if (position === 'teaching' && normalizedPostAppliedFor && !legacyPayload.previous_positions) {
-          legacyPayload.previous_positions = normalizedPostAppliedFor;
-        }
-        ({ data: appData, error: appError } = await supabase
-          .from('faculty_applications')
-          .insert([legacyPayload])
-          .select()
-          .single());
-      }
+        .single();
 
       if (appError) throw appError;
 
