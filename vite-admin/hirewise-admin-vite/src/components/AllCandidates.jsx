@@ -431,12 +431,12 @@ const AllCandidates = () => {
     const phdStatus = (candidate.phd_status || candidate.phdStatus || 'Not done').toLowerCase();
     const institute = (candidate.university || candidate.masterInstitute || candidate.phdInstitute || candidate.bachelorInstitute || '').toLowerCase();
     const appliedPost = (
-      candidate.teaching_post ||
-      candidate.teachingPost ||
-      candidate.non_teaching_post ||
-      candidate.nonTeachingPost ||
       candidate.post_applied_for ||
       candidate.postAppliedFor ||
+      candidate.teaching_post_applied_for ||
+      candidate.teachingPostAppliedFor ||
+      candidate.teaching_post ||
+      candidate.teachingPost ||
       ''
     ).toLowerCase();
 
@@ -560,10 +560,6 @@ const AllCandidates = () => {
                   <option value="professor">Professor</option>
                   <option value="professor of practice">Professor of Practice</option>
                   <option value="lecturer">Lecturer</option>
-                  <option value="administrative officer">Administrative Officer</option>
-                  <option value="it support">IT Support</option>
-                  <option value="security officer">Security Officer</option>
-                  <option value="lab technician">Lab Technician</option>
                 </select>
               </div>
               <div>

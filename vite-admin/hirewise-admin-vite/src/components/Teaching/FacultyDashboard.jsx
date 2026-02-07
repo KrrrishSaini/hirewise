@@ -823,9 +823,6 @@ const FacultyDashboard = () => {
       candidate?.teaching_post_applied ||
       candidate?.teachingPostAppliedFor ||
       candidate?.teaching_post_appliedfor ||
-      candidate?.nonTeachingPost ||
-      candidate?.non_teaching_post ||
-      candidate?.previous_positions ||
       candidate?.post ||
       '';
     if (!raw) return '';

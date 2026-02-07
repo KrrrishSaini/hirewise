@@ -19,12 +19,10 @@ FROM latest_teaching_post
 WHERE fa.id = latest_teaching_post.application_id
   AND NULLIF(TRIM(fa.post_applied_for), '') IS NULL;
 
--- Backfill non-teaching records from previous_positions when available.
+-- Keep semantics strict: this column stores teaching post applied for only.
 UPDATE public.faculty_applications
-SET post_applied_for = NULLIF(TRIM(previous_positions), '')
-WHERE NULLIF(TRIM(post_applied_for), '') IS NULL
-  AND NULLIF(TRIM(previous_positions), '') IS NOT NULL
-  AND position = 'non-teaching';
+SET post_applied_for = NULL
+WHERE position = 'non-teaching';
 
 CREATE INDEX IF NOT EXISTS idx_faculty_applications_post_applied_for
 ON public.faculty_applications (post_applied_for);

@@ -2783,9 +2783,9 @@ const CombinedMultiStepForm = () => {
   fd.append('date_of_birth', normalized.dateOfBirth || '');
   fd.append('nationality', normalized.nationality || '');
   fd.append('user_id', user?.id || '');
-  const postAppliedFor = normalized.position === 'teaching'
-    ? normalized.teachingPost
-    : normalized.nonTeachingPost;
+  // "post_applied_for" is the teaching post label (Assistant Professor/Professor/etc),
+  // not the broader position category (teaching/non-teaching).
+  const postAppliedFor = normalized.teachingPost || '';
   fd.append('post_applied_for', postAppliedFor || '');
 
   // Complex fields as JSON strings (server will JSON.parse)

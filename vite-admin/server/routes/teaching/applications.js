@@ -360,7 +360,9 @@ router.post(
         return res.status(400).json({ error: 'Missing required fields' });
       }
 
-      const normalizedPostAppliedFor = (post_applied_for || '').toString().trim();
+      const normalizedPostAppliedFor = position === 'teaching'
+        ? (post_applied_for || '').toString().trim()
+        : '';
 
       // Idempotency/Duplicate guard: prevent multiple submissions for same user & role
       try {
