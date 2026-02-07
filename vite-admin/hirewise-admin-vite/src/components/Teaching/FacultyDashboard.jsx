@@ -941,7 +941,7 @@ const FacultyDashboard = () => {
                             {formatCandidateName(candidate)}
                           </h3>
                           <span className="text-xs font-medium text-blue-600 bg-blue-100 px-2 py-1 rounded-full">
-                            {formatTeachingPost(candidate) || 'Teaching'}
+                            {formatTeachingPost(candidate) || 'Post not specified'}
                           </span>
                         </div>
                         <p className="text-sm text-gray-600 mb-1">
