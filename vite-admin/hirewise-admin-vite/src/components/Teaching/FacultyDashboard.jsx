@@ -298,8 +298,38 @@ const FacultyDashboard = () => {
         c.status !== 'deleted' && c.status !== 'Deleted'
       );
 
+      // Enrich cards with the most recent teaching post from teaching experiences.
+      // This is the closest persisted source for "post applied for" in current schema.
+      const appIds = validCandidates.map((c) => c.id).filter(Boolean);
+      const postByApplicationId = new Map();
+      if (appIds.length > 0) {
+        const { data: teachingRows, error: teachingErr } = await supabase
+          .from('teaching_experiences')
+          .select('application_id, post, start_date')
+          .in('application_id', appIds)
+          .order('start_date', { ascending: false });
+
+        if (!teachingErr && Array.isArray(teachingRows)) {
+          teachingRows.forEach((row) => {
+            if (row?.application_id && row?.post && !postByApplicationId.has(row.application_id)) {
+              postByApplicationId.set(row.application_id, row.post);
+            }
+          });
+        }
+      }
+
       const normalizedCandidates = validCandidates.map(candidate => ({
         ...candidate,
+        teachingPost:
+          candidate.teachingPost ||
+          candidate.teaching_post ||
+          postByApplicationId.get(candidate.id) ||
+          '',
+        nonTeachingPost:
+          candidate.nonTeachingPost ||
+          candidate.non_teaching_post ||
+          candidate.previous_positions ||
+          '',
         status: normalizeCandidateStatus(candidate.status)
       }));
       
@@ -789,8 +819,11 @@ const FacultyDashboard = () => {
       candidate?.teaching_post_applied ||
       candidate?.teachingPostAppliedFor ||
       candidate?.teaching_post_appliedfor ||
+      candidate?.nonTeachingPost ||
+      candidate?.non_teaching_post ||
       candidate?.post_applied_for ||
       candidate?.postAppliedFor ||
+      candidate?.previous_positions ||
       candidate?.post ||
       '';
     if (!raw) return '';
