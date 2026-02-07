@@ -2779,6 +2779,7 @@ const CombinedMultiStepForm = () => {
   fd.append('graduation_year', derivedGradYear);
   fd.append('previous_positions', normalized.previous_positions || '');
   fd.append('years_of_experience', normalized.totalExperience || '');
+  fd.append('phd_status', normalized.phdStatus || 'Not done');
   fd.append('gender', normalized.gender || '');
   fd.append('date_of_birth', normalized.dateOfBirth || '');
   fd.append('nationality', normalized.nationality || '');

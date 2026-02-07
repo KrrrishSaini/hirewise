@@ -297,6 +297,7 @@ router.post(
         graduation_year,
         previous_positions,
         years_of_experience,
+        phd_status,
         gender,
         date_of_birth,
         nationality,
@@ -350,6 +351,7 @@ router.post(
       const normalizedPostAppliedFor = position === 'teaching'
         ? (post_applied_for || '').toString().trim()
         : '';
+      const normalizedPhdStatus = (phd_status || 'Not done').toString().trim() || 'Not done';
 
       // Idempotency/Duplicate guard: prevent multiple submissions for same user & role
       try {
@@ -387,6 +389,9 @@ router.post(
         graduation_year,
         previous_positions,
         years_of_experience,
+        education: {
+          phdStatus: normalizedPhdStatus
+        },
         gender,
         date_of_birth,
         nationality,

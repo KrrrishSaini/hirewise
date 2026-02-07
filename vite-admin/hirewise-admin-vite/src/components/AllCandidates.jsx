@@ -116,6 +116,66 @@ const AllCandidates = () => {
     return 0;
   };
 
+  const parseExperienceMonths = (value) => {
+    if (value === null || value === undefined) return 0;
+    if (typeof value === 'number' && Number.isFinite(value)) return Math.max(0, value);
+
+    const text = String(value).toLowerCase().trim();
+    if (!text || text === 'n/a' || text === 'not specified') return 0;
+
+    let months = 0;
+    const yearsMatch = text.match(/(\d+(?:\.\d+)?)\s*(year|yr)/);
+    const monthsMatch = text.match(/(\d+(?:\.\d+)?)\s*(month|mo)/);
+
+    if (yearsMatch) months += Math.round(Number(yearsMatch[1]) * 12);
+    if (monthsMatch) months += Math.round(Number(monthsMatch[1]));
+
+    if (months === 0) {
+      const numeric = Number(text);
+      if (Number.isFinite(numeric)) months = numeric;
+    }
+
+    return Math.max(0, months);
+  };
+
+  const normalizeFilterValue = (value) =>
+    String(value || '')
+      .toLowerCase()
+      .replace(/[_-]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+  const derivePhdStatus = (candidate) => {
+    const normalize = (value) => normalizeFilterValue(value);
+
+    const direct =
+      candidate?.phd_status ||
+      candidate?.phdStatus ||
+      candidate?.education?.phdStatus ||
+      candidate?.education?.phd_status;
+
+    if (direct) return normalize(direct);
+
+    const highestDegree = normalize(
+      candidate?.highest_degree ||
+      candidate?.education?.highestDegree ||
+      candidate?.education?.highest_degree
+    );
+    if (highestDegree.includes('phd') || highestDegree.includes('doctor')) {
+      const gradYear = Number(
+        candidate?.graduation_year ||
+        candidate?.education?.phdYear ||
+        candidate?.education?.phd_year
+      );
+      if (Number.isFinite(gradYear) && gradYear > 0 && gradYear <= new Date().getFullYear()) {
+        return 'awarded';
+      }
+      return 'pursuing';
+    }
+
+    return 'not done';
+  };
+
   const getAdditionalEducation = (candidate) => {
     if (!candidate) return null;
     const degrees = [
@@ -427,19 +487,33 @@ const AllCandidates = () => {
 
   const passesAdvancedFilters = (candidate) => {
     const norm = (v) => (v === null || v === undefined ? 0 : Number(v) || 0);
-    const expMonths = norm(candidate.total_experience_months || candidate.totalMonths || candidate.experienceMonths);
-    const phdStatus = (candidate.phd_status || candidate.phdStatus || 'Not done').toLowerCase();
-    const institute = (candidate.university || candidate.masterInstitute || candidate.phdInstitute || candidate.bachelorInstitute || '').toLowerCase();
-    const appliedPost = (
+    const numericMonths = norm(candidate.total_experience_months || candidate.totalMonths || candidate.experienceMonths);
+    const expMonths = numericMonths > 0
+      ? numericMonths
+      : parseExperienceMonths(candidate.years_of_experience || candidate.experience || candidate.total_experience);
+    const phdStatus = derivePhdStatus(candidate);
+    const institute = normalizeFilterValue(
+      candidate.university ||
+      candidate.masterInstitute ||
+      candidate.phdInstitute ||
+      candidate.bachelorInstitute ||
+      candidate.education?.phdInstitute ||
+      candidate.education?.masterInstitute ||
+      candidate.education?.bachelorInstitute ||
+      ''
+    );
+    const appliedPost = normalizeFilterValue(
       candidate.post_applied_for ||
       candidate.postAppliedFor ||
       ''
-    ).toLowerCase();
+    );
+    const normalizedPhdFilter = normalizeFilterValue(filters.phdStatus);
+    const normalizedPostFilter = normalizeFilterValue(filters.postApplied);
 
     if (filters.minExperienceMonths && expMonths < Number(filters.minExperienceMonths)) return false;
-    if (filters.phdStatus !== 'all' && phdStatus !== filters.phdStatus.toLowerCase()) return false;
-    if (filters.postApplied !== 'all' && !appliedPost.includes(filters.postApplied.toLowerCase())) return false;
-    if (filters.institute && !institute.includes(filters.institute.toLowerCase())) return false;
+    if (normalizedPhdFilter && normalizedPhdFilter !== 'all' && normalizedPhdFilter !== 'any' && phdStatus !== normalizedPhdFilter) return false;
+    if (normalizedPostFilter && normalizedPostFilter !== 'all' && normalizedPostFilter !== 'any' && !appliedPost.includes(normalizedPostFilter)) return false;
+    if (filters.institute && !institute.includes(normalizeFilterValue(filters.institute))) return false;
     if (filters.hasCv && !candidate.cv_path) return false;
     if (filters.hasTeachingStmt && !candidate.teaching_statement_path) return false;
     if (filters.hasResearchStmt && !candidate.research_statement_path) return false;
@@ -576,10 +650,10 @@ const AllCandidates = () => {
                   className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
                 >
                   <option value="all">Any</option>
-                  <option value="Not done">Not done</option>
-                  <option value="Pursuing">Pursuing</option>
-                  <option value="Submitted">Submitted</option>
-                  <option value="Awarded">Awarded</option>
+                  <option value="not done">Not done</option>
+                  <option value="pursuing">Pursuing</option>
+                  <option value="submitted">Submitted</option>
+                  <option value="awarded">Awarded</option>
                 </select>
               </div>
               <div className="md:col-span-2">
