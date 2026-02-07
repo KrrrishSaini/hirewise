@@ -321,6 +321,8 @@ const FacultyDashboard = () => {
       const normalizedCandidates = validCandidates.map(candidate => ({
         ...candidate,
         teachingPost:
+          candidate.post_applied_for ||
+          candidate.postAppliedFor ||
           candidate.teachingPost ||
           candidate.teaching_post ||
           postByApplicationId.get(candidate.id) ||
@@ -813,6 +815,8 @@ const FacultyDashboard = () => {
   };
   const formatTeachingPost = (candidate) => {
     const raw =
+      candidate?.post_applied_for ||
+      candidate?.postAppliedFor ||
       candidate?.teachingPost ||
       candidate?.teaching_post ||
       candidate?.teaching_post_applied_for ||
@@ -821,8 +825,6 @@ const FacultyDashboard = () => {
       candidate?.teaching_post_appliedfor ||
       candidate?.nonTeachingPost ||
       candidate?.non_teaching_post ||
-      candidate?.post_applied_for ||
-      candidate?.postAppliedFor ||
       candidate?.previous_positions ||
       candidate?.post ||
       '';

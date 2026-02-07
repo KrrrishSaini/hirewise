@@ -152,7 +152,7 @@ router.get('/rankings/top', cache.middleware(30), async (req, res) => {
       const uniLower = (app.university || '').toLowerCase();
       let { nirf10, qs10 } = scoringService.getUniversityRankingScores(uniLower);
       
-      const teachingPost = teachingPostMap.get(app.id);
+      const teachingPost = app.post_applied_for || teachingPostMap.get(app.id);
       const research = researchMap.get(app.id);
 
       // Fallback to research or teaching institution if university not matched
@@ -313,6 +313,7 @@ router.post(
         gender,
         date_of_birth,
         nationality,
+        post_applied_for,
         teachingExperiences,
         researchExperiences,
         researchInfo,
@@ -359,6 +360,8 @@ router.post(
         return res.status(400).json({ error: 'Missing required fields' });
       }
 
+      const normalizedPostAppliedFor = (post_applied_for || '').toString().trim();
+
       // Idempotency/Duplicate guard: prevent multiple submissions for same user & role
       try {
         const { data: existing, error: existErr } = await supabase
@@ -379,32 +382,54 @@ router.post(
       }
 
       // Insert main application
-      const { data: appData, error: appError } = await supabase
+      const insertPayload = {
+        position,
+        department,
+        branch,
+        title,
+        first_name,
+        middle_name,
+        last_name,
+        email,
+        phone,
+        address,
+        highest_degree,
+        university,
+        graduation_year,
+        previous_positions,
+        years_of_experience,
+        gender,
+        date_of_birth,
+        nationality,
+        user_id,
+        status: 'submitted'
+      };
+      if (normalizedPostAppliedFor) {
+        insertPayload.post_applied_for = normalizedPostAppliedFor;
+      }
+
+      let appData;
+      let appError;
+      ({ data: appData, error: appError } = await supabase
         .from('faculty_applications')
-        .insert([{
-          position,
-          department,
-          branch,
-          title,
-          first_name,
-          middle_name,
-          last_name,
-          email,
-          phone,
-          address,
-          highest_degree,
-          university,
-          graduation_year,
-          previous_positions,
-          years_of_experience,
-          gender,
-          date_of_birth,
-          nationality,
-          user_id,
-          status: 'submitted'
-        }])
+        .insert([insertPayload])
         .select()
-        .single();
+        .single());
+
+      // Backward compatibility: if DB migration has not been applied yet, retry without the new column.
+      if (
+        appError &&
+        typeof appError.message === 'string' &&
+        appError.message.toLowerCase().includes('post_applied_for')
+      ) {
+        console.warn('post_applied_for column missing. Retrying insert without it. Run add_post_applied_for_column.sql.');
+        const { post_applied_for: _ignored, ...legacyPayload } = insertPayload;
+        ({ data: appData, error: appError } = await supabase
+          .from('faculty_applications')
+          .insert([legacyPayload])
+          .select()
+          .single());
+      }
 
       if (appError) throw appError;
 
