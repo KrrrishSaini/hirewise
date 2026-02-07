@@ -152,9 +152,20 @@ router.get('/rankings/top', cache.middleware(30), async (req, res) => {
       const uniLower = (app.university || '').toLowerCase();
       let { nirf10, qs10 } = scoringService.getUniversityRankingScores(uniLower);
       
+      const isTeachingAppliedPost = (v) => {
+        const value = (v || '').toString().trim().toLowerCase();
+        return [
+          'assistant professor',
+          'associate professor',
+          'professor',
+          'professor of practice',
+          'lecturer'
+        ].includes(value);
+      };
+
       const teachingPost =
         app.post_applied_for ||
-        (app.position === 'teaching' ? app.previous_positions : '') ||
+        (app.position === 'teaching' && isTeachingAppliedPost(app.previous_positions) ? app.previous_positions : '') ||
         teachingPostMap.get(app.id);
       const research = researchMap.get(app.id);
 

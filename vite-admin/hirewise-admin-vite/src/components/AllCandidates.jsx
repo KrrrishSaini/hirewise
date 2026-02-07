@@ -97,6 +97,17 @@ const AllCandidates = () => {
       .join(' ');
   };
 
+  const isTeachingAppliedPost = (value) => {
+    const v = (value || '').toString().trim().toLowerCase();
+    return [
+      'assistant professor',
+      'associate professor',
+      'professor',
+      'professor of practice',
+      'lecturer',
+    ].includes(v);
+  };
+
   const normalizeCandidateStatus = (status) => {
     const normalized = (status || '').toString().trim().toLowerCase();
     if (!normalized || normalized === 'pending' || normalized === 'new' || normalized === 'in_review') {
@@ -437,7 +448,7 @@ const AllCandidates = () => {
       candidate.teachingPostAppliedFor ||
       candidate.teaching_post ||
       candidate.teachingPost ||
-      (candidate.position === 'teaching' ? candidate.previous_positions : '') ||
+      (candidate.position === 'teaching' && isTeachingAppliedPost(candidate.previous_positions) ? candidate.previous_positions : '') ||
       ''
     ).toLowerCase();
 
