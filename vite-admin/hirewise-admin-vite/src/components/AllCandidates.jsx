@@ -41,12 +41,6 @@ const AllCandidates = () => {
     minExperienceMonths: '',
     phdStatus: 'all',
     institute: '',
-    hasCv: false,
-    hasTeachingStmt: false,
-    hasResearchStmt: false,
-    hasScopusId: false,
-    hasScholar: false,
-    hasOrcid: false,
   });
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [candidateToAssign, setCandidateToAssign] = useState(null);
@@ -514,12 +508,6 @@ const AllCandidates = () => {
     if (normalizedPhdFilter && normalizedPhdFilter !== 'all' && normalizedPhdFilter !== 'any' && phdStatus !== normalizedPhdFilter) return false;
     if (normalizedPostFilter && normalizedPostFilter !== 'all' && normalizedPostFilter !== 'any' && appliedPost !== normalizedPostFilter) return false;
     if (filters.institute && !institute.includes(normalizeFilterValue(filters.institute))) return false;
-    if (filters.hasCv && !candidate.cv_path) return false;
-    if (filters.hasTeachingStmt && !candidate.teaching_statement_path) return false;
-    if (filters.hasResearchStmt && !candidate.research_statement_path) return false;
-    if (filters.hasScopusId && !candidate.scopus_id) return false;
-    if (filters.hasScholar && !candidate.google_scholar_id) return false;
-    if (filters.hasOrcid && !candidate.orchid_id && !candidate.orcid_id) return false;
     return true;
   };
 
@@ -602,12 +590,6 @@ const AllCandidates = () => {
                 minExperienceMonths: '',
                 phdStatus: 'all',
                 institute: '',
-                hasCv: false,
-                hasTeachingStmt: false,
-                hasResearchStmt: false,
-                hasScopusId: false,
-                hasScholar: false,
-                hasOrcid: false,
               })}
               className="px-3 py-1.5 rounded-full text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-100"
             >
@@ -665,29 +647,6 @@ const AllCandidates = () => {
                   className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
                   placeholder="e.g., IIT, NIT, IIM"
                 />
-              </div>
-              <div className="flex flex-wrap gap-2 md:col-span-3">
-                {[
-                  { key: 'hasCv', label: 'Has CV' },
-                  { key: 'hasTeachingStmt', label: 'Has Teaching Statement' },
-                  { key: 'hasResearchStmt', label: 'Has Research Statement' },
-                  { key: 'hasScopusId', label: 'Has Scopus ID' },
-                  { key: 'hasScholar', label: 'Has Scholar Link' },
-                  { key: 'hasOrcid', label: 'Has ORCID' },
-                ].map((item) => (
-                  <button
-                    key={item.key}
-                    type="button"
-                    onClick={() => setFilters({ ...filters, [item.key]: !filters[item.key] })}
-                    className={`px-3 py-1.5 rounded-full text-sm font-semibold border ${
-                      filters[item.key]
-                        ? 'bg-blue-600 text-white border-blue-600'
-                        : 'bg-white text-gray-700 border-gray-300'
-                    }`}
-                  >
-                    {item.label}
-                  </button>
-                ))}
               </div>
             </div>
           )}
