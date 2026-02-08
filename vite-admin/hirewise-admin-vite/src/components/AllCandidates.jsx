@@ -512,7 +512,7 @@ const AllCandidates = () => {
 
     if (filters.minExperienceMonths && expMonths < Number(filters.minExperienceMonths)) return false;
     if (normalizedPhdFilter && normalizedPhdFilter !== 'all' && normalizedPhdFilter !== 'any' && phdStatus !== normalizedPhdFilter) return false;
-    if (normalizedPostFilter && normalizedPostFilter !== 'all' && normalizedPostFilter !== 'any' && !appliedPost.includes(normalizedPostFilter)) return false;
+    if (normalizedPostFilter && normalizedPostFilter !== 'all' && normalizedPostFilter !== 'any' && appliedPost !== normalizedPostFilter) return false;
     if (filters.institute && !institute.includes(normalizeFilterValue(filters.institute))) return false;
     if (filters.hasCv && !candidate.cv_path) return false;
     if (filters.hasTeachingStmt && !candidate.teaching_statement_path) return false;
