@@ -68,21 +68,6 @@ const AllCandidates = () => {
   };
 
   const departments = ['All', 'law', 'liberal', 'engineering', 'management'];
-  const branchLabels = {
-    cse: 'Computer Science & Engineering',
-    mech: 'Mechanical Engineering',
-    ece: 'Electronics and Communication Engineering',
-    criminal: 'Criminal Law',
-    corporate: 'Corporate Law',
-    civil: 'Civil Law',
-    finance: 'Finance',
-    marketing: 'Marketing',
-    hr: 'Human Resources',
-    english: 'English',
-    history: 'History',
-    sociology: 'Sociology'
-  };
-
   const toTitleCase = (value) => {
     if (!value || typeof value !== 'string') return value || '';
     return value
@@ -236,6 +221,33 @@ const AllCandidates = () => {
     const title = candidate.title ? `${toTitleCase(candidate.title)} ` : '';
     const middle = candidate.middle_name ? `${toTitleCase(candidate.middle_name)} ` : '';
     return `${title}${toTitleCase(candidate.first_name)} ${middle}${toTitleCase(candidate.last_name)}`.trim();
+  };
+
+  const formatPostAppliedFor = (candidate) => {
+    const raw =
+      candidate?.post_applied_for ||
+      candidate?.postAppliedFor ||
+      candidate?.previous_positions ||
+      candidate?.position ||
+      '';
+    if (!raw) return 'Not specified';
+    return toTitleCase(String(raw).replace(/[_-]/g, ' '));
+  };
+
+  const getResearchPapersRank = (candidate) => {
+    const raw =
+      candidate?.scopus_general_papers ??
+      candidate?.researchInfo?.scopus_general_papers ??
+      candidate?.publications ??
+      0;
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+
+  const getQsDisplay = (candidate) => {
+    const raw = candidate?.qs_score ?? candidate?.qsScore ?? candidate?.score;
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) ? parsed.toFixed(1) : '--';
   };
 
   const extractEvaluationComments = (remarks) => {
@@ -652,82 +664,101 @@ const AllCandidates = () => {
           )}
         </div>
         
-        <div className="divide-y divide-gray-200">
+        <div className="pt-4">
           {filteredCandidates.length > 0 ? (
-            filteredCandidates.map((candidate, index) => (
-              <div key={candidate.id} className="p-4 hover:bg-gray-50 transition-colors">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    <div className="flex-shrink-0">
-                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                        <span className="text-base font-semibold text-blue-600">{index + 1}</span>
-                      </div>
-                    </div>
-                    <div className="flex-1">
-                      <div className="mb-1">
-                        <h3 className="text-base font-semibold text-gray-900">
-                          {formatCandidateName(candidate)}
-                        </h3>
-                        <span className="text-xs font-medium text-blue-600 bg-blue-100 px-2 py-1 rounded-full">
-                          {toTitleCase(candidate.department)}
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-600 mb-1">
-                        {branchLabels[(candidate.branch || candidate.department || '').toLowerCase()]
-                          || toTitleCase(candidate.branch || candidate.department || '')}
-                      </p>
-                      <p className="text-sm text-gray-500">{candidate.email}</p>
-                      <div className="flex items-center space-x-4 mt-1">
-                        <span className="text-sm text-gray-600">{candidate.experience}</span>
-                        <span className="text-sm text-gray-600">{toTitleCase(candidate.position)}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex-shrink-0 flex space-x-2">
-                    <button
-                      onClick={() => handleViewDetails(candidate)}
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors text-sm"
-                    >
-                      View Details
-                    </button>
-                    {(candidate.status || 'submitted') === 'submitted' && (
-                      <button
-                        onClick={() => {
-                          setCandidateToAssign(candidate);
-                          setAssignType('cv');
-                          setShowAssignModal(true);
-                          setSelectedCommittee(candidate.assigned_committee_code || '');
-                        }}
-                        className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors text-sm"
-                      >
-                        Assign Committee
-                      </button>
-                    )}
-                    {(candidate.status || 'submitted') === 'cv_shortlisted' && (
-                      <button
-                        onClick={() => {
-                          setCandidateToAssign(candidate);
-                          setAssignType('interview');
-                          setShowAssignModal(true);
-                          setSelectedCommittee(candidate.assigned_committee_code || '');
-                        }}
-                        className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors text-sm"
-                      >
-                        Assign Interview
-                      </button>
-                    )}
-                    {['cv_assigned', 'interview_assigned'].includes(candidate.status) && (
-                      <button
-                        disabled
-                        className="bg-gray-400 text-white px-4 py-2 rounded-lg cursor-not-allowed text-sm"
-                      >
-                        Assigned
-                      </button>
-                    )}
-                  </div>
+            <div className="overflow-x-auto">
+              <div className="min-w-[1080px] px-4 pb-4">
+                <div className="grid grid-cols-[90px_1.7fr_1.4fr_1.2fr_1fr_0.8fr_2fr] items-center gap-4 border-b border-gray-200 px-3 pb-3 text-[20px] font-semibold text-gray-700">
+                  <div>Rank</div>
+                  <div>Name</div>
+                  <div>Position Applied</div>
+                  <div>Department</div>
+                  <div>Research Rank (Papers)</div>
+                  <div>QS</div>
+                  <div>Actions</div>
                 </div>
+
+                {filteredCandidates.map((candidate, index) => (
+                  <div
+                    key={candidate.id}
+                    className="grid grid-cols-[90px_1.7fr_1.4fr_1.2fr_1fr_0.8fr_2fr] items-center gap-4 border-b border-gray-100 px-3 py-4 hover:bg-gray-50 transition-colors"
+                  >
+                    <div>
+                      <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-blue-500 text-sm font-bold text-white">
+                        {index + 1}
+                      </span>
+                    </div>
+
+                    <div className="min-w-0">
+                      <p className="truncate text-[22px] font-semibold text-gray-900">{formatCandidateName(candidate)}</p>
+                    </div>
+
+                    <div className="min-w-0">
+                      <p className="truncate text-[20px] font-medium text-gray-800">{formatPostAppliedFor(candidate)}</p>
+                    </div>
+
+                    <div>
+                      <span className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-[18px] font-medium text-gray-700">
+                        {toTitleCase(candidate.department)}
+                      </span>
+                    </div>
+
+                    <div className="text-[20px] font-semibold text-gray-900">
+                      {getResearchPapersRank(candidate)}
+                    </div>
+
+                    <div>
+                      <span className="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-[18px] font-semibold text-green-700">
+                        {getQsDisplay(candidate)}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        onClick={() => handleViewDetails(candidate)}
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors text-sm font-semibold"
+                      >
+                        View Details
+                      </button>
+                      {(candidate.status || 'submitted') === 'submitted' && (
+                        <button
+                          onClick={() => {
+                            setCandidateToAssign(candidate);
+                            setAssignType('cv');
+                            setShowAssignModal(true);
+                            setSelectedCommittee(candidate.assigned_committee_code || '');
+                          }}
+                          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors text-sm font-semibold"
+                        >
+                          Assign Committee
+                        </button>
+                      )}
+                      {(candidate.status || 'submitted') === 'cv_shortlisted' && (
+                        <button
+                          onClick={() => {
+                            setCandidateToAssign(candidate);
+                            setAssignType('interview');
+                            setShowAssignModal(true);
+                            setSelectedCommittee(candidate.assigned_committee_code || '');
+                          }}
+                          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors text-sm font-semibold"
+                        >
+                          Assign Interview
+                        </button>
+                      )}
+                      {['cv_assigned', 'interview_assigned'].includes(candidate.status) && (
+                        <button
+                          disabled
+                          className="bg-gray-400 text-white px-4 py-2 rounded-lg cursor-not-allowed text-sm font-semibold"
+                        >
+                          Assigned
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))
+            </div>
           ) : (
             <div className="p-6 text-center text-gray-500">
               No candidates found for the selected department.
