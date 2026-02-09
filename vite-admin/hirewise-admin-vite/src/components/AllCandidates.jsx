@@ -21,6 +21,21 @@ const PIPELINE_STAGES = [
   { key: 'all', label: 'All' }
 ];
 
+const POST_APPLIED_OPTIONS = [
+  { value: 'assistant professor', label: 'Assistant Professor' },
+  { value: 'associate professor', label: 'Associate Professor' },
+  { value: 'professor', label: 'Professor' },
+  { value: 'professor of practice', label: 'Professor of Practice' },
+  { value: 'lecturer', label: 'Lecturer' }
+];
+
+const PHD_STATUS_OPTIONS = [
+  { value: 'not done', label: 'Not done' },
+  { value: 'pursuing', label: 'Pursuing' },
+  { value: 'submitted', label: 'Submitted' },
+  { value: 'awarded', label: 'Awarded' }
+];
+
 const AllCandidates = () => {
   const [selectedCandidate, setSelectedCandidate] = useState(null);
   const [selectedDepartment, setSelectedDepartment] = useState('All');
@@ -37,9 +52,9 @@ const AllCandidates = () => {
   const [showEvaluationModal, setShowEvaluationModal] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
-    postApplied: 'all',
+    postApplied: [],
     minExperienceMonths: '',
-    phdStatus: 'all',
+    phdStatus: [],
     institute: '',
   });
   const [showAssignModal, setShowAssignModal] = useState(false);
@@ -242,6 +257,20 @@ const AllCandidates = () => {
     if (normalized === 'submitted') return 'cv';
     if (normalized === 'cv_shortlisted') return 'interview';
     return null;
+  };
+
+  const toggleCheckboxFilter = (key, value) => {
+    const normalizedValue = normalizeFilterValue(value);
+    setFilters((prev) => {
+      const current = Array.isArray(prev[key]) ? prev[key] : [];
+      const exists = current.includes(normalizedValue);
+      return {
+        ...prev,
+        [key]: exists
+          ? current.filter((item) => item !== normalizedValue)
+          : [...current, normalizedValue]
+      };
+    });
   };
 
   const extractEvaluationComments = (remarks) => {
@@ -507,12 +536,16 @@ const AllCandidates = () => {
       candidate.postAppliedFor ||
       ''
     );
-    const normalizedPhdFilter = normalizeFilterValue(filters.phdStatus);
-    const normalizedPostFilter = normalizeFilterValue(filters.postApplied);
+    const normalizedPhdFilters = (Array.isArray(filters.phdStatus) ? filters.phdStatus : [filters.phdStatus])
+      .map(normalizeFilterValue)
+      .filter((value) => value && value !== 'all' && value !== 'any');
+    const normalizedPostFilters = (Array.isArray(filters.postApplied) ? filters.postApplied : [filters.postApplied])
+      .map(normalizeFilterValue)
+      .filter((value) => value && value !== 'all' && value !== 'any');
 
     if (filters.minExperienceMonths && expMonths < Number(filters.minExperienceMonths)) return false;
-    if (normalizedPhdFilter && normalizedPhdFilter !== 'all' && normalizedPhdFilter !== 'any' && phdStatus !== normalizedPhdFilter) return false;
-    if (normalizedPostFilter && normalizedPostFilter !== 'all' && normalizedPostFilter !== 'any' && appliedPost !== normalizedPostFilter) return false;
+    if (normalizedPhdFilters.length > 0 && !normalizedPhdFilters.includes(phdStatus)) return false;
+    if (normalizedPostFilters.length > 0 && !normalizedPostFilters.includes(appliedPost)) return false;
     if (filters.institute && !institute.includes(normalizeFilterValue(filters.institute))) return false;
     return true;
   };
@@ -719,9 +752,9 @@ const AllCandidates = () => {
             <button
               type="button"
               onClick={() => setFilters({
-                postApplied: 'all',
+                postApplied: [],
                 minExperienceMonths: '',
-                phdStatus: 'all',
+                phdStatus: [],
                 institute: '',
               })}
               className="px-3 py-1.5 rounded-full text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-100"
@@ -782,18 +815,29 @@ const AllCandidates = () => {
             <div className="mt-4 bg-gray-50 border border-gray-200 rounded-lg p-4 grid grid-cols-1 md:grid-cols-3 gap-3">
               <div>
                 <label className="text-sm font-medium text-gray-700">Post Applied For</label>
-                <select
-                  value={filters.postApplied}
-                  onChange={(e) => setFilters({ ...filters, postApplied: e.target.value })}
-                  className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-                >
-                  <option value="all">Any</option>
-                  <option value="assistant professor">Assistant Professor</option>
-                  <option value="associate professor">Associate Professor</option>
-                  <option value="professor">Professor</option>
-                  <option value="professor of practice">Professor of Practice</option>
-                  <option value="lecturer">Lecturer</option>
-                </select>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {POST_APPLIED_OPTIONS.map((option) => {
+                    const checked = filters.postApplied.includes(option.value);
+                    return (
+                      <label
+                        key={option.value}
+                        className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm cursor-pointer transition-colors ${
+                          checked
+                            ? 'bg-indigo-50 border-indigo-300 text-indigo-700'
+                            : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-100'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleCheckboxFilter('postApplied', option.value)}
+                          className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                        />
+                        <span>{option.label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-700">Min Experience (months)</label>
@@ -807,17 +851,29 @@ const AllCandidates = () => {
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-700">PhD Status</label>
-                <select
-                  value={filters.phdStatus}
-                  onChange={(e) => setFilters({ ...filters, phdStatus: e.target.value })}
-                  className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-                >
-                  <option value="all">Any</option>
-                  <option value="not done">Not done</option>
-                  <option value="pursuing">Pursuing</option>
-                  <option value="submitted">Submitted</option>
-                  <option value="awarded">Awarded</option>
-                </select>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {PHD_STATUS_OPTIONS.map((option) => {
+                    const checked = filters.phdStatus.includes(option.value);
+                    return (
+                      <label
+                        key={option.value}
+                        className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm cursor-pointer transition-colors ${
+                          checked
+                            ? 'bg-indigo-50 border-indigo-300 text-indigo-700'
+                            : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-100'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleCheckboxFilter('phdStatus', option.value)}
+                          className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                        />
+                        <span>{option.label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
               <div className="md:col-span-2">
                 <label className="text-sm font-medium text-gray-700">Institute contains</label>
