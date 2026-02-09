@@ -55,7 +55,7 @@ const AllCandidates = () => {
     postApplied: [],
     minExperienceMonths: '',
     phdStatus: [],
-    institute: '',
+    colleges: [],
   });
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [candidateToAssign, setCandidateToAssign] = useState(null);
@@ -250,6 +250,54 @@ const AllCandidates = () => {
       '';
     if (!raw) return 'Not specified';
     return toTitleCase(String(raw).replace(/[_-]/g, ' '));
+  };
+
+  const getHighestDegreeInstitution = (candidate) => {
+    const firstNonEmpty = (...values) =>
+      values
+        .map((value) => (typeof value === 'string' ? value.trim() : ''))
+        .find(Boolean) || '';
+
+    const highestDegree = normalizeFilterValue(
+      candidate?.highest_degree ||
+      candidate?.education?.highestDegree ||
+      candidate?.education?.highest_degree
+    );
+    const phdInstitute = firstNonEmpty(
+      candidate?.phd_institute,
+      candidate?.phdInstitute,
+      candidate?.education?.phdInstitute,
+      candidate?.education?.phd_institute
+    );
+    const masterInstitute = firstNonEmpty(
+      candidate?.master_institute,
+      candidate?.masterInstitute,
+      candidate?.education?.masterInstitute,
+      candidate?.education?.master_institute
+    );
+    const bachelorInstitute = firstNonEmpty(
+      candidate?.bachelor_institute,
+      candidate?.bachelorInstitute,
+      candidate?.education?.bachelorInstitute,
+      candidate?.education?.bachelor_institute
+    );
+    const fallbackInstitute = firstNonEmpty(candidate?.university, candidate?.education?.university);
+
+    if (highestDegree.includes('phd') || highestDegree.includes('doctor')) {
+      return phdInstitute || fallbackInstitute || masterInstitute || bachelorInstitute;
+    }
+    if (highestDegree.includes('master')) {
+      return masterInstitute || fallbackInstitute || phdInstitute || bachelorInstitute;
+    }
+    if (
+      highestDegree.includes('bachelor') ||
+      highestDegree.includes('b.tech') ||
+      highestDegree.includes('b tech')
+    ) {
+      return bachelorInstitute || fallbackInstitute || masterInstitute || phdInstitute;
+    }
+
+    return fallbackInstitute || phdInstitute || masterInstitute || bachelorInstitute;
   };
 
   const getAssignableType = (candidateStatus) => {
@@ -514,6 +562,17 @@ const AllCandidates = () => {
     ? candidates 
     : candidates.filter(candidate => candidate.department === selectedDepartment);
 
+  const collegeOptionMap = new Map();
+  candidates.forEach((candidate) => {
+    const college = getHighestDegreeInstitution(candidate);
+    const value = normalizeFilterValue(college);
+    if (!value || collegeOptionMap.has(value)) return;
+    collegeOptionMap.set(value, college.trim());
+  });
+  const collegeOptions = Array.from(collegeOptionMap.entries())
+    .map(([value, label]) => ({ value, label }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+
   const passesAdvancedFilters = (candidate) => {
     const norm = (v) => (v === null || v === undefined ? 0 : Number(v) || 0);
     const numericMonths = norm(candidate.total_experience_months || candidate.totalMonths || candidate.experienceMonths);
@@ -521,16 +580,7 @@ const AllCandidates = () => {
       ? numericMonths
       : parseExperienceMonths(candidate.years_of_experience || candidate.experience || candidate.total_experience);
     const phdStatus = derivePhdStatus(candidate);
-    const institute = normalizeFilterValue(
-      candidate.university ||
-      candidate.masterInstitute ||
-      candidate.phdInstitute ||
-      candidate.bachelorInstitute ||
-      candidate.education?.phdInstitute ||
-      candidate.education?.masterInstitute ||
-      candidate.education?.bachelorInstitute ||
-      ''
-    );
+    const highestDegreeCollege = normalizeFilterValue(getHighestDegreeInstitution(candidate));
     const appliedPost = normalizeFilterValue(
       candidate.post_applied_for ||
       candidate.postAppliedFor ||
@@ -542,11 +592,14 @@ const AllCandidates = () => {
     const normalizedPostFilters = (Array.isArray(filters.postApplied) ? filters.postApplied : [filters.postApplied])
       .map(normalizeFilterValue)
       .filter((value) => value && value !== 'all' && value !== 'any');
+    const normalizedCollegeFilters = (Array.isArray(filters.colleges) ? filters.colleges : [filters.colleges])
+      .map(normalizeFilterValue)
+      .filter(Boolean);
 
     if (filters.minExperienceMonths && expMonths < Number(filters.minExperienceMonths)) return false;
     if (normalizedPhdFilters.length > 0 && !normalizedPhdFilters.includes(phdStatus)) return false;
     if (normalizedPostFilters.length > 0 && !normalizedPostFilters.includes(appliedPost)) return false;
-    if (filters.institute && !institute.includes(normalizeFilterValue(filters.institute))) return false;
+    if (normalizedCollegeFilters.length > 0 && !normalizedCollegeFilters.includes(highestDegreeCollege)) return false;
     return true;
   };
 
@@ -755,7 +808,7 @@ const AllCandidates = () => {
                 postApplied: [],
                 minExperienceMonths: '',
                 phdStatus: [],
-                institute: '',
+                colleges: [],
               })}
               className="px-3 py-1.5 rounded-full text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-100"
             >
@@ -875,15 +928,34 @@ const AllCandidates = () => {
                   })}
                 </div>
               </div>
-              <div className="md:col-span-2">
-                <label className="text-sm font-medium text-gray-700">Institute contains</label>
-                <input
-                  type="text"
-                  value={filters.institute}
-                  onChange={(e) => setFilters({ ...filters, institute: e.target.value })}
-                  className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-                  placeholder="e.g., IIT, NIT, IIM"
-                />
+              <div className="md:col-span-3">
+                <label className="text-sm font-medium text-gray-700">College (Highest Degree)</label>
+                <div className="mt-2 flex flex-wrap gap-2 max-h-40 overflow-y-auto pr-1">
+                  {collegeOptions.length === 0 && (
+                    <span className="text-sm text-gray-500">No colleges found in current applicant pool.</span>
+                  )}
+                  {collegeOptions.map((option) => {
+                    const checked = filters.colleges.includes(option.value);
+                    return (
+                      <label
+                        key={option.value}
+                        className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm cursor-pointer transition-colors ${
+                          checked
+                            ? 'bg-indigo-50 border-indigo-300 text-indigo-700'
+                            : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-100'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleCheckboxFilter('colleges', option.value)}
+                          className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                        />
+                        <span>{option.label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           )}
