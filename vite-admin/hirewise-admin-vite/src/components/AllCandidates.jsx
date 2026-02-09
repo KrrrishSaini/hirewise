@@ -46,6 +46,9 @@ const AllCandidates = () => {
   const [candidateToAssign, setCandidateToAssign] = useState(null);
   const [assignType, setAssignType] = useState('cv');
   const [selectedCommittee, setSelectedCommittee] = useState('');
+  const [multiAssignMode, setMultiAssignMode] = useState(false);
+  const [selectedCandidateIds, setSelectedCandidateIds] = useState([]);
+  const [bulkAssigning, setBulkAssigning] = useState(false);
   // Status pill meta for consistent styling
   const getStatusMeta = (status) => {
     const map = {
@@ -232,6 +235,13 @@ const AllCandidates = () => {
       '';
     if (!raw) return 'Not specified';
     return toTitleCase(String(raw).replace(/[_-]/g, ' '));
+  };
+
+  const getAssignableType = (candidateStatus) => {
+    const normalized = normalizeCandidateStatus(candidateStatus);
+    if (normalized === 'submitted') return 'cv';
+    if (normalized === 'cv_shortlisted') return 'interview';
+    return null;
   };
 
   const extractEvaluationComments = (remarks) => {
@@ -509,6 +519,133 @@ const AllCandidates = () => {
 
   const stageFiltered = departmentFiltered.filter(candidate => matchesStage(candidate, selectedStage));
   const filteredCandidates = stageFiltered.filter(passesAdvancedFilters);
+  const assignableVisibleCandidates = filteredCandidates.filter((candidate) => getAssignableType(candidate.status));
+  const areAllAssignableSelected =
+    assignableVisibleCandidates.length > 0 &&
+    assignableVisibleCandidates.every((candidate) => selectedCandidateIds.includes(candidate.id));
+
+  useEffect(() => {
+    if (!multiAssignMode) return;
+    const visibleIds = new Set(filteredCandidates.map((candidate) => candidate.id));
+    setSelectedCandidateIds((prev) => {
+      const next = prev.filter((id) => visibleIds.has(id));
+      return next.length === prev.length ? prev : next;
+    });
+  }, [multiAssignMode, filteredCandidates]);
+
+  const toggleCandidateSelection = (candidateId) => {
+    setSelectedCandidateIds((prev) =>
+      prev.includes(candidateId)
+        ? prev.filter((id) => id !== candidateId)
+        : [...prev, candidateId]
+    );
+  };
+
+  const toggleSelectAllAssignable = () => {
+    if (areAllAssignableSelected) {
+      setSelectedCandidateIds([]);
+      return;
+    }
+    setSelectedCandidateIds(assignableVisibleCandidates.map((candidate) => candidate.id));
+  };
+
+  const resetAssignModalState = () => {
+    setShowAssignModal(false);
+    setCandidateToAssign(null);
+    setSelectedCommittee('');
+    setAssignType('cv');
+  };
+
+  const openBulkAssignModal = () => {
+    if (selectedCandidateIds.length === 0) {
+      alert('Please select at least one candidate.');
+      return;
+    }
+    setCandidateToAssign(null);
+    setSelectedCommittee('');
+    setShowAssignModal(true);
+  };
+
+  const handleConfirmAssignment = async () => {
+    if (!selectedCommittee) {
+      alert('Please select a committee');
+      return;
+    }
+
+    if (candidateToAssign) {
+      const selectedCommitteeName = COMMITTEES.find((c) => c.code === selectedCommittee)?.name;
+      const nextStatus = assignType === 'interview' ? 'interview_assigned' : 'cv_assigned';
+      try {
+        const { error } = await supabase
+          .from('faculty_applications')
+          .update({
+            assigned_committee_code: selectedCommittee,
+            status: nextStatus
+          })
+          .eq('id', candidateToAssign.id);
+
+        if (error) throw error;
+
+        alert(`Assigned ${formatCandidateName(candidateToAssign)} to: ${selectedCommitteeName || selectedCommittee}`);
+        resetAssignModalState();
+        fetchCandidates();
+      } catch (error) {
+        console.error('Error assigning committee:', error);
+        alert('Failed to assign committee. Please try again.');
+      }
+      return;
+    }
+
+    try {
+      setBulkAssigning(true);
+      const selectedCandidates = filteredCandidates.filter((candidate) => selectedCandidateIds.includes(candidate.id));
+      const assignments = selectedCandidates
+        .map((candidate) => {
+          const type = getAssignableType(candidate.status);
+          if (!type) return null;
+          return {
+            id: candidate.id,
+            nextStatus: type === 'interview' ? 'interview_assigned' : 'cv_assigned'
+          };
+        })
+        .filter(Boolean);
+
+      if (assignments.length === 0) {
+        alert('None of the selected candidates are eligible for assignment in this stage.');
+        return;
+      }
+
+      const updates = await Promise.all(
+        assignments.map((item) =>
+          supabase
+            .from('faculty_applications')
+            .update({
+              assigned_committee_code: selectedCommittee,
+              status: item.nextStatus
+            })
+            .eq('id', item.id)
+        )
+      );
+
+      const failed = updates.filter((result) => result.error);
+      if (failed.length > 0) {
+        console.error('Bulk assignment errors:', failed.map((f) => f.error));
+        alert(`Assigned ${assignments.length - failed.length} candidate(s), ${failed.length} failed. Please retry.`);
+      } else {
+        alert(`Assigned ${assignments.length} candidate(s) successfully.`);
+      }
+
+      resetAssignModalState();
+      setSelectedCandidateIds([]);
+      setMultiAssignMode(false);
+      fetchCandidates();
+    } catch (error) {
+      console.error('Bulk assignment error:', error);
+      alert('Bulk assignment failed. Please try again.');
+    } finally {
+      setBulkAssigning(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -591,6 +728,54 @@ const AllCandidates = () => {
             >
               Clear
             </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (multiAssignMode) {
+                  setMultiAssignMode(false);
+                  setSelectedCandidateIds([]);
+                  return;
+                }
+                setMultiAssignMode(true);
+              }}
+              className={`px-3 py-1.5 rounded-full text-sm font-semibold border transition-colors ${
+                multiAssignMode
+                  ? 'bg-gray-700 text-white border-gray-700'
+                  : 'bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700'
+              }`}
+            >
+              {multiAssignMode ? 'Cancel Multi Assign' : 'Multi Assign'}
+            </button>
+            {multiAssignMode && (
+              <>
+                <button
+                  type="button"
+                  onClick={toggleSelectAllAssignable}
+                  className="px-3 py-1.5 rounded-full text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-100"
+                >
+                  {areAllAssignableSelected ? 'Deselect All' : 'Select All'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedCandidateIds([])}
+                  className="px-3 py-1.5 rounded-full text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-100"
+                >
+                  Clear Selection
+                </button>
+                <button
+                  type="button"
+                  onClick={openBulkAssignModal}
+                  disabled={selectedCandidateIds.length === 0}
+                  className={`px-3 py-1.5 rounded-full text-sm font-semibold border ${
+                    selectedCandidateIds.length === 0
+                      ? 'bg-gray-200 text-gray-500 border-gray-200 cursor-not-allowed'
+                      : 'bg-green-600 text-white border-green-600 hover:bg-green-700'
+                  }`}
+                >
+                  Assign Selected ({selectedCandidateIds.length})
+                </button>
+              </>
+            )}
           </div>
 
           {showFilters && (
@@ -652,7 +837,8 @@ const AllCandidates = () => {
           {filteredCandidates.length > 0 ? (
             <div className="overflow-x-auto">
               <div className="min-w-[920px] px-4 pb-4">
-                <div className="grid grid-cols-[90px_1.9fr_1.4fr_1.2fr_2fr] items-center gap-4 border-b border-gray-200 px-3 pb-3 text-base font-semibold text-gray-700">
+                <div className={`grid ${multiAssignMode ? 'grid-cols-[54px_90px_1.9fr_1.4fr_1.2fr_2fr]' : 'grid-cols-[90px_1.9fr_1.4fr_1.2fr_2fr]'} items-center gap-4 border-b border-gray-200 px-3 pb-3 text-base font-semibold text-gray-700`}>
+                  {multiAssignMode && <div>Select</div>}
                   <div>Rank</div>
                   <div>Name</div>
                   <div>Position Applied</div>
@@ -663,8 +849,19 @@ const AllCandidates = () => {
                 {filteredCandidates.map((candidate, index) => (
                   <div
                     key={candidate.id}
-                    className="grid grid-cols-[90px_1.9fr_1.4fr_1.2fr_2fr] items-center gap-4 border-b border-gray-100 px-3 py-3 hover:bg-gray-50 transition-colors"
+                    className={`grid ${multiAssignMode ? 'grid-cols-[54px_90px_1.9fr_1.4fr_1.2fr_2fr]' : 'grid-cols-[90px_1.9fr_1.4fr_1.2fr_2fr]'} items-center gap-4 border-b border-gray-100 px-3 py-3 hover:bg-gray-50 transition-colors`}
                   >
+                    {multiAssignMode && (
+                      <div>
+                        <input
+                          type="checkbox"
+                          checked={selectedCandidateIds.includes(candidate.id)}
+                          onChange={() => toggleCandidateSelection(candidate.id)}
+                          disabled={!getAssignableType(candidate.status)}
+                          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-40"
+                        />
+                      </div>
+                    )}
                     <div>
                       <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-blue-500 text-xs font-bold text-white">
                         {index + 1}
@@ -739,19 +936,17 @@ const AllCandidates = () => {
         </div>
       </div>
 
-      {showAssignModal && candidateToAssign && (
+      {showAssignModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-bold text-gray-900">
-                {assignType === 'interview' ? 'Assign Interview Committee' : 'Assign Committee for CV Review'}
+                {candidateToAssign
+                  ? (assignType === 'interview' ? 'Assign Interview Committee' : 'Assign Committee for CV Review')
+                  : 'Assign Committee to Selected Candidates'}
               </h3>
               <button
-                onClick={() => {
-                  setShowAssignModal(false);
-                  setCandidateToAssign(null);
-                  setSelectedCommittee('');
-                }}
+                onClick={resetAssignModalState}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -762,7 +957,15 @@ const AllCandidates = () => {
             
             <div className="mb-4">
               <p className="text-sm text-gray-600 mb-2">
-                Assigning committee for: <span className="font-semibold">{formatCandidateName(candidateToAssign)}</span>
+                {candidateToAssign ? (
+                  <>
+                    Assigning committee for: <span className="font-semibold">{formatCandidateName(candidateToAssign)}</span>
+                  </>
+                ) : (
+                  <>
+                    Assigning committee for <span className="font-semibold">{selectedCandidateIds.length}</span> selected candidate(s)
+                  </>
+                )}
               </p>
             </div>
 
@@ -784,48 +987,14 @@ const AllCandidates = () => {
                 
             <div className="flex space-x-3">
               <button
-                onClick={async () => {
-                  if (selectedCommittee) {
-                    const selectedCommitteeName = COMMITTEES.find(c => c.code === selectedCommittee)?.name;
-                    const nextStatus = assignType === 'interview' ? 'interview_assigned' : 'cv_assigned';
-                    
-                    try {
-                      // Save assignment to Supabase database
-                      const { error } = await supabase
-                        .from('faculty_applications')
-                        .update({ 
-                          assigned_committee_code: selectedCommittee,
-                          status: nextStatus
-                        })
-                        .eq('id', candidateToAssign.id);
-                      
-                      if (error) throw error;
-                      
-                      alert(`Assigned ${formatCandidateName(candidateToAssign)} to: ${selectedCommitteeName || selectedCommittee}`);
-                      setShowAssignModal(false);
-                      setCandidateToAssign(null);
-                      setSelectedCommittee('');
-                      
-                      // Refresh candidates list
-                      fetchCandidates();
-                    } catch (error) {
-                      console.error('Error assigning committee:', error);
-                      alert('Failed to assign committee. Please try again.');
-                    }
-                  } else {
-                    alert('Please select a committee');
-                  }
-                }}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors font-medium"
+                onClick={handleConfirmAssignment}
+                disabled={bulkAssigning}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white px-4 py-2 rounded-lg transition-colors font-medium"
               >
-                Assign
+                {bulkAssigning ? 'Assigning...' : 'Assign'}
               </button>
               <button
-                onClick={() => {
-                  setShowAssignModal(false);
-                  setCandidateToAssign(null);
-                  setSelectedCommittee('');
-                }}
+                onClick={resetAssignModalState}
                 className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg transition-colors font-medium"
               >
                 Cancel
