@@ -877,7 +877,7 @@ const AllCandidates = () => {
           </div>
 
           {showFilters && (
-            <div className="mt-4 rounded-xl border border-slate-200 bg-white shadow-sm">
+            <div className="mt-4 flex max-h-[70vh] flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
               <div className="flex flex-col gap-3 border-b border-slate-200 bg-slate-50/70 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <h3 className="text-sm font-semibold text-slate-800">Advanced Filters</h3>
@@ -901,7 +901,7 @@ const AllCandidates = () => {
                 </div>
               </div>
 
-              <div className="space-y-4 p-4">
+              <div className="space-y-4 overflow-y-auto overscroll-contain p-4">
                 <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
                   <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
                     <div className="mb-2 flex items-center justify-between">
@@ -997,7 +997,7 @@ const AllCandidates = () => {
                       placeholder="Search colleges..."
                     />
                   </div>
-                  <div className="max-h-52 overflow-y-auto pr-1">
+                  <div className="pr-1">
                     {filteredCollegeOptions.length === 0 ? (
                       <span className="text-sm text-slate-500">
                         {collegeOptions.length === 0
