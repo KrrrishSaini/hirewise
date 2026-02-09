@@ -36,6 +36,13 @@ const PHD_STATUS_OPTIONS = [
   { value: 'awarded', label: 'Awarded' }
 ];
 
+const DEFAULT_FILTERS = {
+  postApplied: [],
+  minExperienceMonths: '',
+  phdStatus: [],
+  colleges: [],
+};
+
 const AllCandidates = () => {
   const [selectedCandidate, setSelectedCandidate] = useState(null);
   const [selectedDepartment, setSelectedDepartment] = useState('All');
@@ -51,12 +58,8 @@ const AllCandidates = () => {
   const [evaluationLoading, setEvaluationLoading] = useState(false);
   const [showEvaluationModal, setShowEvaluationModal] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
-  const [filters, setFilters] = useState({
-    postApplied: [],
-    minExperienceMonths: '',
-    phdStatus: [],
-    colleges: [],
-  });
+  const [filters, setFilters] = useState({ ...DEFAULT_FILTERS });
+  const [collegeSearch, setCollegeSearch] = useState('');
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [candidateToAssign, setCandidateToAssign] = useState(null);
   const [assignType, setAssignType] = useState('cv');
@@ -321,6 +324,11 @@ const AllCandidates = () => {
     });
   };
 
+  const resetFilters = () => {
+    setFilters({ ...DEFAULT_FILTERS });
+    setCollegeSearch('');
+  };
+
   const extractEvaluationComments = (remarks) => {
     if (!remarks || typeof remarks !== 'string') return '';
     const marker = 'Comments:';
@@ -572,6 +580,15 @@ const AllCandidates = () => {
   const collegeOptions = Array.from(collegeOptionMap.entries())
     .map(([value, label]) => ({ value, label }))
     .sort((a, b) => a.label.localeCompare(b.label));
+  const normalizedCollegeSearch = normalizeFilterValue(collegeSearch);
+  const filteredCollegeOptions = collegeOptions.filter((option) =>
+    normalizeFilterValue(option.label).includes(normalizedCollegeSearch)
+  );
+  const activeFilterCount =
+    (filters.postApplied?.length || 0) +
+    (filters.phdStatus?.length || 0) +
+    (filters.colleges?.length || 0) +
+    (filters.minExperienceMonths ? 1 : 0);
 
   const passesAdvancedFilters = (candidate) => {
     const norm = (v) => (v === null || v === undefined ? 0 : Number(v) || 0);
@@ -804,12 +821,7 @@ const AllCandidates = () => {
             </button>
             <button
               type="button"
-              onClick={() => setFilters({
-                postApplied: [],
-                minExperienceMonths: '',
-                phdStatus: [],
-                colleges: [],
-              })}
+              onClick={resetFilters}
               className="px-3 py-1.5 rounded-full text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-100"
             >
               Clear
@@ -865,96 +877,159 @@ const AllCandidates = () => {
           </div>
 
           {showFilters && (
-            <div className="mt-4 bg-gray-50 border border-gray-200 rounded-lg p-4 grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div>
-                <label className="text-sm font-medium text-gray-700">Post Applied For</label>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {POST_APPLIED_OPTIONS.map((option) => {
-                    const checked = filters.postApplied.includes(option.value);
-                    return (
-                      <label
-                        key={option.value}
-                        className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm cursor-pointer transition-colors ${
-                          checked
-                            ? 'bg-indigo-50 border-indigo-300 text-indigo-700'
-                            : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-100'
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={() => toggleCheckboxFilter('postApplied', option.value)}
-                          className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                        />
-                        <span>{option.label}</span>
-                      </label>
-                    );
-                  })}
+            <div className="mt-4 rounded-xl border border-slate-200 bg-white shadow-sm">
+              <div className="flex flex-col gap-3 border-b border-slate-200 bg-slate-50/70 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-800">Advanced Filters</h3>
+                  <p className="text-xs text-slate-500">
+                    {activeFilterCount === 0
+                      ? 'No filters applied'
+                      : `${activeFilterCount} active filter${activeFilterCount === 1 ? '' : 's'}`}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-500">
+                    {filteredCandidates.length} match{filteredCandidates.length === 1 ? '' : 'es'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={resetFilters}
+                    className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                  >
+                    Reset Filters
+                  </button>
                 </div>
               </div>
-              <div>
-                <label className="text-sm font-medium text-gray-700">Min Experience (months)</label>
-                <input
-                  type="number"
-                  value={filters.minExperienceMonths}
-                  onChange={(e) => setFilters({ ...filters, minExperienceMonths: e.target.value })}
-                  className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-                  min="0"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-700">PhD Status</label>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {PHD_STATUS_OPTIONS.map((option) => {
-                    const checked = filters.phdStatus.includes(option.value);
-                    return (
-                      <label
-                        key={option.value}
-                        className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm cursor-pointer transition-colors ${
-                          checked
-                            ? 'bg-indigo-50 border-indigo-300 text-indigo-700'
-                            : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-100'
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={() => toggleCheckboxFilter('phdStatus', option.value)}
-                          className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                        />
-                        <span>{option.label}</span>
-                      </label>
-                    );
-                  })}
+
+              <div className="space-y-4 p-4">
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <div className="mb-2 flex items-center justify-between">
+                      <label className="text-sm font-semibold text-slate-700">Post Applied For</label>
+                      <span className="text-xs text-slate-500">{filters.postApplied.length} selected</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {POST_APPLIED_OPTIONS.map((option) => {
+                        const checked = filters.postApplied.includes(option.value);
+                        return (
+                          <label
+                            key={option.value}
+                            className={`inline-flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-sm font-medium cursor-pointer transition-colors ${
+                              checked
+                                ? 'border-indigo-300 bg-indigo-50 text-indigo-700'
+                                : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => toggleCheckboxFilter('postApplied', option.value)}
+                              className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                            />
+                            <span>{option.label}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <label className="text-sm font-semibold text-slate-700">Min Experience (months)</label>
+                    <div className="relative mt-2">
+                      <input
+                        type="number"
+                        value={filters.minExperienceMonths}
+                        onChange={(e) => setFilters({ ...filters, minExperienceMonths: e.target.value })}
+                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 pr-16 text-sm text-slate-700 focus:border-indigo-500 focus:ring-indigo-500"
+                        min="0"
+                        placeholder="e.g. 24"
+                      />
+                      <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs font-medium text-slate-400">
+                        months
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <div className="mb-2 flex items-center justify-between">
+                      <label className="text-sm font-semibold text-slate-700">PhD Status</label>
+                      <span className="text-xs text-slate-500">{filters.phdStatus.length} selected</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {PHD_STATUS_OPTIONS.map((option) => {
+                        const checked = filters.phdStatus.includes(option.value);
+                        return (
+                          <label
+                            key={option.value}
+                            className={`inline-flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-sm font-medium cursor-pointer transition-colors ${
+                              checked
+                                ? 'border-indigo-300 bg-indigo-50 text-indigo-700'
+                                : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => toggleCheckboxFilter('phdStatus', option.value)}
+                              className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                            />
+                            <span>{option.label}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <div className="md:col-span-3">
-                <label className="text-sm font-medium text-gray-700">College (Highest Degree)</label>
-                <div className="mt-2 flex flex-wrap gap-2 max-h-40 overflow-y-auto pr-1">
-                  {collegeOptions.length === 0 && (
-                    <span className="text-sm text-gray-500">No colleges found in current applicant pool.</span>
-                  )}
-                  {collegeOptions.map((option) => {
-                    const checked = filters.colleges.includes(option.value);
-                    return (
-                      <label
-                        key={option.value}
-                        className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm cursor-pointer transition-colors ${
-                          checked
-                            ? 'bg-indigo-50 border-indigo-300 text-indigo-700'
-                            : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-100'
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={() => toggleCheckboxFilter('colleges', option.value)}
-                          className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                        />
-                        <span>{option.label}</span>
-                      </label>
-                    );
-                  })}
+
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <label className="text-sm font-semibold text-slate-700">College (Highest Degree)</label>
+                    <span className="text-xs text-slate-500">
+                      {filters.colleges.length} selected of {collegeOptions.length}
+                    </span>
+                  </div>
+                  <div className="mb-3">
+                    <input
+                      type="text"
+                      value={collegeSearch}
+                      onChange={(e) => setCollegeSearch(e.target.value)}
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 focus:border-indigo-500 focus:ring-indigo-500"
+                      placeholder="Search colleges..."
+                    />
+                  </div>
+                  <div className="max-h-52 overflow-y-auto pr-1">
+                    {filteredCollegeOptions.length === 0 ? (
+                      <span className="text-sm text-slate-500">
+                        {collegeOptions.length === 0
+                          ? 'No colleges found in current applicant pool.'
+                          : 'No colleges match your search.'}
+                      </span>
+                    ) : (
+                      <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
+                        {filteredCollegeOptions.map((option) => {
+                          const checked = filters.colleges.includes(option.value);
+                          return (
+                            <label
+                              key={option.value}
+                              className={`inline-flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-sm font-medium cursor-pointer transition-colors ${
+                                checked
+                                  ? 'border-indigo-300 bg-indigo-50 text-indigo-700'
+                                  : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => toggleCheckboxFilter('colleges', option.value)}
+                                className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                              />
+                              <span className="truncate">{option.label}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
