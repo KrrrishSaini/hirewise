@@ -234,22 +234,6 @@ const AllCandidates = () => {
     return toTitleCase(String(raw).replace(/[_-]/g, ' '));
   };
 
-  const getResearchPapersRank = (candidate) => {
-    const raw =
-      candidate?.scopus_general_papers ??
-      candidate?.researchInfo?.scopus_general_papers ??
-      candidate?.publications ??
-      0;
-    const parsed = Number(raw);
-    return Number.isFinite(parsed) ? parsed : 0;
-  };
-
-  const getQsDisplay = (candidate) => {
-    const raw = candidate?.qs_score ?? candidate?.qsScore ?? candidate?.score;
-    const parsed = Number(raw);
-    return Number.isFinite(parsed) ? parsed.toFixed(1) : '--';
-  };
-
   const extractEvaluationComments = (remarks) => {
     if (!remarks || typeof remarks !== 'string') return '';
     const marker = 'Comments:';
@@ -667,21 +651,19 @@ const AllCandidates = () => {
         <div className="pt-4">
           {filteredCandidates.length > 0 ? (
             <div className="overflow-x-auto">
-              <div className="min-w-[1080px] px-4 pb-4">
-                <div className="grid grid-cols-[90px_1.7fr_1.4fr_1.2fr_1fr_0.8fr_2fr] items-center gap-4 border-b border-gray-200 px-3 pb-3 text-[20px] font-semibold text-gray-700">
+              <div className="min-w-[920px] px-4 pb-4">
+                <div className="grid grid-cols-[90px_1.9fr_1.4fr_1.2fr_2fr] items-center gap-4 border-b border-gray-200 px-3 pb-3 text-[20px] font-semibold text-gray-700">
                   <div>Rank</div>
                   <div>Name</div>
                   <div>Position Applied</div>
                   <div>Department</div>
-                  <div>Research Rank (Papers)</div>
-                  <div>QS</div>
                   <div>Actions</div>
                 </div>
 
                 {filteredCandidates.map((candidate, index) => (
                   <div
                     key={candidate.id}
-                    className="grid grid-cols-[90px_1.7fr_1.4fr_1.2fr_1fr_0.8fr_2fr] items-center gap-4 border-b border-gray-100 px-3 py-4 hover:bg-gray-50 transition-colors"
+                    className="grid grid-cols-[90px_1.9fr_1.4fr_1.2fr_2fr] items-center gap-4 border-b border-gray-100 px-3 py-4 hover:bg-gray-50 transition-colors"
                   >
                     <div>
                       <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-blue-500 text-sm font-bold text-white">
@@ -700,16 +682,6 @@ const AllCandidates = () => {
                     <div>
                       <span className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-[18px] font-medium text-gray-700">
                         {toTitleCase(candidate.department)}
-                      </span>
-                    </div>
-
-                    <div className="text-[20px] font-semibold text-gray-900">
-                      {getResearchPapersRank(candidate)}
-                    </div>
-
-                    <div>
-                      <span className="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-[18px] font-semibold text-green-700">
-                        {getQsDisplay(candidate)}
                       </span>
                     </div>
 
