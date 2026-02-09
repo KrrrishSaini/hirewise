@@ -652,7 +652,7 @@ const AllCandidates = () => {
           {filteredCandidates.length > 0 ? (
             <div className="overflow-x-auto">
               <div className="min-w-[920px] px-4 pb-4">
-                <div className="grid grid-cols-[90px_1.9fr_1.4fr_1.2fr_2fr] items-center gap-4 border-b border-gray-200 px-3 pb-3 text-[20px] font-semibold text-gray-700">
+                <div className="grid grid-cols-[90px_1.9fr_1.4fr_1.2fr_2fr] items-center gap-4 border-b border-gray-200 px-3 pb-3 text-base font-semibold text-gray-700">
                   <div>Rank</div>
                   <div>Name</div>
                   <div>Position Applied</div>
@@ -663,24 +663,24 @@ const AllCandidates = () => {
                 {filteredCandidates.map((candidate, index) => (
                   <div
                     key={candidate.id}
-                    className="grid grid-cols-[90px_1.9fr_1.4fr_1.2fr_2fr] items-center gap-4 border-b border-gray-100 px-3 py-4 hover:bg-gray-50 transition-colors"
+                    className="grid grid-cols-[90px_1.9fr_1.4fr_1.2fr_2fr] items-center gap-4 border-b border-gray-100 px-3 py-3 hover:bg-gray-50 transition-colors"
                   >
                     <div>
-                      <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-blue-500 text-sm font-bold text-white">
+                      <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-blue-500 text-xs font-bold text-white">
                         {index + 1}
                       </span>
                     </div>
 
                     <div className="min-w-0">
-                      <p className="truncate text-[22px] font-semibold text-gray-900">{formatCandidateName(candidate)}</p>
+                      <p className="truncate text-[16px] font-semibold text-gray-900">{formatCandidateName(candidate)}</p>
                     </div>
 
                     <div className="min-w-0">
-                      <p className="truncate text-[20px] font-medium text-gray-800">{formatPostAppliedFor(candidate)}</p>
+                      <p className="truncate text-[15px] font-medium text-gray-800">{formatPostAppliedFor(candidate)}</p>
                     </div>
 
                     <div>
-                      <span className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-[18px] font-medium text-gray-700">
+                      <span className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-sm font-medium text-gray-700">
                         {toTitleCase(candidate.department)}
                       </span>
                     </div>
@@ -688,7 +688,7 @@ const AllCandidates = () => {
                     <div className="flex flex-wrap items-center gap-2">
                       <button
                         onClick={() => handleViewDetails(candidate)}
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors text-sm font-semibold"
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors text-xs font-semibold"
                       >
                         View Details
                       </button>
@@ -700,7 +700,7 @@ const AllCandidates = () => {
                             setShowAssignModal(true);
                             setSelectedCommittee(candidate.assigned_committee_code || '');
                           }}
-                          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors text-sm font-semibold"
+                          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors text-xs font-semibold"
                         >
                           Assign Committee
                         </button>
@@ -713,7 +713,7 @@ const AllCandidates = () => {
                             setShowAssignModal(true);
                             setSelectedCommittee(candidate.assigned_committee_code || '');
                           }}
-                          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors text-sm font-semibold"
+                          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors text-xs font-semibold"
                         >
                           Assign Interview
                         </button>
@@ -721,7 +721,7 @@ const AllCandidates = () => {
                       {['cv_assigned', 'interview_assigned'].includes(candidate.status) && (
                         <button
                           disabled
-                          className="bg-gray-400 text-white px-4 py-2 rounded-lg cursor-not-allowed text-sm font-semibold"
+                          className="bg-gray-400 text-white px-4 py-2 rounded-lg cursor-not-allowed text-xs font-semibold"
                         >
                           Assigned
                         </button>
