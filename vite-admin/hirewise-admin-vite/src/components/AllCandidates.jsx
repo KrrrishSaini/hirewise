@@ -64,6 +64,7 @@ const AllCandidates = () => {
   const [candidateToAssign, setCandidateToAssign] = useState(null);
   const [assignType, setAssignType] = useState('cv');
   const [selectedCommittee, setSelectedCommittee] = useState('');
+  const [selectedFinalDecision, setSelectedFinalDecision] = useState('');
   const [multiAssignMode, setMultiAssignMode] = useState(false);
   const [selectedCandidateIds, setSelectedCandidateIds] = useState([]);
   const [bulkAssigning, setBulkAssigning] = useState(false);
@@ -105,6 +106,13 @@ const AllCandidates = () => {
     if (normalized === 'shortlisted') return 'final_shortlisted';
     if (normalized === 'rejected') return 'final_rejected';
     return normalized;
+  };
+
+  const mapDecisionFromStatus = (status) => {
+    const normalized = normalizeCandidateStatus(status);
+    if (normalized === 'final_shortlisted') return 'accept';
+    if (normalized === 'final_rejected' || normalized === 'cv_rejected') return 'reject';
+    return '';
   };
 
   const normalizeDegreeRank = (deg) => {
@@ -470,15 +478,18 @@ const AllCandidates = () => {
       
       console.log('Flattened candidate data:', flattened);
       setSelectedCandidate(flattened);
+      setSelectedFinalDecision(mapDecisionFromStatus(resolvedStatus));
     } catch (error) {
       console.error('Error fetching candidate details:', error);
       // Fallback to existing data if fetch fails
       setSelectedCandidate({ ...candidate, loading: false });
+      setSelectedFinalDecision(mapDecisionFromStatus(candidate.status));
     }
   };
 
   const closeModal = () => {
     setSelectedCandidate(null);
+    setSelectedFinalDecision('');
     setShowUpload(false);
     setFiles({});
     setEvaluationData(null);
@@ -564,6 +575,15 @@ const AllCandidates = () => {
     } finally {
       setUpdatingStatus(false);
     }
+  };
+
+  const applyFinalDecision = () => {
+    if (!selectedFinalDecision) {
+      alert('Please choose a final decision first.');
+      return;
+    }
+    const nextStatus = selectedFinalDecision === 'accept' ? 'final_shortlisted' : 'final_rejected';
+    updateApplicationStatus(nextStatus);
   };
 
   const departmentFiltered = selectedDepartment === 'All' 
@@ -775,6 +795,7 @@ const AllCandidates = () => {
   const teachingExperiences = selectedCandidate?.teachingExperiences || [];
   const researchExperiences = selectedCandidate?.researchExperiences || [];
   const derivedExperience = selectedCandidate?.experience || computeExperienceFromArrays(teachingExperiences, researchExperiences);
+  const selectedCandidateStatus = selectedCandidate ? normalizeCandidateStatus(selectedCandidate.status) : '';
 
   return (
     <>
@@ -1233,14 +1254,39 @@ const AllCandidates = () => {
               )}
             </div>
           </div>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handleShowEvaluation}
-                disabled={evaluationLoading}
-                className="px-3 py-1.5 text-sm font-semibold bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300"
-              >
-                {evaluationLoading ? 'Loading...' : 'Show Evaluation'}
-              </button>
+            <div className="flex items-start gap-3">
+              <div className="flex flex-col items-end gap-2">
+                <button
+                  onClick={handleShowEvaluation}
+                  disabled={evaluationLoading}
+                  className="px-3 py-1.5 text-sm font-semibold bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300"
+                >
+                  {evaluationLoading ? 'Loading...' : 'Show Evaluation'}
+                </button>
+
+                {selectedCandidateStatus === 'interview_completed' && (
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={selectedFinalDecision}
+                      onChange={(e) => setSelectedFinalDecision(e.target.value)}
+                      className="min-w-[170px] rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-sm text-gray-700 focus:border-blue-500 focus:ring-blue-500"
+                    >
+                      <option value="">Final Decision</option>
+                      <option value="accept">Accept</option>
+                      <option value="reject">Reject</option>
+                    </select>
+                    <button
+                      type="button"
+                      onClick={applyFinalDecision}
+                      disabled={!selectedFinalDecision || updatingStatus}
+                      className="px-3 py-1.5 rounded-md text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300"
+                    >
+                      {updatingStatus ? 'Saving...' : 'Apply'}
+                    </button>
+                  </div>
+                )}
+              </div>
+
               <button
                 onClick={closeModal}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
