@@ -115,12 +115,12 @@ const AllCandidates = () => {
     return '';
   };
 
-  const getGenderRowBackground = (gender) => {
-    const normalized = normalizeFilterValue(gender);
-    if (normalized === 'female') return '#fcd1ff';
-    if (normalized === 'male') return '#d1e9ff';
-    return 'transparent';
-  };
+  // const getGenderRowBackground = (gender) => {
+  //   const normalized = normalizeFilterValue(gender);
+  //   if (normalized === 'female') return '#fcd1ff';
+  //   if (normalized === 'male') return '#d1e9ff';
+  //   return 'transparent';
+  // };
 
   const normalizeDegreeRank = (deg) => {
     if (!deg) return 0;
@@ -1080,7 +1080,7 @@ const AllCandidates = () => {
                 {filteredCandidates.map((candidate, index) => (
                   <div
                     key={candidate.id}
-                    style={{ backgroundColor: getGenderRowBackground(candidate.gender) }}
+                    // style={{ backgroundColor: getGenderRowBackground(candidate.gender) }}
                     className={`grid ${multiAssignMode ? 'grid-cols-[54px_90px_1.9fr_1.4fr_1.2fr_2fr]' : 'grid-cols-[90px_1.9fr_1.4fr_1.2fr_2fr]'} items-center gap-4 border-b border-gray-100 px-3 py-3 transition-colors`}
                   >
                     {multiAssignMode && (
