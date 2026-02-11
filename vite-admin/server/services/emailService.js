@@ -48,8 +48,17 @@ export const sendInterviewConfirmationEmail = async (
             : `http://localhost:${process.env.PORT || 5000}`;
     }
     try {
+        console.log('🔍 Email Debug - Environment Variables:');
+        console.log('EMAIL_USER:', process.env.EMAIL_USER ? 'SET' : 'MISSING');
+        console.log('EMAIL_PASSWORD:', process.env.EMAIL_PASSWORD ? 'SET' : 'MISSING');
+        console.log('EMAIL_FROM:', process.env.EMAIL_FROM ? 'SET' : 'MISSING');
+        console.log('NODE_ENV:', process.env.NODE_ENV);
+        console.log('API_BASE_URL:', process.env.API_BASE_URL);
+        
         if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
-            console.error('Email credentials not configured');
+            console.error('❌ Email credentials not configured');
+            console.error('Missing EMAIL_USER:', !process.env.EMAIL_USER);
+            console.error('Missing EMAIL_PASSWORD:', !process.env.EMAIL_PASSWORD);
             return { success: false, error: 'Email service not configured' };
         }
 
