@@ -117,9 +117,14 @@ router.get('/rankings/top', cache.middleware(30), async (req, res) => {
     ]);
 
     // Create lookup maps for O(1) access
+    const teachingPostMap = new Map();
     const researchMap = new Map();
     const researchInstMap = new Map();
     const teachingInstMap = new Map();
+
+    (teachingPostsData.data || []).forEach(t => {
+      teachingPostMap.set(t.application_id, t.post);
+    });
 
     (researchData.data || []).forEach(r => {
       researchMap.set(r.application_id, {
