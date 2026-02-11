@@ -3,6 +3,8 @@ import { supabase } from '../../lib/supabase-client'
 import { API_BASE } from '../lib/config'
 import { Users, CheckCircle, XCircle, Trash2, Star, Calendar, X } from 'lucide-react'
 import CandidateDetailsModal from './CandidateDetailsModal'
+import DateTimePickerModal from './DateTimePickerModal'
+import CommunicationModal from './CommunicationModal'
 
 // Helper function to capitalize first letter of a string
 const capitalize = (str) => {
@@ -24,7 +26,7 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
   const [panelLoading, setPanelLoading] = useState(false)
   const [panelItems, setPanelItems] = useState([])
   const [panelError, setPanelError] = useState(null)
-  
+
   // Evaluation modal state
   const [selectedEvaluation, setSelectedEvaluation] = useState(null)
   const [evaluationData, setEvaluationData] = useState(null)
@@ -34,7 +36,13 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
   const [confirmationStates, setConfirmationStates] = useState({})
   const [sendingConfirmation, setSendingConfirmation] = useState({})
   const [schedulingInterview, setSchedulingInterview] = useState({})
-  
+
+  // Enhanced scheduling modals
+  const [dateTimeModalOpen, setDateTimeModalOpen] = useState(false)
+  const [selectedCandidateForScheduling, setSelectedCandidateForScheduling] = useState(null)
+  const [communicationModalOpen, setCommunicationModalOpen] = useState(false)
+  const [selectedCandidateForCommunication, setSelectedCandidateForCommunication] = useState(null)
+
   // Candidate details modal
   const [selectedCandidate, setSelectedCandidate] = useState(null)
   const [candidateDetails, setCandidateDetails] = useState(null)
@@ -50,7 +58,7 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
         let query = supabase
           .from('faculty_applications')
           .select('position, status', { count: 'exact', head: false });
-        
+
         // Filter by teaching/non-teaching
         if (selectedView === 'teaching') {
           query = query.or('position.ilike.%professor%,position.eq.teaching');
@@ -59,7 +67,7 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
         }
 
         const { data, error, count } = await query;
-        
+
         if (error) throw error;
 
         // Calculate counts from the single query result
@@ -88,11 +96,11 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
       try {
         let query = supabase
           .from('faculty_applications')
-          .select('id, confirmation_response, status, first_name, last_name')
+          .select('id, confirmation_response, status, first_name, last_name, candidate_response_message')
           .eq('status', 'final_shortlisted'); // Only load for shortlisted candidates
-        
+
         const { data, error } = await query;
-        
+
         if (error) {
           console.error('❌ Error loading confirmation states:', error);
           return;
@@ -126,7 +134,7 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
     try {
       let query = supabase
         .from('faculty_applications')
-        .select('id, first_name, last_name, email, position, department, status, created_at, confirmation_response')
+        .select('id, first_name, last_name, email, position, department, status, created_at, confirmation_response, candidate_response_message')
         .order('created_at', { ascending: false })
         .limit(50)
 
@@ -147,7 +155,7 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
 
       const { data, error: selErr } = await query
       if (selErr) throw selErr
-      
+
       // Update confirmation states from fetched data
       if (Array.isArray(data)) {
         const confirmStates = {}
@@ -159,7 +167,7 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
         })
         setConfirmationStates(confirmStates)
       }
-      
+
       setPanelItems(Array.isArray(data) ? data : [])
     } catch (e) {
       setPanelError(e.message)
@@ -185,10 +193,10 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
 
     try {
       setPanelLoading(true);
-      
+
       // Build query to delete rejected applications based on current view
       let query = supabase.from('faculty_applications').delete().eq('status', 'final_rejected');
-      
+
       // Filter by teaching/non-teaching
       if (selectedView === 'teaching') {
         query = query.or('position.ilike.%professor%,position.eq.teaching');
@@ -197,15 +205,15 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
       }
 
       const { error } = await query;
-      
+
       if (error) throw error;
 
       alert('All rejected applications have been deleted successfully!');
-      
+
       // Refresh the list and stats
       setPanelItems([]);
       setActivePanel(null);
-      
+
       // Trigger a re-fetch of stats by toggling selectedView
       window.location.reload();
     } catch (err) {
@@ -223,10 +231,10 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
 
     try {
       setPanelLoading(true);
-      
+
       // Build query to delete shortlisted applications based on current view
       let query = supabase.from('faculty_applications').delete().eq('status', 'final_shortlisted');
-      
+
       // Filter by teaching/non-teaching
       if (selectedView === 'teaching') {
         query = query.or('position.ilike.%professor%,position.eq.teaching');
@@ -235,15 +243,15 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
       }
 
       const { error } = await query;
-      
+
       if (error) throw error;
 
       alert('All shortlisted applications have been deleted successfully!');
-      
+
       // Refresh the list and stats
       setPanelItems([]);
       setActivePanel(null);
-      
+
       // Trigger a re-fetch of stats
       window.location.reload();
     } catch (err) {
@@ -257,7 +265,7 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
   const viewEvaluation = async (applicationId) => {
     setEvaluationLoading(true)
     setSelectedEvaluation(applicationId)
-    
+
     try {
       const { data, error } = await supabase
         .from('faculty_evaluations')
@@ -266,7 +274,7 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
         .order('evaluated_at', { ascending: false })
         .limit(1)
         .single()
-      
+
       if (error) throw error
       setEvaluationData(data)
     } catch (err) {
@@ -288,14 +296,14 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
       setSelectedCandidate({ ...candidate, loading: true })
       setIsPopupOpen(true)
       setLoadingDetails(true)
-      
+
       const response = await fetch(`${API_BASE}/api/applications/${candidate.id}`)
       if (!response.ok) throw new Error('Failed to fetch details')
       const details = await response.json()
-      setSelectedCandidate(prev => ({ 
-        ...prev, 
+      setSelectedCandidate(prev => ({
+        ...prev,
         ...details,
-        loading: false 
+        loading: false
       }))
     } catch (err) {
       console.error('Error fetching candidate details:', err)
@@ -322,21 +330,30 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
     }
   }
 
-  const sendInterviewConfirmation = async (candidate) => {
+  // ========================================
+  // 🆕 ENHANCED SCHEDULING FUNCTIONS
+  // ========================================
+
+  // Open date/time picker modal when admin clicks "Send Confirmation"
+  const sendInterviewConfirmation = (candidate) => {
+    setSelectedCandidateForScheduling(candidate);
+    setDateTimeModalOpen(true);
+  };
+
+  // Handle date/time confirmation from modal
+  const handleDateTimeConfirm = async ({ date, time, timezone }) => {
+    const candidate = selectedCandidateForScheduling;
+    if (!candidate) return;
+
     try {
-      console.log('📧 Sending confirmation for candidate:', candidate.id, candidate.first_name);
-      setSendingConfirmation(prev => ({ ...prev, [candidate.id]: true }))
-      
-      const response = await fetch(`${API_BASE}/api/applications/send-confirmation/${candidate.id}`, {
+      console.log('📧 Sending enhanced confirmation for candidate:', candidate.id, candidate.first_name);
+      setSendingConfirmation(prev => ({ ...prev, [candidate.id]: true }));
+
+      const response = await fetch(`${API_BASE}/api/applications/send-confirmation-enhanced/${candidate.id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: candidate.email,
-          name: candidate.first_name + ' ' + candidate.last_name,
-          position: candidate.position,
-          department: candidate.department
-        })
-      })
+        body: JSON.stringify({ date, time, timezone })
+      });
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -345,58 +362,69 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
 
       const result = await response.json();
       console.log('✅ Backend response:', result);
-      
+
       setConfirmationStates(prev => {
         const newStates = { ...prev, [candidate.id]: 'PENDING' };
         console.log('📝 Local state updated to PENDING:', newStates);
         return newStates;
       });
-      alert('Interview confirmation sent! Email sent to: ' + candidate.email);
-      
-      // Poll database every 5 seconds to check if candidate has responded
+
+      alert(`Interview confirmation sent to ${candidate.email} for ${date} at ${time} (${timezone})`);
+
+      // Poll database to check for candidate response
       const pollInterval = setInterval(async () => {
         try {
           const { data, error } = await supabase
             .from('faculty_applications')
-            .select('confirmation_response')
+            .select('confirmation_response, candidate_response_message')
             .eq('id', candidate.id)
-            .single()
-          
+            .single();
+
           if (data && data.confirmation_response && data.confirmation_response !== 'PENDING') {
-            // Candidate has responded - update state
-            setConfirmationStates(prev => ({ ...prev, [candidate.id]: data.confirmation_response }))
-            clearInterval(pollInterval)
+            setConfirmationStates(prev => ({ ...prev, [candidate.id]: data.confirmation_response }));
+            clearInterval(pollInterval);
+          } else if (data && data.candidate_response_message) {
+            // Candidate has sent a message via "Prefer Another Time"
+            setConfirmationStates(prev => ({ ...prev, [candidate.id]: 'PENDING' }));
           }
         } catch (err) {
-          console.error('Error polling for response:', err)
+          console.error('Error polling for response:', err);
         }
-      }, 5000)
-      
-      // Stop polling after 1 hour
-      setTimeout(() => clearInterval(pollInterval), 3600000)
-    } catch (err) {
-      console.error('Error sending confirmation:', err)
-      alert('Failed to send confirmation: ' + err.message)
-    } finally {
-      setSendingConfirmation(prev => ({ ...prev, [candidate.id]: false }))
-    }
-  }
+      }, 5000);
 
-  const scheduleInterview = (candidate) => {
-    const startTime = new Date()
-    startTime.setDate(startTime.getDate() + 7) // 1 week from now
-    startTime.setHours(14, 0, 0, 0)
-    
-    const endTime = new Date(startTime)
-    endTime.setHours(15, 0, 0, 0)
-    
+      // Stop polling after 1 hour
+      setTimeout(() => clearInterval(pollInterval), 3600000);
+    } catch (err) {
+      console.error('Error sending confirmation:', err);
+      alert('Failed to send confirmation: ' + err.message);
+    } finally {
+      setSendingConfirmation(prev => ({ ...prev, [candidate.id]: false }));
+    }
+  };
+
+  // Open communication modal when admin clicks "Needs Communication"
+  const openCommunicationModal = (candidate) => {
+    setSelectedCandidateForCommunication(candidate);
+    setCommunicationModalOpen(true);
+  };
+
+  // Original scheduleInterview function (kept for backward compatibility)
+  const scheduleInterview = async (candidate) => {
+    const startTime = new Date();
+    startTime.setDate(startTime.getDate() + 7); // 1 week from now
+    startTime.setHours(14, 0, 0, 0);
+
+    const endTime = new Date(startTime);
+    endTime.setHours(15, 0, 0, 0);
+
     // Include candidate email in the Google Calendar event
-    const googleCalendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=Interview%20-%20${encodeURIComponent(candidate.first_name + ' ' + candidate.last_name)}&dates=${startTime.toISOString().split('.')[0].replace(/[-:]/g, '')}/${endTime.toISOString().split('.')[0].replace(/[-:]/g, '')}&details=Candidate%20Interview%20for%20${encodeURIComponent(candidate.position)}&add=${encodeURIComponent(candidate.email)}`
-    
-    window.open(googleCalendarUrl, '_blank')
-    setSchedulingInterview(prev => ({ ...prev, [candidate.id]: true }))
-    setTimeout(() => setSchedulingInterview(prev => ({ ...prev, [candidate.id]: false })), 2000)
-  }
+    const googleCalendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=Interview%20-%20${encodeURIComponent(candidate.first_name + ' ' + candidate.last_name)}&dates=${startTime.toISOString().split('.')[0].replace(/[-:]/g, '')}/${endTime.toISOString().split('.')[0].replace(/[-:]/g, '')}&details=Candidate%20Interview%20for%20${encodeURIComponent(candidate.position)}&add=${encodeURIComponent(candidate.email)}`;
+
+    window.open(googleCalendarUrl, '_blank');
+    setSchedulingInterview(prev => ({ ...prev, [candidate.id]: true }));
+    setTimeout(() => setSchedulingInterview(prev => ({ ...prev, [candidate.id]: false })), 2000);
+  };
+
 
   if (loading) return <div>Loading stats...</div>
   if (error) return <div>Error: {error}</div>
@@ -474,9 +502,9 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
           <div className="bg-white rounded-xl border shadow-sm">
             <div className="px-4 py-3 border-b flex items-center justify-between">
               <h3 className="text-sm font-semibold text-gray-800">
-                {activePanel === 'total' && 'All Applications'}
-                {activePanel === 'shortlisted' && 'Applications • Shortlisted'}
-                {activePanel === 'rejected' && 'Applications • Rejected'}
+                {activePanel === 'total' && `All Applications${panelItems.length > 0 ? ` • ${capitalize((panelItems[0]?.position || 'All'))}` : ''}`}
+                {activePanel === 'shortlisted' && `Applications • Shortlisted${panelItems.length > 0 ? ` • ${capitalize((panelItems[0]?.position || ''))}` : ''}`}
+                {activePanel === 'rejected' && `Applications • Rejected${panelItems.length > 0 ? ` • ${capitalize((panelItems[0]?.position || ''))}` : ''}`}
               </h3>
               <div className="flex items-center gap-2">
                 {activePanel === 'shortlisted' && panelItems.length > 0 && (
@@ -536,19 +564,20 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
                   <tbody>
                     {panelItems.map((a) => (
                       <tr key={a.id} className="border-b hover:bg-gray-50">
-                        <td className="px-4 py-2 text-sm text-gray-900">{`${a.first_name || ''} ${a.last_name || ''}`.trim() || 'N/A'}</td>
+                        <td className="px-4 py-2 text-sm text-gray-900">
+                          {a.title ? `${a.title} ` : ''}{`${a.first_name || ''} ${a.last_name || ''}`.trim() || 'N/A'}
+                        </td>
                         <td className="px-4 py-2 text-sm text-gray-700">{capitalize(a.position)}</td>
                         <td className="px-4 py-2 text-sm text-gray-700">{capitalize(a.department)}</td>
                         <td className="px-4 py-2 text-xs">
-                          <span className={`inline-flex px-2 py-0.5 rounded-full font-medium ${
-                            a.status === 'final_shortlisted' ? 'bg-green-100 text-green-700' :
+                          <span className={`inline-flex px-2 py-0.5 rounded-full font-medium ${a.status === 'final_shortlisted' ? 'bg-green-100 text-green-700' :
                             a.status === 'final_rejected' || a.status === 'cv_rejected' ? 'bg-red-100 text-red-700' :
-                            'bg-gray-100 text-gray-700'
-                          }`}>
+                              'bg-gray-100 text-gray-700'
+                            }`}>
                             {a.status === 'final_shortlisted' ? 'Shortlisted' :
-                             a.status === 'final_rejected' ? 'Rejected' :
-                             a.status === 'cv_rejected' ? 'CV Rejected' :
-                             'Pending'}
+                              a.status === 'final_rejected' ? 'Rejected' :
+                                a.status === 'cv_rejected' ? 'CV Rejected' :
+                                  'Pending'}
                           </span>
                         </td>
                         <td className="px-4 py-2">
@@ -569,17 +598,19 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
                               >
                                 {sendingConfirmation[a.id] ? 'Sending...' : 'Send Confirmation'}
                               </button>
+                            ) : confirmationStates[a.id] === 'PENDING' && a.candidate_response_message ? (
+                              <button
+                                onClick={() => openCommunicationModal(a)}
+                                className="text-blue-600 hover:text-blue-800 text-xs font-medium hover:underline flex items-center gap-1"
+                              >
+                                💬 Needs Communication
+                              </button>
                             ) : confirmationStates[a.id] === 'PENDING' ? (
                               <span className="text-gray-500 text-xs font-medium">⏳ Pending</span>
                             ) : confirmationStates[a.id] === 'ACCEPTED' ? (
-                              <button
-                                onClick={() => scheduleInterview(a)}
-                                disabled={schedulingInterview[a.id]}
-                                className="text-green-600 hover:text-green-800 text-xs font-medium hover:underline disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
-                              >
-                                <Calendar className="h-3 w-3" />
-                                {schedulingInterview[a.id] ? 'Opening...' : 'Schedule'}
-                              </button>
+                              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                                ✓ Accepted
+                              </span>
                             ) : confirmationStates[a.id] === 'REJECTED' ? (
                               <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
                                 ✗ Rejected
@@ -598,7 +629,7 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
                           </td>
                         )}
                         <td className="px-4 py-2 text-sm text-gray-500">{a.created_at ? new Date(a.created_at).toLocaleDateString() : '—'}</td>
-                      </tr>) )}
+                      </tr>))}
                   </tbody>
                 </table>
               </div>
@@ -630,8 +661,8 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
               <div className="mb-6 p-4 bg-blue-50 rounded-lg">
                 <p className="text-sm text-gray-600">Evaluated by</p>
                 <p className="text-lg font-semibold text-gray-800">
-                  {evaluationData.faculty_name.startsWith('Dr.') 
-                    ? evaluationData.faculty_name 
+                  {evaluationData.faculty_name.startsWith('Dr.')
+                    ? evaluationData.faculty_name
                     : `Dr. ${evaluationData.faculty_name}`}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
@@ -645,7 +676,7 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
               {/* Evaluation Scores */}
               <div className="space-y-4 mb-6">
                 <h3 className="font-semibold text-gray-700 mb-3">Evaluation Scores</h3>
-                
+
                 {[
                   { label: 'Teaching Competence', value: evaluationData.teaching_competence },
                   { label: 'Research Potential', value: evaluationData.research_potential },
@@ -661,12 +692,11 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2.5">
                       <div
-                        className={`h-2.5 rounded-full ${
-                          item.value >= 8 ? 'bg-green-500' :
+                        className={`h-2.5 rounded-full ${item.value >= 8 ? 'bg-green-500' :
                           item.value >= 6 ? 'bg-blue-500' :
-                          item.value >= 4 ? 'bg-yellow-500' :
-                          'bg-red-500'
-                        }`}
+                            item.value >= 4 ? 'bg-yellow-500' :
+                              'bg-red-500'
+                          }`}
                         style={{ width: `${(item.value / 10) * 100}%` }}
                       ></div>
                     </div>
@@ -722,14 +752,13 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
             {/* Header */}
             <div className="flex items-center justify-between p-6 border-b bg-gradient-to-r from-blue-50 to-indigo-50">
               <div className="flex items-center gap-4">
-                <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold text-white ${
-                  (selectedCandidate.gender || '').toLowerCase() === 'female' ? 'bg-pink-500' : 'bg-blue-500'
-                }`}>
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold text-white ${(selectedCandidate.gender || '').toLowerCase() === 'female' ? 'bg-pink-500' : 'bg-blue-500'
+                  }`}>
                   {selectedCandidate.first_name?.charAt(0) || '?'}
                 </div>
                 <div>
                   <h2 className="text-2xl font-bold text-gray-900">
-                    {selectedCandidate.first_name 
+                    {selectedCandidate.first_name
                       ? `${selectedCandidate.first_name}${selectedCandidate.middle_name ? ' ' + selectedCandidate.middle_name : ''}${selectedCandidate.last_name ? ' ' + selectedCandidate.last_name : ''}`
                       : 'N/A'
                     }
@@ -831,6 +860,36 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
           </div>
         </div>
       )}
+
+      {/* Date/Time Picker Modal for Interview Scheduling */}
+      <DateTimePickerModal
+        isOpen={dateTimeModalOpen}
+        onClose={() => {
+          setDateTimeModalOpen(false);
+          setSelectedCandidateForScheduling(null);
+        }}
+        onConfirm={handleDateTimeConfirm}
+        candidateName={
+          selectedCandidateForScheduling
+            ? `${selectedCandidateForScheduling.first_name} ${selectedCandidateForScheduling.last_name}`
+            : ''
+        }
+      />
+
+      {/* Communication Modal for Admin-Candidate Messages */}
+      <CommunicationModal
+        isOpen={communicationModalOpen}
+        onClose={() => {
+          setCommunicationModalOpen(false);
+          setSelectedCandidateForCommunication(null);
+        }}
+        applicationId={selectedCandidateForCommunication?.id}
+        candidateName={
+          selectedCandidateForCommunication
+            ? `${selectedCandidateForCommunication.first_name} ${selectedCandidateForCommunication.last_name}`
+            : ''
+        }
+      />
     </div>
   )
 }

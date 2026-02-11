@@ -1,4 +1,13 @@
 // server/server.js
+import dotenv from 'dotenv';
+dotenv.config();
+
+console.log("==== GOOGLE ENV CHECK ====");
+console.log("ID:", process.env.GOOGLE_CLIENT_ID);
+console.log("SECRET:", process.env.GOOGLE_CLIENT_SECRET);
+console.log("REDIRECT:", process.env.GOOGLE_REDIRECT_URI);
+console.log("===========================");
+
 import express from 'express';
 import cors from 'cors';
 import compression from 'compression';
@@ -7,6 +16,7 @@ import applicationsRoute from './routes/applications.js';
 import documentsRoute from './routes/documents.js';
 import mlRoute from './routes/ml.js';
 import authRoute from './routes/auth.js';
+import googleRoute from './routes/google.js';
 
 // ✅ 1. Create the app FIRST
 const app = express();
@@ -51,25 +61,25 @@ const allowedOrigins = [
 
 const corsOptions = (process.env.NODE_ENV === 'production')
   ? {
-      origin: function (origin, callback) {
-        if (!origin) return callback(null, true);
-        if (allowedOrigins.indexOf(origin) !== -1 || /\.vercel\.app$/.test(origin)) {
-          callback(null, true);
-        } else {
-          console.log('CORS blocked origin:', origin);
-          callback(new Error('Not allowed by CORS'));
-        }
-      },
-      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-      credentials: true,
-      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
-    }
+    origin: function (origin, callback) {
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.indexOf(origin) !== -1 || /\.vercel\.app$/.test(origin)) {
+        callback(null, true);
+      } else {
+        console.log('CORS blocked origin:', origin);
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
+  }
   : {
-      origin: true, // Reflect request origin for local/LAN dev
-      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-      credentials: true,
-      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
-    };
+    origin: true, // Reflect request origin for local/LAN dev
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
+  };
 
 app.use(cors(corsOptions));
 
@@ -90,18 +100,25 @@ app.use("/api/applications", applicationsRoute);
 app.use("/api/documents", documentsRoute);
 app.use("/api/ml", mlRoute);
 app.use("/api/auth", authRoute);
+app.use("/api/google", googleRoute);
+
+// OAuth2 callback route (at root level for Google redirect)
+app.get('/oauth2callback', (req, res) => {
+  // Redirect to the google route handler
+  res.redirect(`/api/google/callback?${new URLSearchParams(req.query).toString()}`);
+});
 
 // ✅ 8. Error handling middleware
 app.use((err, req, res, next) => {
   console.error('Server error:', err);
-  res.status(500).json({ 
+  res.status(500).json({
     error: 'Internal server error',
     message: process.env.NODE_ENV === 'development' ? err.message : undefined
   });
 });
 
 // ✅ 9. Start server
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📦 Compression: ENABLED`);

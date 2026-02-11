@@ -44,6 +44,12 @@ const categorizeExperience = (expText) => {
   return "10+ Years";
 };
 
+// Helper function to capitalize first letter of department names
+const capitalizeDepartmentName = (name) => {
+  if (!name) return 'Unknown';
+  return name.charAt(0).toUpperCase() + name.slice(1);
+};
+
 export default function AnalyticsDashboard({ selectedView = 'teaching' }) {
   const [genderData, setGenderData] = useState([]);
   const [departmentData, setDepartmentData] = useState([]);
@@ -121,7 +127,7 @@ export default function AnalyticsDashboard({ selectedView = 'teaching' }) {
         }, {});
         setDepartmentData(
           Object.entries(deptCounts).map(([d, count], index) => ({
-            name: d,
+            name: capitalizeDepartmentName(d),
             applications: count,
             color: DEPARTMENT_COLORS[index % DEPARTMENT_COLORS.length]
           }))

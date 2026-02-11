@@ -90,7 +90,7 @@ router.get('/rankings/top', cache.middleware(30), async (req, res) => {
     }
 
     const appIds = top.map(a => a.id).filter(Boolean);
-    
+
     // Fetch all teaching posts, research data, and teaching/research institutions in parallel
     const [teachingPostsData, researchData, researchExpData, teachingExpData] = await Promise.all([
       supabase
@@ -98,18 +98,18 @@ router.get('/rankings/top', cache.middleware(30), async (req, res) => {
         .select('application_id, post')
         .in('application_id', appIds)
         .order('start_date', { ascending: false }),
-      
+
       supabase
         .from('research_info')
         .select('application_id, scopus_general_papers, conference_papers, scopus_id, orchid_id')
         .in('application_id', appIds),
-      
+
       supabase
         .from('research_experiences')
         .select('application_id, institution')
         .in('application_id', appIds)
         .limit(1),
-      
+
       supabase
         .from('teaching_experiences')
         .select('application_id, institution')
@@ -151,7 +151,7 @@ router.get('/rankings/top', cache.middleware(30), async (req, res) => {
     const enriched = top.map(app => {
       const uniLower = (app.university || '').toLowerCase();
       let { nirf10, qs10 } = scoringService.getUniversityRankingScores(uniLower);
-      
+
       const teachingPost = teachingPostMap.get(app.id);
       const research = researchMap.get(app.id);
 
@@ -183,10 +183,10 @@ router.get('/rankings/top', cache.middleware(30), async (req, res) => {
         researchScore10 = Math.min(Math.round(paperScore * 10) / 10, 10);
       }
 
-      return { 
-        ...app, 
-        nirf10, 
-        qs10, 
+      return {
+        ...app,
+        nirf10,
+        qs10,
         teachingPost,
         researchScore10,
         totalPapers
@@ -197,6 +197,17 @@ router.get('/rankings/top', cache.middleware(30), async (req, res) => {
   } catch (error) {
     console.error('Error fetching top rankings:', error);
     res.status(500).json({ error: error.message || 'Failed to fetch top rankings' });
+  }
+});
+
+// ⚡ Get available timezones (MUST be before /:id route!)
+router.get('/timezones', async (req, res) => {
+  try {
+    const timezones = await googleCalendarService.getTimezones();
+    res.json({ timezones });
+  } catch (error) {
+    console.error('Error fetching timezones:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 
@@ -492,11 +503,11 @@ router.post(
 
       // Insert research info (always insert if research data exists)
       if (researchInfo && (
-        researchInfo.scopus_id || 
-        researchInfo.google_scholar_id || 
+        researchInfo.scopus_id ||
+        researchInfo.google_scholar_id ||
         researchInfo.orchid_id ||
-        researchInfo.scopus_general_papers || 
-        researchInfo.conference_papers || 
+        researchInfo.scopus_general_papers ||
+        researchInfo.conference_papers ||
         researchInfo.edited_books
       )) {
         const { error: infoError } = await supabase
@@ -604,14 +615,14 @@ router.get('/all/detailed', cache.middleware(120), async (req, res) => {
 router.post('/send-confirmation/:id', async (req, res) => {
   try {
     const applicationId = parseInt(req.params.id);
-    
+
     // Get application details from database
     const { data: application, error: fetchError } = await supabase
       .from('faculty_applications')
       .select('*')
       .eq('id', applicationId)
       .single();
-    
+
     if (fetchError || !application) {
       return res.status(404).json({ error: 'Application not found' });
     }
@@ -623,7 +634,7 @@ router.post('/send-confirmation/:id', async (req, res) => {
 
     // Construct base URL from environment or use PORT variable
     const baseUrl = process.env.API_BASE_URL || (
-      process.env.NODE_ENV === 'production' 
+      process.env.NODE_ENV === 'production'
         ? 'https://your-production-domain.com'
         : `http://localhost:${process.env.PORT || 5000}`
     );
@@ -659,8 +670,8 @@ router.post('/send-confirmation/:id', async (req, res) => {
     // Invalidate cache
     cache.delPattern(`req:/api/applications/*`).catch(console.error);
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       message: 'Interview confirmation email sent successfully',
       messageId: emailResult.messageId
     });
@@ -772,9 +783,9 @@ const handleConfirmResponse = async (req, res) => {
         <div class="icon">${response === 'ACCEPTED' ? '✓' : '✗'}</div>
         <h1>${response === 'ACCEPTED' ? 'Response Confirmed!' : 'Response Recorded'}</h1>
         <div class="message">
-            ${response === 'ACCEPTED' 
-              ? 'Thank you for confirming your availability. Our team will schedule your interview shortly and send you the details via email.' 
-              : 'Thank you for your response. We appreciate you letting us know.'}
+            ${response === 'ACCEPTED'
+          ? 'Thank you for confirming your availability. Our team will schedule your interview shortly and send you the details via email.'
+          : 'Thank you for your response. We appreciate you letting us know.'}
         </div>
         <p>You can now close this page.</p>
     </div>
@@ -804,20 +815,20 @@ router.get('/debug/check-confirmation/:id', async (req, res) => {
   try {
     const applicationId = parseInt(req.params.id);
     console.log('🔍 DEBUG: Checking application:', applicationId);
-    
+
     const { data, error } = await supabase
       .from('faculty_applications')
       .select('id, first_name, last_name, confirmation_response')
       .eq('id', applicationId)
       .single();
-    
+
     if (error) {
       console.error('❌ Error fetching application:', error);
       return res.status(500).json({ error: error.message });
     }
-    
+
     console.log('✅ Application data:', data);
-    res.json({ 
+    res.json({
       success: true,
       application: data,
       confirmationResponse: data?.confirmation_response,
@@ -827,6 +838,656 @@ router.get('/debug/check-confirmation/:id', async (req, res) => {
     console.error('Error in debug endpoint:', err);
     res.status(500).json({ error: err.message });
   }
+});
+
+// ========================================
+// 🆕 ENHANCED SCHEDULING ENDPOINTS
+// ========================================
+
+// Import Google Calendar service
+import googleCalendarService from '../../services/googleCalendarService.js';
+
+// ⚡ NEW: Send interview confirmation with date/time/timezone
+router.post('/send-confirmation-enhanced/:id', async (req, res) => {
+  try {
+    const applicationId = parseInt(req.params.id);
+    const { date, time, timezone } = req.body;
+
+    // Validate inputs
+    if (!date || !time || !timezone) {
+      return res.status(400).json({
+        error: 'Date, time, and timezone are required'
+      });
+    }
+
+    // Get application details
+    const { data: application, error: fetchError } = await supabase
+      .from('faculty_applications')
+      .select('*')
+      .eq('id', applicationId)
+      .single();
+
+    if (fetchError || !application) {
+      return res.status(404).json({ error: 'Application not found' });
+    }
+
+    if (!application.email) {
+      return res.status(400).json({ error: 'Candidate email not found' });
+    }
+
+    // Store interview details in database
+    const { error: updateError } = await supabase
+      .from('faculty_applications')
+      .update({
+        interview_date: date,
+        interview_time: time,
+        interview_timezone: timezone,
+        confirmation_response: 'PENDING'
+      })
+      .eq('id', applicationId);
+
+    if (updateError) {
+      console.error('Error storing interview details:', updateError);
+      return res.status(500).json({ error: 'Failed to store interview details' });
+    }
+
+    // Construct base URL
+    const baseUrl = process.env.API_BASE_URL ||
+      `http://localhost:${process.env.PORT || 5001}`;
+
+    // Send enhanced confirmation email with date/time/timezone
+    const emailResult = await emailService.sendEnhancedInterviewConfirmationEmail(
+      applicationId,
+      application.email,
+      `${application.first_name} ${application.last_name}`,
+      application.position || application.positionApplied || 'Faculty Position',
+      application.department || 'Not specified',
+      date,
+      time,
+      timezone,
+      baseUrl
+    );
+
+    if (!emailResult.success) {
+      return res.status(500).json({ error: emailResult.error || 'Failed to send email' });
+    }
+
+    // Invalidate cache
+    cache.delPattern(`req:/api/applications/*`).catch(console.error);
+
+    res.json({
+      success: true,
+      message: 'Interview confirmation sent with scheduled date/time',
+      messageId: emailResult.messageId
+    });
+
+  } catch (error) {
+    console.error('Error sending enhanced confirmation:', error);
+    res.status(500).json({ error: error.message || 'Failed to send confirmation' });
+  }
+});
+
+// ⚡ NEW: Handle "I Can Attend" - Auto-create Google Calendar event
+router.get('/confirm-accept/:id', async (req, res) => {
+  try {
+    const applicationId = parseInt(req.params.id);
+
+    // Get application details with interview schedule
+    const { data: application, error: fetchError } = await supabase
+      .from('faculty_applications')
+      .select('*')
+      .eq('id', applicationId)
+      .single();
+
+    if (fetchError || !application) {
+      return res.status(404).json({ error: 'Application not found' });
+    }
+
+    // Check if interview details exist
+    if (!application.interview_date || !application.interview_time || !application.interview_timezone) {
+      return res.status(400).json({
+        error: 'Interview schedule not found. Please contact HR.'
+      });
+    }
+
+    // Format date properly (Supabase returns YYYY-MM-DD format)
+    let interviewDate = application.interview_date;
+    if (interviewDate instanceof Date) {
+      interviewDate = interviewDate.toISOString().split('T')[0];
+    } else if (typeof interviewDate === 'string' && interviewDate.includes('T')) {
+      interviewDate = interviewDate.split('T')[0];
+    }
+
+    // Format time properly (ensure HH:MM format)
+    let interviewTime = application.interview_time;
+    if (typeof interviewTime === 'string' && interviewTime.length > 5) {
+      interviewTime = interviewTime.substring(0, 5); // Get HH:MM from HH:MM:SS
+    }
+
+    console.log('📅 Creating calendar event with:', {
+      date: interviewDate,
+      time: interviewTime,
+      timezone: application.interview_timezone,
+      email: application.email
+    });
+
+    // Create Google Calendar event automatically
+    try {
+      const calendarEvent = await googleCalendarService.createInterviewEvent({
+        candidateEmail: application.email,
+        candidateName: `${application.first_name} ${application.last_name}`,
+        date: interviewDate,
+        time: interviewTime,
+        timezone: application.interview_timezone,
+        position: application.position || application.positionApplied || 'Faculty Position'
+      });
+
+      // Update database with ACCEPTED status and calendar event ID
+      const { error: updateError } = await supabase
+        .from('faculty_applications')
+        .update({
+          confirmation_response: 'ACCEPTED',
+          google_calendar_event_id: calendarEvent.eventId
+        })
+        .eq('id', applicationId);
+
+      if (updateError) {
+        console.error('Error updating to ACCEPTED:', updateError);
+      }
+
+      // Invalidate cache
+      cache.delPattern(`req:/api/applications/*`).catch(console.error);
+
+      // Return success HTML page
+      const htmlPage = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interview Confirmed</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            text-align: center;
+            max-width: 500px;
+        }
+        .icon { font-size: 60px; margin-bottom: 20px; }
+        h1 { color: #10b981; margin-bottom: 10px; }
+        p { color: #666; line-height: 1.6; }
+        .meet-link {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 12px 24px;
+            background: #10b981;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .meet-link:hover { background: #059669; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="icon">✅</div>
+        <h1>Interview Confirmed!</h1>
+        <p>Thank you for confirming your attendance. A Google Calendar invitation with the Google Meet link has been sent to your email.</p>
+        <p><strong>Interview Details:</strong></p>
+        <p>📅 ${application.interview_date}<br>
+           🕒 ${application.interview_time} (${application.interview_timezone})</p>
+        ${calendarEvent.meetLink ? `<a href="${calendarEvent.meetLink}" class="meet-link">Join Google Meet</a>` : ''}
+        <p style="margin-top: 20px; font-size: 14px; color: #999;">You can close this window now.</p>
+    </div>
+</body>
+</html>`;
+
+      res.send(htmlPage);
+
+    } catch (calendarError) {
+      console.error('❌ Google Calendar error:', calendarError.message);
+      console.error('❌ Full error:', JSON.stringify(calendarError.response?.data || calendarError, null, 2));
+
+      // Still update to ACCEPTED even if calendar fails
+      await supabase
+        .from('faculty_applications')
+        .update({ confirmation_response: 'ACCEPTED' })
+        .eq('id', applicationId);
+
+      return res.status(500).json({
+        error: 'Interview confirmed but calendar event creation failed. HR will contact you.'
+      });
+    }
+
+  } catch (error) {
+    console.error('Error in confirm-accept:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ⚡ NEW: Handle "Prefer Another Time Slot" - Store candidate message
+router.post('/prefer-another-time/:id', async (req, res) => {
+  try {
+    const applicationId = parseInt(req.params.id);
+    const { message } = req.body;
+
+    // Validate message (70 word limit)
+    if (!message || message.trim().length === 0) {
+      return res.status(400).json({ error: 'Message is required' });
+    }
+
+    const wordCount = message.trim().split(/\s+/).length;
+    if (wordCount > 70) {
+      return res.status(400).json({
+        error: `Message exceeds 70 word limit (${wordCount} words)`
+      });
+    }
+
+    // Get current application
+    const { data: application, error: fetchError } = await supabase
+      .from('faculty_applications')
+      .select('*')
+      .eq('id', applicationId)
+      .single();
+
+    if (fetchError || !application) {
+      return res.status(404).json({ error: 'Application not found' });
+    }
+
+    // Check negotiation limit (max 2 rounds)
+    const currentCount = application.negotiation_count || 0;
+    if (currentCount >= 2) {
+      return res.status(400).json({
+        error: 'Maximum negotiation limit reached. Please contact HR directly.'
+      });
+    }
+
+    // Add message to communication history
+    const history = application.communication_history || [];
+    history.push({
+      timestamp: new Date().toISOString(),
+      sender: 'candidate',
+      message: message.trim(),
+      type: 'prefer_another_time'
+    });
+
+    // Update database
+    const { error: updateError } = await supabase
+      .from('faculty_applications')
+      .update({
+        candidate_response_message: message.trim(),
+        communication_history: history,
+        negotiation_count: currentCount + 1,
+        confirmation_response: 'PENDING' // Keep as PENDING
+      })
+      .eq('id', applicationId);
+
+    if (updateError) {
+      console.error('Error storing candidate message:', updateError);
+      return res.status(500).json({ error: 'Failed to store message' });
+    }
+
+    // Invalidate cache
+    cache.delPattern(`req:/api/applications/*`).catch(console.error);
+
+    // Return success HTML page
+    const htmlPage = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Response Submitted</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            text-align: center;
+            max-width: 500px;
+        }
+        .icon { font-size: 60px; margin-bottom: 20px; }
+        h1 { color: #3b82f6; margin-bottom: 10px; }
+        p { color: #666; line-height: 1.6; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="icon">📨</div>
+        <h1>Response Submitted!</h1>
+        <p>Thank you for your response. Our HR team will review your message and get back to you shortly with an alternative time slot.</p>
+        <p style="margin-top: 20px; font-size: 14px; color: #999;">You can close this window now.</p>
+    </div>
+</body>
+</html>`;
+
+    res.send(htmlPage);
+
+  } catch (error) {
+    console.error('Error in prefer-another-time:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ⚡ NEW: Admin reply to candidate's message
+router.post('/admin-reply/:id', async (req, res) => {
+  try {
+    const applicationId = parseInt(req.params.id);
+    const { message } = req.body;
+
+    if (!message || message.trim().length === 0) {
+      return res.status(400).json({ error: 'Reply message is required' });
+    }
+
+    // Get current application
+    const { data: application, error: fetchError } = await supabase
+      .from('faculty_applications')
+      .select('*')
+      .eq('id', applicationId)
+      .single();
+
+    if (fetchError || !application) {
+      return res.status(404).json({ error: 'Application not found' });
+    }
+
+    // Add admin reply to communication history
+    const history = application.communication_history || [];
+    history.push({
+      timestamp: new Date().toISOString(),
+      sender: 'admin',
+      message: message.trim(),
+      type: 'reply'
+    });
+
+    // Update database
+    const { error: updateError } = await supabase
+      .from('faculty_applications')
+      .update({
+        communication_history: history
+      })
+      .eq('id', applicationId);
+
+    if (updateError) {
+      console.error('Error storing admin reply:', updateError);
+      return res.status(500).json({ error: 'Failed to store reply' });
+    }
+
+    // Send email to candidate
+    const emailResult = await emailService.sendAdminReplyEmail(
+      application.email,
+      `${application.first_name} ${application.last_name}`,
+      message.trim()
+    );
+
+    if (!emailResult.success) {
+      console.error('Failed to send reply email:', emailResult.error);
+      // Don't fail the request, message is stored in DB
+    }
+
+    // Invalidate cache
+    cache.delPattern(`req:/api/applications/*`).catch(console.error);
+
+    res.json({
+      success: true,
+      message: 'Reply sent to candidate'
+    });
+
+  } catch (error) {
+    console.error('Error in admin-reply:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ⚡ NEW: Get communication history for an application
+router.get('/communication-history/:id', async (req, res) => {
+  try {
+    const applicationId = parseInt(req.params.id);
+
+    const { data: application, error } = await supabase
+      .from('faculty_applications')
+      .select('communication_history, candidate_response_message, negotiation_count')
+      .eq('id', applicationId)
+      .single();
+
+    if (error || !application) {
+      return res.status(404).json({ error: 'Application not found' });
+    }
+
+    res.json({
+      history: application.communication_history || [],
+      latestMessage: application.candidate_response_message,
+      negotiationCount: application.negotiation_count || 0
+    });
+
+  } catch (error) {
+    console.error('Error fetching communication history:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ⚡ NEW: Serve HTML form for "Prefer Another Time Slot"
+router.get('/prefer-another-time-form/:id', async (req, res) => {
+  const applicationId = parseInt(req.params.id);
+
+  const htmlForm = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prefer Another Time Slot</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            max-width: 600px;
+            width: 100%;
+        }
+        h1 {
+            color: #3b82f6;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        p {
+            color: #666;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+        label {
+            display: block;
+            color: #333;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 15px;
+            font-family: inherit;
+            resize: vertical;
+            min-height: 150px;
+            transition: border-color 0.3s;
+        }
+        textarea:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+        .word-count {
+            text-align: right;
+            color: #6b7280;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+        .word-count.warning { color: #f59e0b; }
+        .word-count.error { color: #ef4444; }
+        button {
+            width: 100%;
+            padding: 14px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: background 0.3s;
+        }
+        button:hover { background: #2563eb; }
+        button:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+        .error-message {
+            background: #fee2e2;
+            color: #dc2626;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 15px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔄 Prefer Another Time Slot</h1>
+        <p>Please let us know your preferred time or any constraints you have. Our HR team will review your message and get back to you with an alternative schedule.</p>
+        
+        <form id="preferForm">
+            <label for="message">Your Message (Maximum 70 words):</label>
+            <textarea 
+                id="message" 
+                name="message" 
+                placeholder="Example: I'm not available on the proposed date due to prior commitments. I would prefer any time slot between March 15-20, preferably in the afternoon (IST)."
+                required
+            ></textarea>
+            <div class="word-count" id="wordCount">0 / 70 words</div>
+            
+            <button type="submit" id="submitBtn">Submit Response</button>
+            
+            <div class="error-message" id="errorMessage"></div>
+        </form>
+    </div>
+    
+    <script>
+        const textarea = document.getElementById('message');
+        const wordCountEl = document.getElementById('wordCount');
+        const submitBtn = document.getElementById('submitBtn');
+        const errorMessage = document.getElementById('errorMessage');
+        const form = document.getElementById('preferForm');
+        
+        // Word count tracker
+        textarea.addEventListener('input', () => {
+            const text = textarea.value.trim();
+            const words = text.length > 0 ? text.split(/\\s+/).length : 0;
+            
+            wordCountEl.textContent = \`\${words} / 70 words\`;
+            
+            if (words > 70) {
+                wordCountEl.classList.add('error');
+                wordCountEl.classList.remove('warning');
+                submitBtn.disabled = true;
+            } else if (words > 60) {
+                wordCountEl.classList.add('warning');
+                wordCountEl.classList.remove('error');
+                submitBtn.disabled = false;
+            } else {
+                wordCountEl.classList.remove('warning', 'error');
+                submitBtn.disabled = false;
+            }
+        });
+        
+        // Form submission
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const message = textarea.value.trim();
+            const words = message.split(/\\s+/).length;
+            
+            if (words > 70) {
+                errorMessage.textContent = \`Message exceeds 70 word limit (\${words} words). Please shorten your message.\`;
+                errorMessage.style.display = 'block';
+                return;
+            }
+            
+            if (message.length === 0) {
+                errorMessage.textContent = 'Please enter a message.';
+                errorMessage.style.display = 'block';
+                return;
+            }
+            
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Submitting...';
+            errorMessage.style.display = 'none';
+            
+            try {
+                const response = await fetch('/api/applications/prefer-another-time/${applicationId}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ message })
+                });
+                
+                if (response.ok) {
+                    // Success - the endpoint returns HTML
+                    const html = await response.text();
+                    document.body.innerHTML = html;
+                } else {
+                    const data = await response.json();
+                    errorMessage.textContent = data.error || 'Failed to submit response';
+                    errorMessage.style.display = 'block';
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Submit Response';
+                }
+            } catch (error) {
+                errorMessage.textContent = 'Network error. Please try again.';
+                errorMessage.style.display = 'block';
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Submit Response';
+            }
+        });
+    </script>
+</body>
+</html>`;
+
+  res.send(htmlForm);
 });
 
 export default router;

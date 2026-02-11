@@ -13,7 +13,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "@supabase/supabase-js": "^2.52.0",
+    "@supabase/supabase-js": "^2.93.2",
     "@upstash/redis": "^1.35.6",
     "compression": "^1.8.1",
     "cors": "^2.8.5",
@@ -21,6 +21,7 @@
     "dotenv": "16.4.5",
     "express": "4.18.2",
     "express-rate-limit": "^8.2.1",
+    "googleapis": "^171.1.0",
     "multer": "^1.4.5-lts.1",
     "nodemailer": "^6.10.1",
     "pg": "^8.16.3",

@@ -4,3 +4,19 @@ text
 vite-admin/hirewise-admin-vite/npm-cache/
 vite-admin/hirewise-admin-vite/vercel.staging.json
 vite-admin/server/output.log
+# Environment files
+vite-admin/server/.env
+vite-admin/server/.env.local
+vite-admin/server/.env.production
+vite-admin/hirewise-admin-vite/.env
+vite-admin/hirewise-admin-vite/.env.local
+vite-admin/hirewise-admin-vite/.env.production
+
+# Dependencies
+node_modules/
+vite-admin/server/node_modules/
+vite-admin/hirewise-admin-vite/node_modules/
+
+# Cache
+.DS_Store
+*.log

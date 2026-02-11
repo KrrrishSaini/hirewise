@@ -30,7 +30,7 @@ const Dashboard = () => {
   const [confirmationStates, setConfirmationStates] = useState({}); // Track confirmation status per application
   const [sendingConfirmation, setSendingConfirmation] = useState({}); // Track which confirmations are being sent
   const [schedulingInterview, setSchedulingInterview] = useState({}); // Track which interviews are being scheduled
-  
+
 
   // Remove default margins from body and html
   useEffect(() => {
@@ -38,7 +38,7 @@ const Dashboard = () => {
     document.body.style.padding = '0';
     document.documentElement.style.margin = '0';
     document.documentElement.style.padding = '0';
-    
+
     return () => {
       // Cleanup on unmount
       document.body.style.margin = '';
@@ -99,14 +99,14 @@ const Dashboard = () => {
 
     // Immediate fetch without delay
     fetchCandidates();
-    
+
     // Refetch when window gains focus (user returns from other pages)
     const handleFocus = () => {
       fetchCandidates();
     };
-    
+
     window.addEventListener('focus', handleFocus);
-    
+
     return () => {
       window.removeEventListener('focus', handleFocus);
     };
@@ -117,7 +117,7 @@ const Dashboard = () => {
   const displayCandidates = React.useMemo(() => {
     return candidates.filter(candidate => {
       const position = (candidate.positionApplied || candidate.position || '').toLowerCase();
-      
+
       if (selectedView === 'teaching') {
         // Teaching positions include Professor, Associate Professor, Assistant Professor
         return position.includes('professor') || position === 'teaching';
@@ -135,61 +135,61 @@ const Dashboard = () => {
   };
 
   // Filter candidates based on selected department
-const getFilteredCandidates = () => {
-  let filtered = displayCandidates;
-  
-  // Department filter (existing)
-  if (departmentFilter !== 'All') {
-    filtered = filtered.filter(candidate => candidate.department === departmentFilter);
-  }
-  
-  // School filter - match against both 'school' field and 'department' for backwards compatibility
-  if (schoolFilter !== 'All') {
+  const getFilteredCandidates = () => {
+    let filtered = displayCandidates;
+
+    // Department filter (existing)
+    if (departmentFilter !== 'All') {
+      filtered = filtered.filter(candidate => candidate.department === departmentFilter);
+    }
+
+    // School filter - match against both 'school' field and 'department' for backwards compatibility
+    if (schoolFilter !== 'All') {
+      filtered = filtered.filter(candidate => {
+        const candidateSchool = candidate.school || '';
+        const candidateDept = candidate.department || '';
+
+        // Map department names to school names for filtering
+        const deptToSchoolMap = {
+          'engineering': 'School of Engineering',
+          'law': 'School of Law',
+          'management': 'School of Management',
+          'liberal': 'School of Liberal Studies'
+        };
+
+        const expectedSchool = deptToSchoolMap[candidateDept.toLowerCase()] || candidateSchool;
+
+        return candidateSchool === schoolFilter || expectedSchool === schoolFilter;
+      });
+    }
+
+    // Position filter - check multiple possible fields for the position
+    if (positionFilter !== 'All') {
+      filtered = filtered.filter(candidate => {
+        // Check various possible fields where position might be stored
+        const positionApplied = candidate.positionApplied || candidate.position || '';
+        const teachingPost = candidate.teachingPost || candidate.teaching_post || '';
+        const post = candidate.post || '';
+
+        // Check if any of these fields match the filter
+        return positionApplied === positionFilter ||
+          teachingPost === positionFilter ||
+          post === positionFilter ||
+          // Also check if the position contains the filter (for partial matches)
+          positionApplied.includes(positionFilter) ||
+          teachingPost.includes(positionFilter) ||
+          post.includes(positionFilter);
+      });
+    }
+
+    // Status filter - exclude rejected applications from Top 10 list
     filtered = filtered.filter(candidate => {
-      const candidateSchool = candidate.school || '';
-      const candidateDept = candidate.department || '';
-      
-      // Map department names to school names for filtering
-      const deptToSchoolMap = {
-        'engineering': 'School of Engineering',
-        'law': 'School of Law',
-        'management': 'School of Management',
-        'liberal': 'School of Liberal Studies'
-      };
-      
-      const expectedSchool = deptToSchoolMap[candidateDept.toLowerCase()] || candidateSchool;
-      
-      return candidateSchool === schoolFilter || expectedSchool === schoolFilter;
+      const status = (candidate.status || '').toLowerCase();
+      return status !== 'final_rejected';
     });
-  }
-  
-  // Position filter - check multiple possible fields for the position
-  if (positionFilter !== 'All') {
-    filtered = filtered.filter(candidate => {
-      // Check various possible fields where position might be stored
-      const positionApplied = candidate.positionApplied || candidate.position || '';
-      const teachingPost = candidate.teachingPost || candidate.teaching_post || '';
-      const post = candidate.post || '';
-      
-      // Check if any of these fields match the filter
-      return positionApplied === positionFilter || 
-             teachingPost === positionFilter || 
-             post === positionFilter ||
-             // Also check if the position contains the filter (for partial matches)
-             positionApplied.includes(positionFilter) ||
-             teachingPost.includes(positionFilter) ||
-             post.includes(positionFilter);
-    });
-  }
-  
-  // Status filter - exclude rejected applications from Top 10 list
-  filtered = filtered.filter(candidate => {
-    const status = (candidate.status || '').toLowerCase();
-    return status !== 'final_rejected';
-  });
-  
-  return filtered;
-};
+
+    return filtered;
+  };
   const filteredCandidates = getFilteredCandidates();
 
   // Sort by the active ranking metric (QS or NIRF) in descending order
@@ -206,12 +206,12 @@ const getFilteredCandidates = () => {
   // Get paper count for display (sorted descending, highest on top)
   const computeResearchRank = (list, cand) => {
     if (!list || !list.length) return '—';
-    
+
     // If H-Index is selected, show N/A since we don't have Scopus H-Index data yet
     if (researchMetric === 'H-Index') {
       return 'N/A';
     }
-    
+
     // For Papers metric, just return the paper count (no rank)
     const paperCount = typeof cand.totalPapers === 'number' ? cand.totalPapers : -1;
     if (paperCount < 0) return '—';
@@ -236,7 +236,7 @@ const getFilteredCandidates = () => {
   };
 
   //Total application count,inreview, shortlisted value
-  
+
   // here is the code for school filter
   const getSchoolFilterOptions = () => {
     // Use the same school options as in the submission form
@@ -248,7 +248,7 @@ const getFilteredCandidates = () => {
       'School of Liberal Studies'
     ];
   };
-  
+
   const handleSchoolFilterChange = (school) => {
     setSchoolFilter(school);
     setIsSchoolFilterOpen(false);
@@ -256,25 +256,25 @@ const getFilteredCandidates = () => {
 
 
   //code for PositionApplied filter
-const getPositionFilterOptions = () => {
-  // Use the standard positions from the form
-  return [
-    'All',
-    'Professor',
-    'Associate Professor',
-    'Assistant Professor'
-  ];
-};
+  const getPositionFilterOptions = () => {
+    // Use the standard positions from the form
+    return [
+      'All',
+      'Professor',
+      'Associate Professor',
+      'Assistant Professor'
+    ];
+  };
 
   const openCandidatePopup = async (candidate) => {
     setIsPopupOpen(true);
     setSelectedCandidate({ ...candidate, loading: true });
-    
+
     // Fetch complete application details including education, experience, etc.
     try {
       const fullData = await candidatesApi.getById(candidate.id, { fresh: true });
       console.log('Full candidate data fetched:', fullData); // Debug log
-      
+
       // Fetch faculty evaluations for this candidate
       let evaluations = [];
       try {
@@ -283,20 +283,20 @@ const getPositionFilterOptions = () => {
           .select('*')
           .eq('application_id', candidate.id)
           .order('evaluated_at', { ascending: false });
-        
+
         if (!evalError && evalData) {
           evaluations = evalData;
         }
       } catch (evalErr) {
         console.error('Error fetching evaluations:', evalErr);
       }
-      
-      setSelectedCandidate({ 
-        ...candidate, 
+
+      setSelectedCandidate({
+        ...candidate,
         ...fullData,
         listRank: candidate.listRank,
         facultyEvaluations: evaluations,
-        loading: false 
+        loading: false
       });
     } catch (error) {
       console.error('Error fetching candidate details:', error);
@@ -318,9 +318,9 @@ const getPositionFilterOptions = () => {
         },
         body: JSON.stringify({ format: 'pdf' })
       });
-      
+
       const data = await response.json();
-      
+
       if (data.success) {
         // Open the generated report in a new tab
         window.open(data.report.url, '_blank');
@@ -341,7 +341,7 @@ const getPositionFilterOptions = () => {
     }
 
     setSendingConfirmation(prev => ({ ...prev, [candidate.id]: true }));
-    
+
     try {
       const response = await fetch(`${API_BASE}/api/applications/send-confirmation/${candidate.id}`, {
         method: 'POST',
@@ -379,10 +379,10 @@ const getPositionFilterOptions = () => {
 
     const eventTitle = `Interview – ${candidate.position || candidate.positionApplied || 'Faculty Position'}`;
     const eventDescription = `Interview with ${candidate.first_name} ${candidate.last_name || ''} for ${candidate.position || 'Faculty Position'} at BML Munjal University`;
-    
+
     // Google Calendar event URL
     const googleCalendarUrl = `https://calendar.google.com/calendar/u/0/r/eventedit?text=${encodeURIComponent(eventTitle)}&details=${encodeURIComponent(eventDescription)}&location=Google%20Meet&add=${encodeURIComponent(candidate.email)}`;
-    
+
     // Open Google Calendar in a new tab
     window.open(googleCalendarUrl, '_blank');
   };
@@ -413,7 +413,7 @@ const getPositionFilterOptions = () => {
         <div className="px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-            
+
             {/* Dropdown */}
             <div className="relative">
               <button
@@ -425,15 +425,14 @@ const getPositionFilterOptions = () => {
                 </span>
                 <ChevronDown className={`h-4 w-4 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
               </button>
-              
+
               {isDropdownOpen && (
                 <div className="absolute top-full left-0 mt-1 w-48 bg-white rounded-lg shadow-lg border z-50">
                   <div className="py-1">
                     <button
                       onClick={() => handleViewChange('teaching')}
-                      className={`w-full text-left px-4 py-2 hover:bg-gray-50 ${
-                        selectedView === 'teaching' ? 'bg-blue-50 text-blue-700' : 'text-gray-700'
-                      }`}
+                      className={`w-full text-left px-4 py-2 hover:bg-gray-50 ${selectedView === 'teaching' ? 'bg-blue-50 text-blue-700' : 'text-gray-700'
+                        }`}
                     >
                       Teaching
                     </button>
@@ -453,24 +452,24 @@ const getPositionFilterOptions = () => {
       </div>
 
       {/* Main Content - Scrollable */}
-     <div className="flex-1 overflow-y-auto">
-  <div className="p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto">
+        <div className="p-4 space-y-4">
           {/* Stats Cards */}
           <StatsCardsClient selectedView={selectedView} />
         </div>
 
         {/* Charts Section */}
-        
-           <Charts selectedView={selectedView} />
+
+        <Charts selectedView={selectedView} />
 
 
         {/* Top 10 Selected Candidates */}
         <div className="bg-white rounded-lg shadow-sm p-4 mb-4 mx-4">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-semibold text-gray-900">
+            <h2 className="text-xl font-bold text-gray-900">
               Top Selected Candidates ({loading ? 0 : Math.min(filteredCandidates.length, 10)}/10)
             </h2>
-            
+
             {/* Filters Row - All aligned together */}
             <div className="flex gap-3">
               {/* Position Filter */}
@@ -485,7 +484,7 @@ const getPositionFilterOptions = () => {
                   </span>
                   <ChevronDown className={`h-4 w-4 transition-transform ${isPositionFilterOpen ? 'rotate-180' : ''}`} />
                 </button>
-                
+
                 {isPositionFilterOpen && (
                   <div className="absolute top-full right-0 mt-1 w-56 bg-white rounded-lg shadow-lg border z-50 max-h-60 overflow-y-auto">
                     <div className="py-1">
@@ -496,9 +495,8 @@ const getPositionFilterOptions = () => {
                             setPositionFilter(option);
                             setIsPositionFilterOpen(false);
                           }}
-                          className={`w-full text-left px-4 py-2 hover:bg-gray-50 ${
-                            positionFilter === option ? 'bg-blue-50 text-blue-700' : 'text-gray-700'
-                          }`}
+                          className={`w-full text-left px-4 py-2 hover:bg-gray-50 ${positionFilter === option ? 'bg-blue-50 text-blue-700' : 'text-gray-700'
+                            }`}
                         >
                           {option}
                         </button>
@@ -520,7 +518,7 @@ const getPositionFilterOptions = () => {
                   </span>
                   <ChevronDown className={`h-4 w-4 transition-transform ${isSchoolFilterOpen ? 'rotate-180' : ''}`} />
                 </button>
-                
+
                 {isSchoolFilterOpen && (
                   <div className="absolute top-full right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border z-50">
                     <div className="py-1">
@@ -528,9 +526,8 @@ const getPositionFilterOptions = () => {
                         <button
                           key={option}
                           onClick={() => handleSchoolFilterChange(option)}
-                          className={`w-full text-left px-4 py-2 hover:bg-gray-50 ${
-                            schoolFilter === option ? 'bg-blue-50 text-blue-700' : 'text-gray-700'
-                          }`}
+                          className={`w-full text-left px-4 py-2 hover:bg-gray-50 ${schoolFilter === option ? 'bg-blue-50 text-blue-700' : 'text-gray-700'
+                            }`}
                         >
                           {option === 'All' ? 'All Schools' : option}
                         </button>
@@ -552,7 +549,7 @@ const getPositionFilterOptions = () => {
                   </span>
                   <ChevronDown className={`h-4 w-4 transition-transform ${isDepartmentFilterOpen ? 'rotate-180' : ''}`} />
                 </button>
-                
+
                 {isDepartmentFilterOpen && (
                   <div className="absolute top-full right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border z-50">
                     <div className="py-1">
@@ -560,9 +557,8 @@ const getPositionFilterOptions = () => {
                         <button
                           key={option}
                           onClick={() => handleDepartmentFilterChange(option)}
-                          className={`w-full text-left px-4 py-2 hover:bg-gray-50 ${
-                            departmentFilter === option ? 'bg-blue-50 text-blue-700' : 'text-gray-700'
-                          }`}
+                          className={`w-full text-left px-4 py-2 hover:bg-gray-50 ${departmentFilter === option ? 'bg-blue-50 text-blue-700' : 'text-gray-700'
+                            }`}
                         >
                           {option === 'All' ? 'All Departments' : option}
                         </button>
@@ -573,18 +569,18 @@ const getPositionFilterOptions = () => {
               </div>
             </div>
           </div>
-          
+
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-200">
-                  <th className="text-left py-2 px-2 text-xl font-medium text-gray-700">Rank</th>
-                  <th className="text-left py-2 px-2 text-xl font-medium text-gray-700">Name</th>
-                  <th className="text-left py-2 px-2 text-xl font-medium text-gray-700">Position Applied</th>
-                  <th className="text-left py-2 px-2 text-xl font-medium text-gray-700">Department</th>
-                  <th className="text-left py-2 px-2 text-xl font-medium text-gray-700">
+                  <th className="text-left py-3 px-2 text-base font-bold text-gray-900">Rank</th>
+                  <th className="text-left py-3 px-2 text-base font-bold text-gray-900">Name</th>
+                  <th className="text-left py-3 px-2 text-base font-bold text-gray-900">Position Applied</th>
+                  <th className="text-left py-3 px-2 text-base font-bold text-gray-900">Department</th>
+                  <th className="text-left py-3 px-2 text-base font-bold text-gray-900">
                     <div className="flex items-center gap-2">
-                      <span>Research Rank ({researchMetric})</span>
+                      <span>Research Rank</span>
                       {/* Research Metric Dropdown (Papers/H-Index) */}
                       <div className="relative">
                         <button
@@ -597,7 +593,7 @@ const getPositionFilterOptions = () => {
                         {isResearchMetricOpen && (
                           <div className="absolute top-full right-0 mt-1 w-32 bg-white rounded-lg shadow-lg border z-50">
                             <div className="py-1">
-                              {['Papers','H-Index'].map(opt => (
+                              {['Papers', 'H-Index'].map(opt => (
                                 <button
                                   key={opt}
                                   onClick={() => { setResearchMetric(opt); setIsResearchMetricOpen(false); }}
@@ -612,7 +608,7 @@ const getPositionFilterOptions = () => {
                       </div>
                     </div>
                   </th>
-                  <th className="text-left py-2 px-2 text-xl font-medium text-gray-700">
+                  <th className="text-left py-3 px-2 text-base font-bold text-gray-900">
                     <div className="flex items-center gap-2">
                       <span>{rankingMetric}</span>
                       {/* Ranking Metric Dropdown (NIRF/QS) */}
@@ -627,7 +623,7 @@ const getPositionFilterOptions = () => {
                         {isRankingMetricOpen && (
                           <div className="absolute top-full right-0 mt-1 w-32 bg-white rounded-lg shadow-lg border z-50">
                             <div className="py-1">
-                              {['NIRF','QS'].map(opt => (
+                              {['NIRF', 'QS'].map(opt => (
                                 <button
                                   key={opt}
                                   onClick={() => { setRankingMetric(opt); setIsRankingMetricOpen(false); }}
@@ -642,7 +638,7 @@ const getPositionFilterOptions = () => {
                       </div>
                     </div>
                   </th>
-                  <th className="text-left py-2 px-2 text-xl font-medium text-gray-700">Actions</th>
+                  <th className="text-left py-3 px-2 text-base font-bold text-gray-900">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -662,61 +658,59 @@ const getPositionFilterOptions = () => {
                       <td className="py-2 px-2">
                         <div className="flex items-center">
                           {/* Rank colored by gender: blue for Male, pink for Female */}
-                          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white ${
-                            (candidate.gender || '').toLowerCase() === 'female' ? 'bg-pink-500' : 'bg-blue-500'
-                          }`}>
+                          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white ${(candidate.gender || '').toLowerCase() === 'female' ? 'bg-pink-500' : 'bg-blue-500'
+                            }`}>
                             {index + 1}
                           </div>
                         </div>
                       </td>
-                      <td className="py-2 px-2 text-xl font-medium text-gray-900" style={{ fontFamily: 'Arial, sans-serif' }}>
-                        {candidate.first_name 
+                      <td className="py-3 px-2 text-base font-medium text-gray-900">
+                        {candidate.title ? `${candidate.title} ` : ''}{candidate.first_name
                           ? `${candidate.first_name.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ')}${candidate.last_name ? ' ' + candidate.last_name.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ') : ''}`
                           : 'N/A'
                         }
                       </td>
-                      <td className="py-2 px-2 text-xl text-gray-700">
+                      <td className="py-3 px-2 text-base font-medium text-gray-800">
                         {(candidate.teachingPost || candidate.positionApplied || candidate.position || 'N/A')
                           .split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ')}
                       </td>
-                      <td className="py-2 px-2">
-                        <span className={`inline-flex px-2 py-1 text-lg font-medium rounded-full ${getDepartmentColor(candidate.department)}`}>
+                      <td className="py-3 px-2">
+                        <span className={`inline-flex px-2 py-1 text-sm font-medium rounded-full ${getDepartmentColor(candidate.department)}`}>
                           {(candidate.department || 'N/A').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ')}
                         </span>
                       </td>
-                      <td className="py-2 px-2 text-xl font-bold text-gray-900">
+                      <td className="py-3 px-2 text-base font-medium text-gray-900">
                         {(() => {
                           // compute research rank among current view list
                           const key = candidate.id ?? index;
                           return computeResearchRank(sortedCandidates, candidate);
                         })()}
                       </td>
-                      <td className="py-2 px-2 text-xl font-bold text-gray-900">
+                      <td className="py-3 px-2 text-base font-bold text-gray-900">
                         {(() => {
-                          const metricValue = rankingMetric === 'NIRF' 
+                          const metricValue = rankingMetric === 'NIRF'
                             ? (candidate.nirf10 ?? null)
                             : (candidate.qs10 ?? null);
                           const val = typeof metricValue === 'number' ? metricValue : null;
                           return (
-                            <span className={`px-2 py-1 rounded-full text-xl font-medium ${
-                              val === null ? 'bg-gray-100 text-gray-600' :
-                              val >= 7 ? 'bg-green-100 text-green-800' :
-                              val >= 4 ? 'bg-yellow-100 text-yellow-800' :
-                              'bg-red-100 text-red-800'
-                            }`}>
+                            <span className={`px-2 py-1 rounded-full text-base font-bold ${val === null ? 'bg-gray-100 text-gray-600' :
+                                val >= 7 ? 'bg-green-100 text-green-800' :
+                                  val >= 4 ? 'bg-yellow-100 text-yellow-800' :
+                                    'bg-red-100 text-red-800'
+                              }`}>
                               {val !== null ? val.toFixed(1) : 'N/A'}
                             </span>
                           );
                         })()}
                       </td>
-                      
-                      <td className="py-2 px-2">
+
+                      <td className="py-3 px-2">
                         <div className="flex space-x-1">
                           <button
-                            onClick={() => generateReport(candidate.id || candidate.rank)}
-                            className="px-2 py-1 bg-green-600 text-white text-xs rounded-md hover:bg-green-700 transition-colors"
+                            onClick={() => openCandidatePopup(candidate)}
+                            className="px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
                           >
-                            Report
+                            View Details
                           </button>
                         </div>
                       </td>
@@ -737,16 +731,16 @@ const getPositionFilterOptions = () => {
 
       {/* Click outside to close dropdown */}
       {isDropdownOpen && (
-        <div 
-          className="fixed inset-0 z-40" 
+        <div
+          className="fixed inset-0 z-40"
           onClick={() => setIsDropdownOpen(false)}
         />
       )}
 
       {/* Click outside to close department filter */}
       {isDepartmentFilterOpen && (
-        <div 
-          className="fixed inset-0 z-40" 
+        <div
+          className="fixed inset-0 z-40"
           onClick={() => setIsDepartmentFilterOpen(false)}
         />
       )}
@@ -758,14 +752,13 @@ const getPositionFilterOptions = () => {
             {/* Header */}
             <div className="flex items-center justify-between p-6 border-b bg-gradient-to-r from-blue-50 to-indigo-50">
               <div className="flex items-center gap-4">
-                <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold text-white ${
-                  (selectedCandidate.gender || '').toLowerCase() === 'female' ? 'bg-pink-500' : 'bg-blue-500'
-                }`}>
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold text-white ${(selectedCandidate.gender || '').toLowerCase() === 'female' ? 'bg-pink-500' : 'bg-blue-500'
+                  }`}>
                   {selectedCandidate.listRank || 1}
                 </div>
                 <div>
                   <h2 className="text-2xl font-bold text-gray-900">
-                    {selectedCandidate.first_name 
+                    {selectedCandidate.first_name
                       ? `${selectedCandidate.first_name}${selectedCandidate.middle_name ? ' ' + selectedCandidate.middle_name : ''}${selectedCandidate.last_name ? ' ' + selectedCandidate.last_name : ''}`
                       : 'N/A'
                     }
@@ -860,7 +853,7 @@ const getPositionFilterOptions = () => {
                               )}
                             </div>
                           )}
-                          
+
                           {/* Master's */}
                           {selectedCandidate.master_institute && (
                             <div className="border-l-4 border-blue-500 pl-4">
@@ -877,7 +870,7 @@ const getPositionFilterOptions = () => {
                               )}
                             </div>
                           )}
-                          
+
                           {/* Bachelor's */}
                           {selectedCandidate.bachelor_institute && (
                             <div className="border-l-4 border-green-500 pl-4">
@@ -894,7 +887,7 @@ const getPositionFilterOptions = () => {
                               )}
                             </div>
                           )}
-                          
+
                           {/* Highest Degree Summary */}
                           <div className="bg-gray-50 rounded p-3 mt-2">
                             <p className="text-xs font-semibold text-gray-500 uppercase">Highest Qualification</p>
@@ -914,7 +907,7 @@ const getPositionFilterOptions = () => {
                             <p className="text-xs font-semibold text-blue-600 uppercase">Total Experience</p>
                             <p className="text-lg font-bold text-gray-900">{selectedCandidate.total_experience || selectedCandidate.experience || 'N/A'}</p>
                           </div>
-                          
+
                           {/* Teaching Experiences */}
                           {selectedCandidate.teachingExperiences && selectedCandidate.teachingExperiences.length > 0 && (
                             <div>
@@ -930,7 +923,7 @@ const getPositionFilterOptions = () => {
                               ))}
                             </div>
                           )}
-                          
+
                           {/* Research Experiences */}
                           {selectedCandidate.researchExperiences && selectedCandidate.researchExperiences.length > 0 && (
                             <div>
@@ -1012,9 +1005,8 @@ const getPositionFilterOptions = () => {
                             <p className="text-xs text-gray-600 mb-1">Overall Ranking</p>
                             <p className="text-3xl font-bold text-indigo-600">{selectedCandidate.total_score?.toFixed(1) || 'N/A'}</p>
                           </div>
-                          <div className={`w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold text-white ${
-                            (selectedCandidate.gender || '').toLowerCase() === 'female' ? 'bg-pink-500' : 'bg-blue-500'
-                          } shadow-xl`}>
+                          <div className={`w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold text-white ${(selectedCandidate.gender || '').toLowerCase() === 'female' ? 'bg-pink-500' : 'bg-blue-500'
+                            } shadow-xl`}>
                             {selectedCandidate.listRank || 1}
                           </div>
                         </div>
@@ -1051,7 +1043,7 @@ const getPositionFilterOptions = () => {
                               <span className="text-sm font-bold text-blue-600">{selectedCandidate.qs10 || 0}/10</span>
                             </div>
                             <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-                              <div 
+                              <div
                                 className="bg-gradient-to-r from-blue-400 to-blue-600 h-full rounded-full transition-all duration-500"
                                 style={{ width: `${((selectedCandidate.qs10 || 0) / 10) * 100}%` }}
                               ></div>
@@ -1065,7 +1057,7 @@ const getPositionFilterOptions = () => {
                               <span className="text-sm font-bold text-orange-600">{selectedCandidate.nirf10 || 0}/10</span>
                             </div>
                             <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-                              <div 
+                              <div
                                 className="bg-gradient-to-r from-orange-400 to-orange-600 h-full rounded-full transition-all duration-500"
                                 style={{ width: `${((selectedCandidate.nirf10 || 0) / 10) * 100}%` }}
                               ></div>
@@ -1079,7 +1071,7 @@ const getPositionFilterOptions = () => {
                               <span className="text-sm font-bold text-green-600">{selectedCandidate.researchScore10 || 0}/10</span>
                             </div>
                             <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-                              <div 
+                              <div
                                 className="bg-gradient-to-r from-green-400 to-green-600 h-full rounded-full transition-all duration-500"
                                 style={{ width: `${((selectedCandidate.researchScore10 || 0) / 10) * 100}%` }}
                               ></div>
@@ -1126,9 +1118,9 @@ const getPositionFilterOptions = () => {
                         <ResponsiveContainer width="100%" height={150}>
                           <BarChart
                             data={[
-                              { 
-                                name: 'Publications', 
-                                count: selectedCandidate.totalPapers || 0 
+                              {
+                                name: 'Publications',
+                                count: selectedCandidate.totalPapers || 0
                               }
                             ]}
                           >
@@ -1152,7 +1144,7 @@ const getPositionFilterOptions = () => {
                               <span className="text-sm font-bold text-blue-700">{selectedCandidate.qs10 || 0}/10</span>
                             </div>
                             <div className="w-full bg-gray-200 rounded-full h-6 overflow-hidden">
-                              <div 
+                              <div
                                 className="bg-gradient-to-r from-blue-400 to-blue-600 h-full rounded-full flex items-center justify-center text-xs font-bold text-white transition-all duration-500"
                                 style={{ width: `${((selectedCandidate.qs10 || 0) / 10) * 100}%`, minWidth: '30px' }}
                               >
@@ -1168,7 +1160,7 @@ const getPositionFilterOptions = () => {
                               <span className="text-sm font-bold text-orange-700">{selectedCandidate.nirf10 || 0}/10</span>
                             </div>
                             <div className="w-full bg-gray-200 rounded-full h-6 overflow-hidden">
-                              <div 
+                              <div
                                 className="bg-gradient-to-r from-orange-400 to-orange-600 h-full rounded-full flex items-center justify-center text-xs font-bold text-white transition-all duration-500"
                                 style={{ width: `${((selectedCandidate.nirf10 || 0) / 10) * 100}%`, minWidth: '30px' }}
                               >
@@ -1184,7 +1176,7 @@ const getPositionFilterOptions = () => {
                               <span className="text-sm font-bold text-green-700">{selectedCandidate.researchScore10 || 0}/10</span>
                             </div>
                             <div className="w-full bg-gray-200 rounded-full h-6 overflow-hidden">
-                              <div 
+                              <div
                                 className="bg-gradient-to-r from-green-400 to-green-600 h-full rounded-full flex items-center justify-center text-xs font-bold text-white transition-all duration-500"
                                 style={{ width: `${((selectedCandidate.researchScore10 || 0) / 10) * 100}%`, minWidth: '30px' }}
                               >
@@ -1235,12 +1227,12 @@ const getPositionFilterOptions = () => {
                                     <p className="text-xs text-gray-500">Average Score</p>
                                     <p className="text-lg font-bold text-yellow-600">
                                       {(
-                                        (evaluation.teaching_competence + 
-                                         evaluation.research_potential + 
-                                         evaluation.industry_experience + 
-                                         evaluation.communication_skills + 
-                                         evaluation.subject_knowledge + 
-                                         evaluation.overall_suitability) / 6
+                                        (evaluation.teaching_competence +
+                                          evaluation.research_potential +
+                                          evaluation.industry_experience +
+                                          evaluation.communication_skills +
+                                          evaluation.subject_knowledge +
+                                          evaluation.overall_suitability) / 6
                                       ).toFixed(1)}/10
                                     </p>
                                   </div>
