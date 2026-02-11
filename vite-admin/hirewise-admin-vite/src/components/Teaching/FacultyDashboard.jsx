@@ -270,36 +270,33 @@ const FacultyDashboard = () => {
   const fetchCandidates = async () => {
     try {
       setLoading(true);
-      
-      // Fetch candidates assigned to this committee from database
-      let { data, error } = await supabase
-        .from('faculty_applications')
-        .select('*')
-        .eq('assigned_committee_code', committeeCode)
-        .order('created_at', { ascending: false });
-      
-      if (error) {
-        const missingCommitteeColumn = typeof error.message === 'string' && error.message.toLowerCase().includes('assigned_committee_code');
-        if (missingCommitteeColumn) {
-          const fallback = await supabase
-            .from('faculty_applications')
-            .select('*')
-            .or(`assigned_faculty_email.eq.${committeeCode},assigned_faculty_name.eq.${committeeCode}`)
-            .order('created_at', { ascending: false });
-          if (fallback.error) throw fallback.error;
-          data = fallback.data;
-        } else {
-          throw error;
-        }
-      }
-      
-      // Keep all candidates assigned to this committee (exclude deleted)
-      const validCandidates = (data || []).filter(c =>
-        c.status !== 'deleted' && c.status !== 'Deleted'
-      );
+
+      // Use backend detailed endpoint (service-key query) to avoid RLS gaps on client-side joins.
+      const allCandidates = await candidatesApi.getAllDetailed('All', { fresh: true });
+
+      const validCandidates = (allCandidates || []).filter((c) => {
+        const assignedCode = (c.assigned_committee_code || '').toLowerCase();
+        const assignedEmail = (c.assigned_faculty_email || '').toLowerCase();
+        const assignedName = (c.assigned_faculty_name || '').toLowerCase();
+        const isAssigned =
+          assignedCode === committeeCode ||
+          assignedEmail === committeeCode ||
+          assignedName === committeeCode;
+        const notDeleted = c.status !== 'deleted' && c.status !== 'Deleted';
+        return isAssigned && notDeleted;
+      });
 
       const normalizedCandidates = validCandidates.map(candidate => ({
         ...candidate,
+        teachingPost:
+          candidate.post_applied_for ||
+          candidate.postAppliedFor ||
+          '',
+        nonTeachingPost:
+          candidate.nonTeachingPost ||
+          candidate.non_teaching_post ||
+          candidate.previous_positions ||
+          '',
         status: normalizeCandidateStatus(candidate.status)
       }));
       
@@ -783,15 +780,9 @@ const FacultyDashboard = () => {
   };
   const formatTeachingPost = (candidate) => {
     const raw =
-      candidate?.teachingPost ||
-      candidate?.teaching_post ||
-      candidate?.teaching_post_applied_for ||
-      candidate?.teaching_post_applied ||
-      candidate?.teachingPostAppliedFor ||
-      candidate?.teaching_post_appliedfor ||
       candidate?.post_applied_for ||
       candidate?.postAppliedFor ||
-      candidate?.post ||
+      candidate?.teachingPost ||
       '';
     if (!raw) return '';
     return toTitleCase(raw.replace(/_/g, ' '));
@@ -941,7 +932,7 @@ const FacultyDashboard = () => {
                             {formatCandidateName(candidate)}
                           </h3>
                           <span className="text-xs font-medium text-blue-600 bg-blue-100 px-2 py-1 rounded-full">
-                            {formatTeachingPost(candidate) || 'Teaching'}
+                            {formatTeachingPost(candidate) || 'Post not specified'}
                           </span>
                         </div>
                         <p className="text-sm text-gray-600 mb-1">

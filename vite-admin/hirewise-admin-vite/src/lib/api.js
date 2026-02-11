@@ -152,8 +152,15 @@ export const candidatesApi = {
   getTopRankings: (params = {}) => 
     api.get('/api/applications/rankings/top', { query: { limit: 100, ...params } }),
   
-  getAllDetailed: (department = 'All') => 
-    api.get('/api/applications/all/detailed', { query: department !== 'All' ? { department } : {} }),
+  getAllDetailed: (department = 'All', options = {}) => {
+    const { fresh = false } = options;
+    const query = department !== 'All' ? { department } : {};
+    if (fresh) query._t = Date.now();
+    return api.get('/api/applications/all/detailed', {
+      query,
+      skipCache: fresh,
+    });
+  },
   
   getById: (id, options = {}) => {
     const { fresh = false, query, ...rest } = options;

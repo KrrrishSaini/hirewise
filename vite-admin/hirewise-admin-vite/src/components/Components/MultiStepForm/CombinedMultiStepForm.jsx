@@ -2779,10 +2779,15 @@ const CombinedMultiStepForm = () => {
   fd.append('graduation_year', derivedGradYear);
   fd.append('previous_positions', normalized.previous_positions || '');
   fd.append('years_of_experience', normalized.totalExperience || '');
+  fd.append('phd_status', normalized.phdStatus || 'Not done');
   fd.append('gender', normalized.gender || '');
   fd.append('date_of_birth', normalized.dateOfBirth || '');
   fd.append('nationality', normalized.nationality || '');
   fd.append('user_id', user?.id || '');
+  // "post_applied_for" is the teaching post label (Assistant Professor/Professor/etc),
+  // not the broader position category (teaching/non-teaching).
+  const postAppliedFor = normalized.teachingPost || '';
+  fd.append('post_applied_for', postAppliedFor || '');
 
   // Complex fields as JSON strings (server will JSON.parse)
   fd.append('teachingExperiences', JSON.stringify((normalized.teachingExperiences || []).map((t) => ({

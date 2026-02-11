@@ -21,6 +21,28 @@ const PIPELINE_STAGES = [
   { key: 'all', label: 'All' }
 ];
 
+const POST_APPLIED_OPTIONS = [
+  { value: 'assistant professor', label: 'Assistant Professor' },
+  { value: 'associate professor', label: 'Associate Professor' },
+  { value: 'professor', label: 'Professor' },
+  { value: 'professor of practice', label: 'Professor of Practice' },
+  { value: 'lecturer', label: 'Lecturer' }
+];
+
+const PHD_STATUS_OPTIONS = [
+  { value: 'not done', label: 'Not done' },
+  { value: 'pursuing', label: 'Pursuing' },
+  { value: 'submitted', label: 'Submitted' },
+  { value: 'awarded', label: 'Awarded' }
+];
+
+const DEFAULT_FILTERS = {
+  postApplied: [],
+  minExperienceMonths: '',
+  phdStatus: [],
+  colleges: [],
+};
+
 const AllCandidates = () => {
   const [selectedCandidate, setSelectedCandidate] = useState(null);
   const [selectedDepartment, setSelectedDepartment] = useState('All');
@@ -35,10 +57,17 @@ const AllCandidates = () => {
   const [evaluationData, setEvaluationData] = useState(null);
   const [evaluationLoading, setEvaluationLoading] = useState(false);
   const [showEvaluationModal, setShowEvaluationModal] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState({ ...DEFAULT_FILTERS });
+  const [collegeSearch, setCollegeSearch] = useState('');
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [candidateToAssign, setCandidateToAssign] = useState(null);
   const [assignType, setAssignType] = useState('cv');
   const [selectedCommittee, setSelectedCommittee] = useState('');
+  const [selectedFinalDecision, setSelectedFinalDecision] = useState('');
+  const [multiAssignMode, setMultiAssignMode] = useState(false);
+  const [selectedCandidateIds, setSelectedCandidateIds] = useState([]);
+  const [bulkAssigning, setBulkAssigning] = useState(false);
   // Status pill meta for consistent styling
   const getStatusMeta = (status) => {
     const map = {
@@ -61,21 +90,6 @@ const AllCandidates = () => {
   };
 
   const departments = ['All', 'law', 'liberal', 'engineering', 'management'];
-  const branchLabels = {
-    cse: 'Computer Science & Engineering',
-    mech: 'Mechanical Engineering',
-    ece: 'Electronics and Communication Engineering',
-    criminal: 'Criminal Law',
-    corporate: 'Corporate Law',
-    civil: 'Civil Law',
-    finance: 'Finance',
-    marketing: 'Marketing',
-    hr: 'Human Resources',
-    english: 'English',
-    history: 'History',
-    sociology: 'Sociology'
-  };
-
   const toTitleCase = (value) => {
     if (!value || typeof value !== 'string') return value || '';
     return value
@@ -94,6 +108,20 @@ const AllCandidates = () => {
     return normalized;
   };
 
+  const mapDecisionFromStatus = (status) => {
+    const normalized = normalizeCandidateStatus(status);
+    if (normalized === 'final_shortlisted') return 'accept';
+    if (normalized === 'final_rejected' || normalized === 'cv_rejected') return 'reject';
+    return '';
+  };
+
+  // const getGenderRowBackground = (gender) => {
+  //   const normalized = normalizeFilterValue(gender);
+  //   if (normalized === 'female') return '#fcd1ff';
+  //   if (normalized === 'male') return '#d1e9ff';
+  //   return 'transparent';
+  // };
+
   const normalizeDegreeRank = (deg) => {
     if (!deg) return 0;
     const d = deg.toLowerCase();
@@ -101,6 +129,66 @@ const AllCandidates = () => {
     if (d.includes('master')) return 2;
     if (d.includes('bachelor') || d.includes('b.tech')) return 1;
     return 0;
+  };
+
+  const parseExperienceMonths = (value) => {
+    if (value === null || value === undefined) return 0;
+    if (typeof value === 'number' && Number.isFinite(value)) return Math.max(0, value);
+
+    const text = String(value).toLowerCase().trim();
+    if (!text || text === 'n/a' || text === 'not specified') return 0;
+
+    let months = 0;
+    const yearsMatch = text.match(/(\d+(?:\.\d+)?)\s*(year|yr)/);
+    const monthsMatch = text.match(/(\d+(?:\.\d+)?)\s*(month|mo)/);
+
+    if (yearsMatch) months += Math.round(Number(yearsMatch[1]) * 12);
+    if (monthsMatch) months += Math.round(Number(monthsMatch[1]));
+
+    if (months === 0) {
+      const numeric = Number(text);
+      if (Number.isFinite(numeric)) months = numeric;
+    }
+
+    return Math.max(0, months);
+  };
+
+  const normalizeFilterValue = (value) =>
+    String(value || '')
+      .toLowerCase()
+      .replace(/[_-]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+  const derivePhdStatus = (candidate) => {
+    const normalize = (value) => normalizeFilterValue(value);
+
+    const direct =
+      candidate?.phd_status ||
+      candidate?.phdStatus ||
+      candidate?.education?.phdStatus ||
+      candidate?.education?.phd_status;
+
+    if (direct) return normalize(direct);
+
+    const highestDegree = normalize(
+      candidate?.highest_degree ||
+      candidate?.education?.highestDegree ||
+      candidate?.education?.highest_degree
+    );
+    if (highestDegree.includes('phd') || highestDegree.includes('doctor')) {
+      const gradYear = Number(
+        candidate?.graduation_year ||
+        candidate?.education?.phdYear ||
+        candidate?.education?.phd_year
+      );
+      if (Number.isFinite(gradYear) && gradYear > 0 && gradYear <= new Date().getFullYear()) {
+        return 'awarded';
+      }
+      return 'pursuing';
+    }
+
+    return 'not done';
   };
 
   const getAdditionalEducation = (candidate) => {
@@ -169,6 +257,91 @@ const AllCandidates = () => {
     const title = candidate.title ? `${toTitleCase(candidate.title)} ` : '';
     const middle = candidate.middle_name ? `${toTitleCase(candidate.middle_name)} ` : '';
     return `${title}${toTitleCase(candidate.first_name)} ${middle}${toTitleCase(candidate.last_name)}`.trim();
+  };
+
+  const formatPostAppliedFor = (candidate) => {
+    const raw =
+      candidate?.post_applied_for ||
+      candidate?.postAppliedFor ||
+      candidate?.previous_positions ||
+      candidate?.position ||
+      '';
+    if (!raw) return 'Not specified';
+    return toTitleCase(String(raw).replace(/[_-]/g, ' '));
+  };
+
+  const getHighestDegreeInstitution = (candidate) => {
+    const firstNonEmpty = (...values) =>
+      values
+        .map((value) => (typeof value === 'string' ? value.trim() : ''))
+        .find(Boolean) || '';
+
+    const highestDegree = normalizeFilterValue(
+      candidate?.highest_degree ||
+      candidate?.education?.highestDegree ||
+      candidate?.education?.highest_degree
+    );
+    const phdInstitute = firstNonEmpty(
+      candidate?.phd_institute,
+      candidate?.phdInstitute,
+      candidate?.education?.phdInstitute,
+      candidate?.education?.phd_institute
+    );
+    const masterInstitute = firstNonEmpty(
+      candidate?.master_institute,
+      candidate?.masterInstitute,
+      candidate?.education?.masterInstitute,
+      candidate?.education?.master_institute
+    );
+    const bachelorInstitute = firstNonEmpty(
+      candidate?.bachelor_institute,
+      candidate?.bachelorInstitute,
+      candidate?.education?.bachelorInstitute,
+      candidate?.education?.bachelor_institute
+    );
+    const fallbackInstitute = firstNonEmpty(candidate?.university, candidate?.education?.university);
+
+    if (highestDegree.includes('phd') || highestDegree.includes('doctor')) {
+      return phdInstitute || fallbackInstitute || masterInstitute || bachelorInstitute;
+    }
+    if (highestDegree.includes('master')) {
+      return masterInstitute || fallbackInstitute || phdInstitute || bachelorInstitute;
+    }
+    if (
+      highestDegree.includes('bachelor') ||
+      highestDegree.includes('b.tech') ||
+      highestDegree.includes('b tech')
+    ) {
+      return bachelorInstitute || fallbackInstitute || masterInstitute || phdInstitute;
+    }
+
+    return fallbackInstitute || phdInstitute || masterInstitute || bachelorInstitute;
+  };
+
+  const getAssignableType = (candidateStatus) => {
+    const normalized = normalizeCandidateStatus(candidateStatus);
+    if (normalized === 'submitted') return 'cv';
+    if (normalized === 'cv_shortlisted') return 'interview';
+    return null;
+  };
+
+  const toggleCheckboxFilter = (key, value) => {
+    const normalizedValue = normalizeFilterValue(value);
+    setFilters((prev) => {
+      const current = Array.isArray(prev[key]) ? prev[key] : [];
+      const exists = current.includes(normalizedValue);
+      return {
+        ...prev,
+        [key]: exists
+          ? current.filter((item) => item !== normalizedValue)
+          : [...current, normalizedValue]
+      };
+    });
+  };
+
+  const resetFilters = () => {
+    setFilters({ ...DEFAULT_FILTERS });
+    setCollegeSearch('');
   };
 
   const extractEvaluationComments = (remarks) => {
@@ -312,15 +485,18 @@ const AllCandidates = () => {
       
       console.log('Flattened candidate data:', flattened);
       setSelectedCandidate(flattened);
+      setSelectedFinalDecision(mapDecisionFromStatus(resolvedStatus));
     } catch (error) {
       console.error('Error fetching candidate details:', error);
       // Fallback to existing data if fetch fails
       setSelectedCandidate({ ...candidate, loading: false });
+      setSelectedFinalDecision(mapDecisionFromStatus(candidate.status));
     }
   };
 
   const closeModal = () => {
     setSelectedCandidate(null);
+    setSelectedFinalDecision('');
     setShowUpload(false);
     setFiles({});
     setEvaluationData(null);
@@ -408,10 +584,198 @@ const AllCandidates = () => {
     }
   };
 
+  const applyFinalDecision = () => {
+    if (!selectedFinalDecision) {
+      alert('Please choose a final decision first.');
+      return;
+    }
+    const nextStatus = selectedFinalDecision === 'accept' ? 'final_shortlisted' : 'final_rejected';
+    updateApplicationStatus(nextStatus);
+  };
+
   const departmentFiltered = selectedDepartment === 'All' 
     ? candidates 
     : candidates.filter(candidate => candidate.department === selectedDepartment);
-  const filteredCandidates = departmentFiltered.filter(candidate => matchesStage(candidate, selectedStage));
+
+  const collegeOptionMap = new Map();
+  candidates.forEach((candidate) => {
+    const college = getHighestDegreeInstitution(candidate);
+    const value = normalizeFilterValue(college);
+    if (!value || collegeOptionMap.has(value)) return;
+    collegeOptionMap.set(value, college.trim());
+  });
+  const collegeOptions = Array.from(collegeOptionMap.entries())
+    .map(([value, label]) => ({ value, label }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+  const normalizedCollegeSearch = normalizeFilterValue(collegeSearch);
+  const filteredCollegeOptions = collegeOptions.filter((option) =>
+    normalizeFilterValue(option.label).includes(normalizedCollegeSearch)
+  );
+  const activeFilterCount =
+    (filters.postApplied?.length || 0) +
+    (filters.phdStatus?.length || 0) +
+    (filters.colleges?.length || 0) +
+    (filters.minExperienceMonths ? 1 : 0);
+
+  const passesAdvancedFilters = (candidate) => {
+    const norm = (v) => (v === null || v === undefined ? 0 : Number(v) || 0);
+    const numericMonths = norm(candidate.total_experience_months || candidate.totalMonths || candidate.experienceMonths);
+    const expMonths = numericMonths > 0
+      ? numericMonths
+      : parseExperienceMonths(candidate.years_of_experience || candidate.experience || candidate.total_experience);
+    const phdStatus = derivePhdStatus(candidate);
+    const highestDegreeCollege = normalizeFilterValue(getHighestDegreeInstitution(candidate));
+    const appliedPost = normalizeFilterValue(
+      candidate.post_applied_for ||
+      candidate.postAppliedFor ||
+      ''
+    );
+    const normalizedPhdFilters = (Array.isArray(filters.phdStatus) ? filters.phdStatus : [filters.phdStatus])
+      .map(normalizeFilterValue)
+      .filter((value) => value && value !== 'all' && value !== 'any');
+    const normalizedPostFilters = (Array.isArray(filters.postApplied) ? filters.postApplied : [filters.postApplied])
+      .map(normalizeFilterValue)
+      .filter((value) => value && value !== 'all' && value !== 'any');
+    const normalizedCollegeFilters = (Array.isArray(filters.colleges) ? filters.colleges : [filters.colleges])
+      .map(normalizeFilterValue)
+      .filter(Boolean);
+
+    if (filters.minExperienceMonths && expMonths < Number(filters.minExperienceMonths)) return false;
+    if (normalizedPhdFilters.length > 0 && !normalizedPhdFilters.includes(phdStatus)) return false;
+    if (normalizedPostFilters.length > 0 && !normalizedPostFilters.includes(appliedPost)) return false;
+    if (normalizedCollegeFilters.length > 0 && !normalizedCollegeFilters.includes(highestDegreeCollege)) return false;
+    return true;
+  };
+
+  const stageFiltered = departmentFiltered.filter(candidate => matchesStage(candidate, selectedStage));
+  const filteredCandidates = stageFiltered.filter(passesAdvancedFilters);
+  const assignableVisibleCandidates = filteredCandidates.filter((candidate) => getAssignableType(candidate.status));
+  const areAllAssignableSelected =
+    assignableVisibleCandidates.length > 0 &&
+    assignableVisibleCandidates.every((candidate) => selectedCandidateIds.includes(candidate.id));
+
+  useEffect(() => {
+    if (!multiAssignMode) return;
+    const visibleIds = new Set(filteredCandidates.map((candidate) => candidate.id));
+    setSelectedCandidateIds((prev) => {
+      const next = prev.filter((id) => visibleIds.has(id));
+      return next.length === prev.length ? prev : next;
+    });
+  }, [multiAssignMode, filteredCandidates]);
+
+  const toggleCandidateSelection = (candidateId) => {
+    setSelectedCandidateIds((prev) =>
+      prev.includes(candidateId)
+        ? prev.filter((id) => id !== candidateId)
+        : [...prev, candidateId]
+    );
+  };
+
+  const toggleSelectAllAssignable = () => {
+    if (areAllAssignableSelected) {
+      setSelectedCandidateIds([]);
+      return;
+    }
+    setSelectedCandidateIds(assignableVisibleCandidates.map((candidate) => candidate.id));
+  };
+
+  const resetAssignModalState = () => {
+    setShowAssignModal(false);
+    setCandidateToAssign(null);
+    setSelectedCommittee('');
+    setAssignType('cv');
+  };
+
+  const openBulkAssignModal = () => {
+    if (selectedCandidateIds.length === 0) {
+      alert('Please select at least one candidate.');
+      return;
+    }
+    setCandidateToAssign(null);
+    setSelectedCommittee('');
+    setShowAssignModal(true);
+  };
+
+  const handleConfirmAssignment = async () => {
+    if (!selectedCommittee) {
+      alert('Please select a committee');
+      return;
+    }
+
+    if (candidateToAssign) {
+      const selectedCommitteeName = COMMITTEES.find((c) => c.code === selectedCommittee)?.name;
+      const nextStatus = assignType === 'interview' ? 'interview_assigned' : 'cv_assigned';
+      try {
+        const { error } = await supabase
+          .from('faculty_applications')
+          .update({
+            assigned_committee_code: selectedCommittee,
+            status: nextStatus
+          })
+          .eq('id', candidateToAssign.id);
+
+        if (error) throw error;
+
+        alert(`Assigned ${formatCandidateName(candidateToAssign)} to: ${selectedCommitteeName || selectedCommittee}`);
+        resetAssignModalState();
+        fetchCandidates();
+      } catch (error) {
+        console.error('Error assigning committee:', error);
+        alert('Failed to assign committee. Please try again.');
+      }
+      return;
+    }
+
+    try {
+      setBulkAssigning(true);
+      const selectedCandidates = filteredCandidates.filter((candidate) => selectedCandidateIds.includes(candidate.id));
+      const assignments = selectedCandidates
+        .map((candidate) => {
+          const type = getAssignableType(candidate.status);
+          if (!type) return null;
+          return {
+            id: candidate.id,
+            nextStatus: type === 'interview' ? 'interview_assigned' : 'cv_assigned'
+          };
+        })
+        .filter(Boolean);
+
+      if (assignments.length === 0) {
+        alert('None of the selected candidates are eligible for assignment in this stage.');
+        return;
+      }
+
+      const updates = await Promise.all(
+        assignments.map((item) =>
+          supabase
+            .from('faculty_applications')
+            .update({
+              assigned_committee_code: selectedCommittee,
+              status: item.nextStatus
+            })
+            .eq('id', item.id)
+        )
+      );
+
+      const failed = updates.filter((result) => result.error);
+      if (failed.length > 0) {
+        console.error('Bulk assignment errors:', failed.map((f) => f.error));
+        alert(`Assigned ${assignments.length - failed.length} candidate(s), ${failed.length} failed. Please retry.`);
+      } else {
+        alert(`Assigned ${assignments.length} candidate(s) successfully.`);
+      }
+
+      resetAssignModalState();
+      setSelectedCandidateIds([]);
+      setMultiAssignMode(false);
+      fetchCandidates();
+    } catch (error) {
+      console.error('Bulk assignment error:', error);
+      alert('Bulk assignment failed. Please try again.');
+    } finally {
+      setBulkAssigning(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -438,6 +802,7 @@ const AllCandidates = () => {
   const teachingExperiences = selectedCandidate?.teachingExperiences || [];
   const researchExperiences = selectedCandidate?.researchExperiences || [];
   const derivedExperience = selectedCandidate?.experience || computeExperienceFromArrays(teachingExperiences, researchExperiences);
+  const selectedCandidateStatus = selectedCandidate ? normalizeCandidateStatus(selectedCandidate.status) : '';
 
   return (
     <>
@@ -475,85 +840,326 @@ const AllCandidates = () => {
                 {stage.label}
               </button>
             ))}
+            <button
+              type="button"
+              onClick={() => setShowFilters((s) => !s)}
+              className="ml-2 px-3 py-1.5 rounded-full text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-100"
+            >
+              {showFilters ? 'Hide Filters' : 'Filters'}
+            </button>
+            <button
+              type="button"
+              onClick={resetFilters}
+              className="px-3 py-1.5 rounded-full text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-100"
+            >
+              Clear
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (multiAssignMode) {
+                  setMultiAssignMode(false);
+                  setSelectedCandidateIds([]);
+                  return;
+                }
+                setMultiAssignMode(true);
+              }}
+              className={`px-3 py-1.5 rounded-full text-sm font-semibold border transition-colors ${
+                multiAssignMode
+                  ? 'bg-gray-700 text-white border-gray-700'
+                  : 'bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700'
+              }`}
+            >
+              {multiAssignMode ? 'Cancel Multi Assign' : 'Multi Assign'}
+            </button>
+            {multiAssignMode && (
+              <>
+                <button
+                  type="button"
+                  onClick={toggleSelectAllAssignable}
+                  className="px-3 py-1.5 rounded-full text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-100"
+                >
+                  {areAllAssignableSelected ? 'Deselect All' : 'Select All'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedCandidateIds([])}
+                  className="px-3 py-1.5 rounded-full text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-100"
+                >
+                  Clear Selection
+                </button>
+                <button
+                  type="button"
+                  onClick={openBulkAssignModal}
+                  disabled={selectedCandidateIds.length === 0}
+                  className={`px-3 py-1.5 rounded-full text-sm font-semibold border ${
+                    selectedCandidateIds.length === 0
+                      ? 'bg-gray-200 text-gray-500 border-gray-200 cursor-not-allowed'
+                      : 'bg-green-600 text-white border-green-600 hover:bg-green-700'
+                  }`}
+                >
+                  Assign Selected ({selectedCandidateIds.length})
+                </button>
+              </>
+            )}
           </div>
-        </div>
-        
-        <div className="divide-y divide-gray-200">
-          {filteredCandidates.length > 0 ? (
-            filteredCandidates.map((candidate, index) => (
-              <div key={candidate.id} className="p-4 hover:bg-gray-50 transition-colors">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    <div className="flex-shrink-0">
-                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                        <span className="text-base font-semibold text-blue-600">{index + 1}</span>
-                      </div>
+
+          {showFilters && (
+            <div className="mt-4 flex max-h-[55vh] flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm lg:max-h-[58vh]">
+              <div className="flex flex-col gap-3 border-b border-slate-200 bg-slate-50/70 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-800">Advanced Filters</h3>
+                  <p className="text-xs text-slate-500">
+                    {activeFilterCount === 0
+                      ? 'No filters applied'
+                      : `${activeFilterCount} active filter${activeFilterCount === 1 ? '' : 's'}`}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-500">
+                    {filteredCandidates.length} match{filteredCandidates.length === 1 ? '' : 'es'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={resetFilters}
+                    className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                  >
+                    Reset Filters
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-4 overflow-y-auto overscroll-contain p-4 pb-6">
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <div className="mb-2 flex items-center justify-between">
+                      <label className="text-sm font-semibold text-slate-700">Post Applied For</label>
+                      <span className="text-xs text-slate-500">{filters.postApplied.length} selected</span>
                     </div>
-                    <div className="flex-1">
-                      <div className="mb-1">
-                        <h3 className="text-base font-semibold text-gray-900">
-                          {formatCandidateName(candidate)}
-                        </h3>
-                        <span className="text-xs font-medium text-blue-600 bg-blue-100 px-2 py-1 rounded-full">
-                          {toTitleCase(candidate.department)}
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-600 mb-1">
-                        {branchLabels[(candidate.branch || candidate.department || '').toLowerCase()]
-                          || toTitleCase(candidate.branch || candidate.department || '')}
-                      </p>
-                      <p className="text-sm text-gray-500">{candidate.email}</p>
-                      <div className="flex items-center space-x-4 mt-1">
-                        <span className="text-sm text-gray-600">{candidate.experience}</span>
-                        <span className="text-sm text-gray-600">{toTitleCase(candidate.position)}</span>
-                      </div>
+                    <div className="flex flex-wrap gap-2">
+                      {POST_APPLIED_OPTIONS.map((option) => {
+                        const checked = filters.postApplied.includes(option.value);
+                        return (
+                          <label
+                            key={option.value}
+                            className={`inline-flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-sm font-medium cursor-pointer transition-colors ${
+                              checked
+                                ? 'border-indigo-300 bg-indigo-50 text-indigo-700'
+                                : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => toggleCheckboxFilter('postApplied', option.value)}
+                              className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                            />
+                            <span>{option.label}</span>
+                          </label>
+                        );
+                      })}
                     </div>
                   </div>
-                  <div className="flex-shrink-0 flex space-x-2">
-                    <button
-                      onClick={() => handleViewDetails(candidate)}
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors text-sm"
-                    >
-                      View Details
-                    </button>
-                    {(candidate.status || 'submitted') === 'submitted' && (
-                      <button
-                        onClick={() => {
-                          setCandidateToAssign(candidate);
-                          setAssignType('cv');
-                          setShowAssignModal(true);
-                          setSelectedCommittee(candidate.assigned_committee_code || '');
-                        }}
-                        className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors text-sm"
-                      >
-                        Assign Committee
-                      </button>
-                    )}
-                    {(candidate.status || 'submitted') === 'cv_shortlisted' && (
-                      <button
-                        onClick={() => {
-                          setCandidateToAssign(candidate);
-                          setAssignType('interview');
-                          setShowAssignModal(true);
-                          setSelectedCommittee(candidate.assigned_committee_code || '');
-                        }}
-                        className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors text-sm"
-                      >
-                        Assign Interview
-                      </button>
-                    )}
-                    {['cv_assigned', 'interview_assigned'].includes(candidate.status) && (
-                      <button
-                        disabled
-                        className="bg-gray-400 text-white px-4 py-2 rounded-lg cursor-not-allowed text-sm"
-                      >
-                        Assigned
-                      </button>
+
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <label className="text-sm font-semibold text-slate-700">Min Experience (months)</label>
+                    <div className="relative mt-2">
+                      <input
+                        type="number"
+                        value={filters.minExperienceMonths}
+                        onChange={(e) => setFilters({ ...filters, minExperienceMonths: e.target.value })}
+                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 pr-16 text-sm text-slate-700 focus:border-indigo-500 focus:ring-indigo-500"
+                        min="0"
+                        placeholder="e.g. 24"
+                      />
+                      <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs font-medium text-slate-400">
+                        months
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <div className="mb-2 flex items-center justify-between">
+                      <label className="text-sm font-semibold text-slate-700">PhD Status</label>
+                      <span className="text-xs text-slate-500">{filters.phdStatus.length} selected</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {PHD_STATUS_OPTIONS.map((option) => {
+                        const checked = filters.phdStatus.includes(option.value);
+                        return (
+                          <label
+                            key={option.value}
+                            className={`inline-flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-sm font-medium cursor-pointer transition-colors ${
+                              checked
+                                ? 'border-indigo-300 bg-indigo-50 text-indigo-700'
+                                : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => toggleCheckboxFilter('phdStatus', option.value)}
+                              className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                            />
+                            <span>{option.label}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <label className="text-sm font-semibold text-slate-700">College (Highest Degree)</label>
+                    <span className="text-xs text-slate-500">
+                      {filters.colleges.length} selected of {collegeOptions.length}
+                    </span>
+                  </div>
+                  <div className="mb-3">
+                    <input
+                      type="text"
+                      value={collegeSearch}
+                      onChange={(e) => setCollegeSearch(e.target.value)}
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 focus:border-indigo-500 focus:ring-indigo-500"
+                      placeholder="Search colleges..."
+                    />
+                  </div>
+                  <div className="pr-1">
+                    {filteredCollegeOptions.length === 0 ? (
+                      <span className="text-sm text-slate-500">
+                        {collegeOptions.length === 0
+                          ? 'No colleges found in current applicant pool.'
+                          : 'No colleges match your search.'}
+                      </span>
+                    ) : (
+                      <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
+                        {filteredCollegeOptions.map((option) => {
+                          const checked = filters.colleges.includes(option.value);
+                          return (
+                            <label
+                              key={option.value}
+                              className={`inline-flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-sm font-medium cursor-pointer transition-colors ${
+                                checked
+                                  ? 'border-indigo-300 bg-indigo-50 text-indigo-700'
+                                  : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => toggleCheckboxFilter('colleges', option.value)}
+                                className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                              />
+                              <span className="truncate">{option.label}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
                     )}
                   </div>
                 </div>
               </div>
-            ))
+            </div>
+          )}
+        </div>
+        
+        <div className="pt-4">
+          {filteredCandidates.length > 0 ? (
+            <div className="overflow-x-auto">
+              <div className="min-w-[920px] px-4 pb-4">
+                <div className={`grid ${multiAssignMode ? 'grid-cols-[54px_90px_1.9fr_1.4fr_1.2fr_2fr]' : 'grid-cols-[90px_1.9fr_1.4fr_1.2fr_2fr]'} items-center gap-4 border-b border-gray-200 px-3 pb-3 text-base font-semibold text-gray-700`}>
+                  {multiAssignMode && <div>Select</div>}
+                  <div>Rank</div>
+                  <div>Name</div>
+                  <div>Position Applied</div>
+                  <div>Department</div>
+                  <div>Actions</div>
+                </div>
+
+                {filteredCandidates.map((candidate, index) => (
+                  <div
+                    key={candidate.id}
+                    // style={{ backgroundColor: getGenderRowBackground(candidate.gender) }}
+                    className={`grid ${multiAssignMode ? 'grid-cols-[54px_90px_1.9fr_1.4fr_1.2fr_2fr]' : 'grid-cols-[90px_1.9fr_1.4fr_1.2fr_2fr]'} items-center gap-4 border-b border-gray-100 px-3 py-3 transition-colors`}
+                  >
+                    {multiAssignMode && (
+                      <div>
+                        <input
+                          type="checkbox"
+                          checked={selectedCandidateIds.includes(candidate.id)}
+                          onChange={() => toggleCandidateSelection(candidate.id)}
+                          disabled={!getAssignableType(candidate.status)}
+                          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-40"
+                        />
+                      </div>
+                    )}
+                    <div>
+                      <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-blue-500 text-xs font-bold text-white">
+                        {index + 1}
+                      </span>
+                    </div>
+
+                    <div className="min-w-0">
+                      <p className="truncate text-[16px] font-semibold text-gray-900">{formatCandidateName(candidate)}</p>
+                    </div>
+
+                    <div className="min-w-0">
+                      <p className="truncate text-[15px] font-medium text-gray-800">{formatPostAppliedFor(candidate)}</p>
+                    </div>
+
+                    <div>
+                      <span className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-sm font-medium text-gray-700">
+                        {toTitleCase(candidate.department)}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        onClick={() => handleViewDetails(candidate)}
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors text-xs font-semibold"
+                      >
+                        View Details
+                      </button>
+                      {(candidate.status || 'submitted') === 'submitted' && (
+                        <button
+                          onClick={() => {
+                            setCandidateToAssign(candidate);
+                            setAssignType('cv');
+                            setShowAssignModal(true);
+                            setSelectedCommittee(candidate.assigned_committee_code || '');
+                          }}
+                          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors text-xs font-semibold"
+                        >
+                          Assign Committee
+                        </button>
+                      )}
+                      {(candidate.status || 'submitted') === 'cv_shortlisted' && (
+                        <button
+                          onClick={() => {
+                            setCandidateToAssign(candidate);
+                            setAssignType('interview');
+                            setShowAssignModal(true);
+                            setSelectedCommittee(candidate.assigned_committee_code || '');
+                          }}
+                          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors text-xs font-semibold"
+                        >
+                          Assign Interview
+                        </button>
+                      )}
+                      {['cv_assigned', 'interview_assigned'].includes(candidate.status) && (
+                        <button
+                          disabled
+                          className="bg-gray-400 text-white px-4 py-2 rounded-lg cursor-not-allowed text-xs font-semibold"
+                        >
+                          Assigned
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           ) : (
             <div className="p-6 text-center text-gray-500">
               No candidates found for the selected department.
@@ -562,19 +1168,17 @@ const AllCandidates = () => {
         </div>
       </div>
 
-      {showAssignModal && candidateToAssign && (
+      {showAssignModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-bold text-gray-900">
-                {assignType === 'interview' ? 'Assign Interview Committee' : 'Assign Committee for CV Review'}
+                {candidateToAssign
+                  ? (assignType === 'interview' ? 'Assign Interview Committee' : 'Assign Committee for CV Review')
+                  : 'Assign Committee to Selected Candidates'}
               </h3>
               <button
-                onClick={() => {
-                  setShowAssignModal(false);
-                  setCandidateToAssign(null);
-                  setSelectedCommittee('');
-                }}
+                onClick={resetAssignModalState}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -585,7 +1189,15 @@ const AllCandidates = () => {
             
             <div className="mb-4">
               <p className="text-sm text-gray-600 mb-2">
-                Assigning committee for: <span className="font-semibold">{formatCandidateName(candidateToAssign)}</span>
+                {candidateToAssign ? (
+                  <>
+                    Assigning committee for: <span className="font-semibold">{formatCandidateName(candidateToAssign)}</span>
+                  </>
+                ) : (
+                  <>
+                    Assigning committee for <span className="font-semibold">{selectedCandidateIds.length}</span> selected candidate(s)
+                  </>
+                )}
               </p>
             </div>
 
@@ -607,48 +1219,14 @@ const AllCandidates = () => {
                 
             <div className="flex space-x-3">
               <button
-                onClick={async () => {
-                  if (selectedCommittee) {
-                    const selectedCommitteeName = COMMITTEES.find(c => c.code === selectedCommittee)?.name;
-                    const nextStatus = assignType === 'interview' ? 'interview_assigned' : 'cv_assigned';
-                    
-                    try {
-                      // Save assignment to Supabase database
-                      const { error } = await supabase
-                        .from('faculty_applications')
-                        .update({ 
-                          assigned_committee_code: selectedCommittee,
-                          status: nextStatus
-                        })
-                        .eq('id', candidateToAssign.id);
-                      
-                      if (error) throw error;
-                      
-                      alert(`Assigned ${formatCandidateName(candidateToAssign)} to: ${selectedCommitteeName || selectedCommittee}`);
-                      setShowAssignModal(false);
-                      setCandidateToAssign(null);
-                      setSelectedCommittee('');
-                      
-                      // Refresh candidates list
-                      fetchCandidates();
-                    } catch (error) {
-                      console.error('Error assigning committee:', error);
-                      alert('Failed to assign committee. Please try again.');
-                    }
-                  } else {
-                    alert('Please select a committee');
-                  }
-                }}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors font-medium"
+                onClick={handleConfirmAssignment}
+                disabled={bulkAssigning}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white px-4 py-2 rounded-lg transition-colors font-medium"
               >
-                Assign
+                {bulkAssigning ? 'Assigning...' : 'Assign'}
               </button>
               <button
-                onClick={() => {
-                  setShowAssignModal(false);
-                  setCandidateToAssign(null);
-                  setSelectedCommittee('');
-                }}
+                onClick={resetAssignModalState}
                 className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg transition-colors font-medium"
               >
                 Cancel
@@ -684,14 +1262,39 @@ const AllCandidates = () => {
               )}
             </div>
           </div>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handleShowEvaluation}
-                disabled={evaluationLoading}
-                className="px-3 py-1.5 text-sm font-semibold bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300"
-              >
-                {evaluationLoading ? 'Loading...' : 'Show Evaluation'}
-              </button>
+            <div className="flex items-start gap-3">
+              <div className="flex flex-col items-end gap-2">
+                <button
+                  onClick={handleShowEvaluation}
+                  disabled={evaluationLoading}
+                  className="px-3 py-1.5 text-sm font-semibold bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300"
+                >
+                  {evaluationLoading ? 'Loading...' : 'Show Evaluation'}
+                </button>
+
+                {selectedCandidateStatus === 'interview_completed' && (
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={selectedFinalDecision}
+                      onChange={(e) => setSelectedFinalDecision(e.target.value)}
+                      className="min-w-[170px] rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-sm text-gray-700 focus:border-blue-500 focus:ring-blue-500"
+                    >
+                      <option value="">Final Decision</option>
+                      <option value="accept">Accept</option>
+                      <option value="reject">Reject</option>
+                    </select>
+                    <button
+                      type="button"
+                      onClick={applyFinalDecision}
+                      disabled={!selectedFinalDecision || updatingStatus}
+                      className="px-3 py-1.5 rounded-md text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300"
+                    >
+                      {updatingStatus ? 'Saving...' : 'Apply'}
+                    </button>
+                  </div>
+                )}
+              </div>
+
               <button
                 onClick={closeModal}
                 className="text-gray-400 hover:text-gray-600 transition-colors"

@@ -90,7 +90,7 @@ router.get('/rankings/top', cache.middleware(30), async (req, res) => {
     }
 
     const appIds = top.map(a => a.id).filter(Boolean);
-
+    
     // Fetch all teaching posts, research data, and teaching/research institutions in parallel
     const [teachingPostsData, researchData, researchExpData, teachingExpData] = await Promise.all([
       supabase
@@ -98,7 +98,6 @@ router.get('/rankings/top', cache.middleware(30), async (req, res) => {
         .select('application_id, post')
         .in('application_id', appIds)
         .order('start_date', { ascending: false }),
-
       supabase
         .from('research_info')
         .select('application_id, scopus_general_papers, conference_papers, scopus_id, orchid_id')
@@ -118,16 +117,9 @@ router.get('/rankings/top', cache.middleware(30), async (req, res) => {
     ]);
 
     // Create lookup maps for O(1) access
-    const teachingPostMap = new Map();
     const researchMap = new Map();
     const researchInstMap = new Map();
     const teachingInstMap = new Map();
-
-    (teachingPostsData.data || []).forEach(t => {
-      if (!teachingPostMap.has(t.application_id)) {
-        teachingPostMap.set(t.application_id, t.post);
-      }
-    });
 
     (researchData.data || []).forEach(r => {
       researchMap.set(r.application_id, {
@@ -151,8 +143,9 @@ router.get('/rankings/top', cache.middleware(30), async (req, res) => {
     const enriched = top.map(app => {
       const uniLower = (app.university || '').toLowerCase();
       let { nirf10, qs10 } = scoringService.getUniversityRankingScores(uniLower);
-
-      const teachingPost = teachingPostMap.get(app.id);
+      
+      // Support both new post_applied_for column and legacy teaching posts fetch
+      const teachingPost = app.post_applied_for || teachingPostMap.get(app.id) || '';
       const research = researchMap.get(app.id);
 
       // Fallback to research or teaching institution if university not matched
@@ -321,9 +314,12 @@ router.post(
         graduation_year,
         previous_positions,
         years_of_experience,
+        phd_status,
+        phdStatus: phdStatusCamel,
         gender,
         date_of_birth,
         nationality,
+        post_applied_for,
         teachingExperiences,
         researchExperiences,
         researchInfo,
@@ -370,6 +366,35 @@ router.post(
         return res.status(400).json({ error: 'Missing required fields' });
       }
 
+      const normalizePhdStatus = (value) => {
+        const normalized = (value || '').toString().trim().toLowerCase();
+        if (!normalized) return '';
+        if (normalized === 'not done' || normalized === 'not_done' || normalized === 'not-done') return 'Not done';
+        if (normalized === 'pursuing') return 'Pursuing';
+        if (normalized === 'submitted') return 'Submitted';
+        if (normalized === 'awarded') return 'Awarded';
+        return '';
+      };
+
+      const normalizedPostAppliedFor = position === 'teaching'
+        ? (post_applied_for || '').toString().trim()
+        : '';
+      const normalizedHighestDegree = (highest_degree || '').toString().trim().toLowerCase();
+      const inferredPhdStatus = (() => {
+        if (!normalizedHighestDegree.includes('phd') && !normalizedHighestDegree.includes('doctor')) {
+          return 'Not done';
+        }
+        const gradYearNum = Number(graduation_year);
+        if (Number.isFinite(gradYearNum) && gradYearNum > new Date().getFullYear()) {
+          return 'Pursuing';
+        }
+        return 'Awarded';
+      })();
+      const normalizedPhdStatus =
+        normalizePhdStatus(phd_status) ||
+        normalizePhdStatus(phdStatusCamel) ||
+        inferredPhdStatus;
+
       // Idempotency/Duplicate guard: prevent multiple submissions for same user & role
       try {
         const { data: existing, error: existErr } = await supabase
@@ -390,30 +415,36 @@ router.post(
       }
 
       // Insert main application
+      const insertPayload = {
+        position,
+        department,
+        branch,
+        title,
+        first_name,
+        middle_name,
+        last_name,
+        email,
+        phone,
+        address,
+        highest_degree,
+        university,
+        graduation_year,
+        previous_positions,
+        years_of_experience,
+        education: {
+          phdStatus: normalizedPhdStatus
+        },
+        gender,
+        date_of_birth,
+        nationality,
+        post_applied_for: normalizedPostAppliedFor || null,
+        user_id,
+        status: 'submitted'
+      };
+
       const { data: appData, error: appError } = await supabase
         .from('faculty_applications')
-        .insert([{
-          position,
-          department,
-          branch,
-          title,
-          first_name,
-          middle_name,
-          last_name,
-          email,
-          phone,
-          address,
-          highest_degree,
-          university,
-          graduation_year,
-          previous_positions,
-          years_of_experience,
-          gender,
-          date_of_birth,
-          nationality,
-          user_id,
-          status: 'submitted'
-        }])
+        .insert([insertPayload])
         .select()
         .single();
 
@@ -572,7 +603,8 @@ router.get('/all/detailed', cache.middleware(120), async (req, res) => {
         research_experiences (*),
         research_info (*)
       `)
-      .neq('status', 'final_rejected');
+      .neq('status', 'final_rejected')
+      .order('created_at', { ascending: false });
 
     if (department && department !== 'All') {
       query = query.eq('department', department);
