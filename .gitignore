@@ -20,3 +20,4 @@ vite-admin/hirewise-admin-vite/node_modules/
 # Cache
 .DS_Store
 *.log
+vite-admin/server/.env
