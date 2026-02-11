@@ -173,8 +173,10 @@ class GoogleCalendarService {
 
     /**
      * Get list of available timezones from Google Calendar API
+     * Returns common timezones without requiring full OAuth setup
      */
     async getTimezones() {
+        // Return common timezones - works even without full Google Calendar setup
         const commonTimezones = [
             { id: 'Asia/Kolkata', label: 'India Standard Time (IST)' },
             { id: 'America/New_York', label: 'Eastern Time (ET)' },
