@@ -196,7 +196,19 @@ router.get('/rankings/top', cache.middleware(30), async (req, res) => {
 // ⚡ Get available timezones (MUST be before /:id route!)
 router.get('/timezones', async (req, res) => {
   try {
-    const timezones = await googleCalendarService.getTimezones();
+    // Always return common timezones without requiring Google Calendar setup
+    const timezones = [
+      { id: 'Asia/Kolkata', label: 'India Standard Time (IST)' },
+      { id: 'America/New_York', label: 'Eastern Time (ET)' },
+      { id: 'America/Chicago', label: 'Central Time (CT)' },
+      { id: 'America/Los_Angeles', label: 'Pacific Time (PT)' },
+      { id: 'Europe/London', label: 'British Time (GMT/BST)' },
+      { id: 'Europe/Paris', label: 'Central European Time (CET)' },
+      { id: 'Asia/Dubai', label: 'Gulf Standard Time (GST)' },
+      { id: 'Asia/Singapore', label: 'Singapore Time (SGT)' },
+      { id: 'Asia/Tokyo', label: 'Japan Standard Time (JST)' },
+      { id: 'Australia/Sydney', label: 'Australian Eastern Time (AET)' },
+    ];
     res.json({ timezones });
   } catch (error) {
     console.error('Error fetching timezones:', error);
