@@ -17,7 +17,15 @@ const getTransporter = () => {
             auth: {
                 user: process.env.EMAIL_USER,
                 pass: process.env.EMAIL_PASSWORD
-            }
+            },
+            // Add timeout and connection settings for production
+            connectionTimeout: 30000, // 30 seconds
+            greetingTimeout: 30000,   // 30 seconds  
+            socketTimeout: 60000,     // 60 seconds
+            pool: true,               // Use connection pooling
+            maxConnections: 5,        // Max 5 concurrent connections
+            rateDelta: 20000,         // Wait 20s between messages (avoid rate limiting)
+            rateLimit: 5              // Max 5 messages per rateDelta
         });
     }
     return transporter;
@@ -241,7 +249,24 @@ BML Munjal University | Faculty Recruitment System
             text: textContent
         };
 
-        const info = await transporter.sendMail(mailOptions);
+        // Add timeout wrapper for email sending
+        const sendWithTimeout = new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => {
+                reject(new Error('Email sending timeout after 45 seconds'));
+            }, 45000); // 45 second timeout
+
+            transporter.sendMail(mailOptions)
+                .then(info => {
+                    clearTimeout(timeout);
+                    resolve(info);
+                })
+                .catch(error => {
+                    clearTimeout(timeout);
+                    reject(error);
+                });
+        });
+
+        const info = await sendWithTimeout;
 
         console.log('Interview confirmation email sent successfully:', info.response);
         return {
