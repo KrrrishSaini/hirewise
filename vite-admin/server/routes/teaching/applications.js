@@ -903,7 +903,7 @@ router.post('/send-confirmation-enhanced/:id', async (req, res) => {
       });
     }
 
-    // Get application details
+    // Get application details (keep this - we need it for validation)
     const { data: application, error: fetchError } = await supabase
       .from('faculty_applications')
       .select('*')
@@ -918,37 +918,41 @@ router.post('/send-confirmation-enhanced/:id', async (req, res) => {
       return res.status(400).json({ error: 'Candidate email not found' });
     }
 
-    // Store interview details in database
-    const { error: updateError } = await supabase
-      .from('faculty_applications')
-      .update({
-        interview_date: date,
-        interview_time: time,
-        interview_timezone: timezone,
-        confirmation_response: 'PENDING'
-      })
-      .eq('id', applicationId);
-
-    if (updateError) {
-      console.error('Error storing interview details:', updateError);
-      return res.status(500).json({ error: 'Failed to store interview details' });
-    }
-
-    // Construct base URL
-    const baseUrl = process.env.API_BASE_URL ||
-      `http://localhost:${process.env.PORT || 5001}`;
-
-    // ✅ RESPOND IMMEDIATELY - Don't wait for email to send
+    // ✅ RESPOND IMMEDIATELY - Don't wait for database update or email
     res.json({
       success: true,
-      message: 'Interview confirmation is being sent with scheduled date/time',
+      message: 'Interview confirmation is being processed',
       applicationId
     });
 
-    // Send enhanced confirmation email ASYNC (fire-and-forget)
-    const sendEmailAsync = async () => {
+    // DO EVERYTHING ELSE ASYNC (fire-and-forget)
+    const processAsync = async () => {
       try {
-        console.log('📧 Sending email in background for application:', applicationId);
+        console.log('💾 Updating database with interview details...');
+        
+        // Store interview details in database
+        const { error: updateError } = await supabase
+          .from('faculty_applications')
+          .update({
+            interview_date: date,
+            interview_time: time,
+            interview_timezone: timezone,
+            confirmation_response: 'PENDING'
+          })
+          .eq('id', applicationId);
+
+        if (updateError) {
+          console.error('❌ Database update failed:', updateError);
+          return;
+        }
+
+        console.log('✅ Database updated successfully');
+
+        // Construct base URL
+        const baseUrl = process.env.API_BASE_URL ||
+          `http://localhost:${process.env.PORT || 5001}`;
+
+        console.log('📧 Sending email in background...');
         const emailResult = await emailService.sendEnhancedInterviewConfirmationEmail(
           applicationId,
           application.email,
@@ -966,16 +970,17 @@ router.post('/send-confirmation-enhanced/:id', async (req, res) => {
         } else {
           console.error('❌ Email failed:', emailResult.error);
         }
+
+        // Invalidate cache
+        cache.delPattern(`req:/api/applications/*`).catch(console.error);
+
       } catch (error) {
-        console.error('❌ Async email error:', error);
+        console.error('❌ Async processing error:', error);
       }
     };
 
     // Fire and forget - don't await
-    sendEmailAsync();
-
-    // Invalidate cache
-    cache.delPattern(`req:/api/applications/*`).catch(console.error);
+    processAsync();
 
   } catch (error) {
     console.error('Error sending enhanced confirmation:', error);
