@@ -11,11 +11,15 @@ const supabase = createClient(
 
 // Configure email service - Gmail SMTP (Free)
 const initializeEmailService = () => {
-    if (process.env.EMAIL_USER && process.env.EMAIL_PASSWORD) {
+    if (process.env.SENDGRID_API_KEY) {
+        console.log('✅ Using SendGrid for email delivery (100 free emails/day)');
+        sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+        return 'sendgrid';
+    } else if (process.env.EMAIL_USER && process.env.EMAIL_PASSWORD) {
         console.log('✅ Using Outlook SMTP for email delivery');
         return 'outlook';
     } else {
-        console.error('❌ Outlook SMTP credentials not configured');
+        console.error('❌ No email service configured');
         return null;
     }
 };
@@ -737,7 +741,34 @@ export const sendEnhancedInterviewConfirmationEmail = async (
             html: htmlContent
         };
 
-        console.log('📧 Sending enhanced confirmation email via Outlook SMTP...');
+        console.log('📧 Sending enhanced confirmation email...');
+        
+        // Try SendGrid first (most reliable)
+        if (process.env.SENDGRID_API_KEY) {
+            console.log('📧 Using SendGrid API...');
+            
+            const msg = {
+                to: candidateEmail,
+                from: process.env.EMAIL_FROM || 'hirewise88@outlook.com',
+                subject: `Interview Invitation - ${position} Position`,
+                html: htmlContent
+            };
+
+            try {
+                const [response] = await sgMail.send(msg);
+                console.log('✅ SendGrid email sent:', response.statusCode);
+                return {
+                    success: true,
+                    messageId: response.headers['x-message-id']
+                };
+            } catch (error) {
+                console.error('❌ SendGrid failed:', error.response?.body?.errors || error.message);
+                // Fall through to Outlook backup
+            }
+        }
+
+        // Fallback to Outlook SMTP
+        console.log('📧 Falling back to Outlook SMTP...');
         
         // Enhanced timeout with retry logic (same as other functions)
         const sendWithRetry = async (maxRetries = 2) => {
