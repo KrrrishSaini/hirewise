@@ -1,6 +1,7 @@
 // server/services/emailService.js
 import nodemailer from 'nodemailer';
 import sgMail from '@sendgrid/mail';
+import AWS from 'aws-sdk';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
@@ -8,17 +9,13 @@ const supabase = createClient(
     process.env.SUPABASE_SERVICE_KEY
 );
 
-// Configure email service - SendGrid or Gmail fallback
+// Configure email service - Gmail SMTP (Free)
 const initializeEmailService = () => {
-    if (process.env.SENDGRID_API_KEY) {
-        console.log('✅ Using SendGrid for email delivery');
-        sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-        return 'sendgrid';
-    } else if (process.env.EMAIL_USER && process.env.EMAIL_PASSWORD) {
-        console.log('✅ Using Gmail SMTP for email delivery');
+    if (process.env.EMAIL_USER && process.env.EMAIL_PASSWORD) {
+        console.log('✅ Using Gmail SMTP for email delivery (FREE)');
         return 'gmail';
     } else {
-        console.error('❌ No email service configured');
+        console.error('❌ Gmail SMTP credentials not configured');
         return null;
     }
 };
@@ -76,15 +73,14 @@ export const sendInterviewConfirmationEmail = async (
         console.log('EMAIL_USER:', process.env.EMAIL_USER ? 'SET' : 'MISSING');
         console.log('EMAIL_PASSWORD:', process.env.EMAIL_PASSWORD ? 'SET' : 'MISSING');
         console.log('EMAIL_FROM:', process.env.EMAIL_FROM ? 'SET' : 'MISSING');
-        console.log('SENDGRID_API_KEY:', process.env.SENDGRID_API_KEY ? 'SET' : 'MISSING');
         console.log('NODE_ENV:', process.env.NODE_ENV);
         console.log('API_BASE_URL:', process.env.API_BASE_URL);
         
-        // Initialize email service
+        // Initialize Gmail SMTP service (FREE)
         const emailService = initializeEmailService();
         
         if (!emailService) {
-            console.error('❌ No email service configured');
+            console.error('❌ Gmail SMTP not configured');
             return { success: false, error: 'Email service not configured' };
         }
 
@@ -257,54 +253,51 @@ BML Munjal University | Faculty Recruitment System
 © 2026 BML Munjal University. All rights reserved.
     `;
 
-        // Send email using appropriate service
-        let info;
+        // Send email using Gmail SMTP (FREE)
+        const transporter = getTransporter();
+        const mailOptions = {
+            from: `"BML Munjal University - HR" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+            to: candidateEmail,
+            subject: `Interview Confirmation Required – ${position} Position at BML Munjal University`,
+            html: htmlContent,
+            text: textContent
+        };
+
+        console.log('📧 Sending via Gmail SMTP (FREE)...');
         
-        if (emailService === 'sendgrid') {
-            // SendGrid email sending
-            const msg = {
-                to: candidateEmail,
-                from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
-                subject: `Interview Confirmation Required – ${position} Position at BML Munjal University`,
-                html: htmlContent,
-                text: textContent
-            };
-            
-            console.log('📧 Sending via SendGrid...');
-            const result = await sgMail.send(msg);
-            info = { messageId: result[0].headers['x-message-id'], response: 'SendGrid delivery successful' };
-            
-        } else {
-            // Gmail SMTP sending (fallback)
-            const transporter = getTransporter();
-            const mailOptions = {
-                from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
-                to: candidateEmail,
-                subject: `Interview Confirmation Required – ${position} Position at BML Munjal University`,
-                html: htmlContent,
-                text: textContent
-            };
+        // Enhanced timeout with retry logic
+        const sendWithRetry = async (maxRetries = 2) => {
+            for (let attempt = 1; attempt <= maxRetries; attempt++) {
+                try {
+                    console.log(`📧 Attempt ${attempt}/${maxRetries}...`);
+                    
+                    const sendWithTimeout = new Promise((resolve, reject) => {
+                        const timeout = setTimeout(() => {
+                            reject(new Error(`Email timeout after 30 seconds (attempt ${attempt})`));
+                        }, 30000); // Reduced to 30 seconds
 
-            // Add timeout wrapper for email sending
-            const sendWithTimeout = new Promise((resolve, reject) => {
-                const timeout = setTimeout(() => {
-                    reject(new Error('Email sending timeout after 45 seconds'));
-                }, 45000); // 45 second timeout
-
-                transporter.sendMail(mailOptions)
-                    .then(info => {
-                        clearTimeout(timeout);
-                        resolve(info);
-                    })
-                    .catch(error => {
-                        clearTimeout(timeout);
-                        reject(error);
+                        transporter.sendMail(mailOptions)
+                            .then(info => {
+                                clearTimeout(timeout);
+                                resolve(info);
+                            })
+                            .catch(error => {
+                                clearTimeout(timeout);
+                                reject(error);
+                            });
                     });
-            });
 
-            console.log('📧 Sending via Gmail SMTP...');
-            info = await sendWithTimeout;
-        }
+                    return await sendWithTimeout;
+                } catch (error) {
+                    console.log(`❌ Attempt ${attempt} failed:`, error.message);
+                    if (attempt === maxRetries) throw error;
+                    // Wait 2 seconds before retry
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                }
+            }
+        };
+
+        const info = await sendWithRetry();
 
         console.log('Interview confirmation email sent successfully:', info.response);
         return {

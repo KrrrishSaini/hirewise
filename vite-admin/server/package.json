@@ -16,6 +16,7 @@
     "@sendgrid/mail": "^8.1.6",
     "@supabase/supabase-js": "^2.93.2",
     "@upstash/redis": "^1.35.6",
+    "aws-sdk": "^2.1693.0",
     "compression": "^1.8.1",
     "cors": "^2.8.5",
     "debug": "4.3.4",
