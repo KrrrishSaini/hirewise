@@ -1,5 +1,6 @@
 // server/services/emailService.js
 import nodemailer from 'nodemailer';
+import sgMail from '@sendgrid/mail';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
@@ -7,7 +8,22 @@ const supabase = createClient(
     process.env.SUPABASE_SERVICE_KEY
 );
 
-// Configure email transporter with Gmail
+// Configure email service - SendGrid or Gmail fallback
+const initializeEmailService = () => {
+    if (process.env.SENDGRID_API_KEY) {
+        console.log('✅ Using SendGrid for email delivery');
+        sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+        return 'sendgrid';
+    } else if (process.env.EMAIL_USER && process.env.EMAIL_PASSWORD) {
+        console.log('✅ Using Gmail SMTP for email delivery');
+        return 'gmail';
+    } else {
+        console.error('❌ No email service configured');
+        return null;
+    }
+};
+
+// Gmail transporter (fallback)
 let transporter = null;
 
 const getTransporter = () => {
@@ -60,13 +76,15 @@ export const sendInterviewConfirmationEmail = async (
         console.log('EMAIL_USER:', process.env.EMAIL_USER ? 'SET' : 'MISSING');
         console.log('EMAIL_PASSWORD:', process.env.EMAIL_PASSWORD ? 'SET' : 'MISSING');
         console.log('EMAIL_FROM:', process.env.EMAIL_FROM ? 'SET' : 'MISSING');
+        console.log('SENDGRID_API_KEY:', process.env.SENDGRID_API_KEY ? 'SET' : 'MISSING');
         console.log('NODE_ENV:', process.env.NODE_ENV);
         console.log('API_BASE_URL:', process.env.API_BASE_URL);
         
-        if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
-            console.error('❌ Email credentials not configured');
-            console.error('Missing EMAIL_USER:', !process.env.EMAIL_USER);
-            console.error('Missing EMAIL_PASSWORD:', !process.env.EMAIL_PASSWORD);
+        // Initialize email service
+        const emailService = initializeEmailService();
+        
+        if (!emailService) {
+            console.error('❌ No email service configured');
             return { success: false, error: 'Email service not configured' };
         }
 
@@ -239,34 +257,54 @@ BML Munjal University | Faculty Recruitment System
 © 2026 BML Munjal University. All rights reserved.
     `;
 
-        const transporter = getTransporter();
+        // Send email using appropriate service
+        let info;
+        
+        if (emailService === 'sendgrid') {
+            // SendGrid email sending
+            const msg = {
+                to: candidateEmail,
+                from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+                subject: `Interview Confirmation Required – ${position} Position at BML Munjal University`,
+                html: htmlContent,
+                text: textContent
+            };
+            
+            console.log('📧 Sending via SendGrid...');
+            const result = await sgMail.send(msg);
+            info = { messageId: result[0].headers['x-message-id'], response: 'SendGrid delivery successful' };
+            
+        } else {
+            // Gmail SMTP sending (fallback)
+            const transporter = getTransporter();
+            const mailOptions = {
+                from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+                to: candidateEmail,
+                subject: `Interview Confirmation Required – ${position} Position at BML Munjal University`,
+                html: htmlContent,
+                text: textContent
+            };
 
-        const mailOptions = {
-            from: process.env.EMAIL_FROM,
-            to: candidateEmail,
-            subject: `Interview Confirmation Required – ${position} Position at BML Munjal University`,
-            html: htmlContent,
-            text: textContent
-        };
+            // Add timeout wrapper for email sending
+            const sendWithTimeout = new Promise((resolve, reject) => {
+                const timeout = setTimeout(() => {
+                    reject(new Error('Email sending timeout after 45 seconds'));
+                }, 45000); // 45 second timeout
 
-        // Add timeout wrapper for email sending
-        const sendWithTimeout = new Promise((resolve, reject) => {
-            const timeout = setTimeout(() => {
-                reject(new Error('Email sending timeout after 45 seconds'));
-            }, 45000); // 45 second timeout
+                transporter.sendMail(mailOptions)
+                    .then(info => {
+                        clearTimeout(timeout);
+                        resolve(info);
+                    })
+                    .catch(error => {
+                        clearTimeout(timeout);
+                        reject(error);
+                    });
+            });
 
-            transporter.sendMail(mailOptions)
-                .then(info => {
-                    clearTimeout(timeout);
-                    resolve(info);
-                })
-                .catch(error => {
-                    clearTimeout(timeout);
-                    reject(error);
-                });
-        });
-
-        const info = await sendWithTimeout;
+            console.log('📧 Sending via Gmail SMTP...');
+            info = await sendWithTimeout;
+        }
 
         console.log('Interview confirmation email sent successfully:', info.response);
         return {

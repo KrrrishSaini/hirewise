@@ -13,6 +13,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@sendgrid/mail": "^8.1.6",
     "@supabase/supabase-js": "^2.93.2",
     "@upstash/redis": "^1.35.6",
     "compression": "^1.8.1",
