@@ -938,31 +938,44 @@ router.post('/send-confirmation-enhanced/:id', async (req, res) => {
     const baseUrl = process.env.API_BASE_URL ||
       `http://localhost:${process.env.PORT || 5001}`;
 
-    // Send enhanced confirmation email with date/time/timezone
-    const emailResult = await emailService.sendEnhancedInterviewConfirmationEmail(
-      applicationId,
-      application.email,
-      `${application.first_name} ${application.last_name}`,
-      application.position || application.positionApplied || 'Faculty Position',
-      application.department || 'Not specified',
-      date,
-      time,
-      timezone,
-      baseUrl
-    );
+    // ✅ RESPOND IMMEDIATELY - Don't wait for email to send
+    res.json({
+      success: true,
+      message: 'Interview confirmation is being sent with scheduled date/time',
+      applicationId
+    });
 
-    if (!emailResult.success) {
-      return res.status(500).json({ error: emailResult.error || 'Failed to send email' });
-    }
+    // Send enhanced confirmation email ASYNC (fire-and-forget)
+    const sendEmailAsync = async () => {
+      try {
+        console.log('📧 Sending email in background for application:', applicationId);
+        const emailResult = await emailService.sendEnhancedInterviewConfirmationEmail(
+          applicationId,
+          application.email,
+          `${application.first_name} ${application.last_name}`,
+          application.position || application.positionApplied || 'Faculty Position',
+          application.department || 'Not specified',
+          date,
+          time,
+          timezone,
+          baseUrl
+        );
+
+        if (emailResult.success) {
+          console.log('✅ Email sent successfully:', emailResult.messageId);
+        } else {
+          console.error('❌ Email failed:', emailResult.error);
+        }
+      } catch (error) {
+        console.error('❌ Async email error:', error);
+      }
+    };
+
+    // Fire and forget - don't await
+    sendEmailAsync();
 
     // Invalidate cache
     cache.delPattern(`req:/api/applications/*`).catch(console.error);
-
-    res.json({
-      success: true,
-      message: 'Interview confirmation sent with scheduled date/time',
-      messageId: emailResult.messageId
-    });
 
   } catch (error) {
     console.error('Error sending enhanced confirmation:', error);

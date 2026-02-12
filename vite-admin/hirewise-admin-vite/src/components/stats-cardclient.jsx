@@ -349,11 +349,18 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
       console.log('📧 Sending enhanced confirmation for candidate:', candidate.id, candidate.first_name);
       setSendingConfirmation(prev => ({ ...prev, [candidate.id]: true }));
 
+      // Add timeout to fetch request
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
+
       const response = await fetch(`${API_BASE}/api/applications/send-confirmation-enhanced/${candidate.id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date, time, timezone })
+        body: JSON.stringify({ date, time, timezone }),
+        signal: controller.signal
       });
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         const errorData = await response.json();
