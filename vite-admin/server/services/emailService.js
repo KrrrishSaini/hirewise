@@ -735,7 +735,41 @@ export const sendEnhancedInterviewConfirmationEmail = async (
             html: htmlContent
         };
 
-        const info = await getTransporter().sendMail(mailOptions);
+        console.log('📧 Sending enhanced confirmation email via Gmail SMTP...');
+        
+        // Enhanced timeout with retry logic (same as other functions)
+        const sendWithRetry = async (maxRetries = 2) => {
+            for (let attempt = 1; attempt <= maxRetries; attempt++) {
+                try {
+                    console.log(`📧 Attempt ${attempt}/${maxRetries}...`);
+                    
+                    const sendWithTimeout = new Promise((resolve, reject) => {
+                        const timeout = setTimeout(() => {
+                            reject(new Error(`Email timeout after 30 seconds (attempt ${attempt})`));
+                        }, 30000); // 30 seconds timeout
+
+                        getTransporter().sendMail(mailOptions)
+                            .then(info => {
+                                clearTimeout(timeout);
+                                resolve(info);
+                            })
+                            .catch(error => {
+                                clearTimeout(timeout);
+                                reject(error);
+                            });
+                    });
+
+                    return await sendWithTimeout;
+                } catch (error) {
+                    console.log(`❌ Attempt ${attempt} failed:`, error.message);
+                    if (attempt === maxRetries) throw error;
+                    // Wait 2 seconds before retry
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                }
+            }
+        };
+
+        const info = await sendWithRetry();
         console.log('✅ Enhanced confirmation email sent:', info.messageId);
 
         return {
