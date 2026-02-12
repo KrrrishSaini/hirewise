@@ -12,10 +12,10 @@ const supabase = createClient(
 // Configure email service - Gmail SMTP (Free)
 const initializeEmailService = () => {
     if (process.env.EMAIL_USER && process.env.EMAIL_PASSWORD) {
-        console.log('✅ Using Gmail SMTP for email delivery (FREE)');
-        return 'gmail';
+        console.log('✅ Using Outlook SMTP for email delivery');
+        return 'outlook';
     } else {
-        console.error('❌ Gmail SMTP credentials not configured');
+        console.error('❌ Outlook SMTP credentials not configured');
         return null;
     }
 };
@@ -26,7 +26,9 @@ let transporter = null;
 const getTransporter = () => {
     if (!transporter) {
         transporter = nodemailer.createTransport({
-            service: 'gmail',
+            host: 'smtp-mail.outlook.com', // Outlook SMTP
+            port: 587,
+            secure: false, // Use STARTTLS
             auth: {
                 user: process.env.EMAIL_USER,
                 pass: process.env.EMAIL_PASSWORD
@@ -263,7 +265,7 @@ BML Munjal University | Faculty Recruitment System
             text: textContent
         };
 
-        console.log('📧 Sending via Gmail SMTP (FREE)...');
+        console.log('📧 Sending via Outlook SMTP...');
         
         // Enhanced timeout with retry logic
         const sendWithRetry = async (maxRetries = 2) => {
@@ -735,7 +737,7 @@ export const sendEnhancedInterviewConfirmationEmail = async (
             html: htmlContent
         };
 
-        console.log('📧 Sending enhanced confirmation email via Gmail SMTP...');
+        console.log('📧 Sending enhanced confirmation email via Outlook SMTP...');
         
         // Enhanced timeout with retry logic (same as other functions)
         const sendWithRetry = async (maxRetries = 2) => {
