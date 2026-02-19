@@ -286,6 +286,19 @@ const AllCandidates = () => {
     return toTitleCase(String(raw).replace(/[_-]/g, ' '));
   };
 
+  const formatSubmittedDate = (candidate) => {
+    const rawValue =
+      candidate?.submitted_at ||
+      candidate?.submittedAt ||
+      candidate?.created_at ||
+      candidate?.createdAt;
+    if (!rawValue) return 'Not available';
+
+    const parsed = new Date(rawValue);
+    if (Number.isNaN(parsed.getTime())) return 'Not available';
+    return parsed.toLocaleDateString('en-GB');
+  };
+
   const getHighestDegreeInstitution = (candidate) => {
     const firstNonEmpty = (...values) =>
       values
@@ -1490,6 +1503,10 @@ const AllCandidates = () => {
                           <p className="text-sm text-gray-900">{selectedCandidate.nationality}</p>
                         </div>
                       )}
+                      <div>
+                        <p className="text-xs font-semibold text-gray-500 uppercase">Application Submitted</p>
+                        <p className="text-sm text-gray-900">{formatSubmittedDate(selectedCandidate)}</p>
+                      </div>
                       {selectedCandidate.address && (
                         <div className="col-span-2">
                           <p className="text-xs font-semibold text-gray-500 uppercase">Address</p>

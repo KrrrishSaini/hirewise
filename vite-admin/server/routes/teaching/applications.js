@@ -425,6 +425,8 @@ router.post(
         console.warn('Duplicate check warning:', dupCheckErr.message);
       }
 
+      const submittedAt = new Date().toISOString();
+
       // Insert main application
       const insertPayload = {
         position,
@@ -450,7 +452,8 @@ router.post(
         nationality,
         post_applied_for: normalizedPostAppliedFor || null,
         user_id,
-        status: 'submitted'
+        status: 'submitted',
+        submitted_at: submittedAt
       };
 
       const { data: appData, error: appError } = await supabase
@@ -588,7 +591,8 @@ router.post(
       res.status(201).json({
         success: true,
         message: 'Application submitted successfully! Your application is being processed.',
-        applicationId
+        applicationId,
+        submittedAt: appData?.submitted_at || submittedAt
       });
     } catch (error) {
       console.error('Application submission error:', error);
