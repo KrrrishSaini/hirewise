@@ -11,15 +11,11 @@ const supabase = createClient(
 
 // Configure email service - Gmail SMTP (Free)
 const initializeEmailService = () => {
-    if (process.env.SENDGRID_API_KEY) {
-        console.log('✅ Using SendGrid for email delivery (100 free emails/day)');
-        sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-        return 'sendgrid';
-    } else if (process.env.EMAIL_USER && process.env.EMAIL_PASSWORD) {
-        console.log('✅ Using Outlook SMTP for email delivery');
-        return 'outlook';
+    if (process.env.EMAIL_USER && process.env.EMAIL_PASSWORD) {
+        console.log('✅ Using Gmail SMTP for email delivery');
+        return 'gmail';
     } else {
-        console.error('❌ No email service configured');
+        console.error('❌ Gmail SMTP credentials not configured');
         return null;
     }
 };
@@ -30,9 +26,7 @@ let transporter = null;
 const getTransporter = () => {
     if (!transporter) {
         transporter = nodemailer.createTransport({
-            host: 'smtp-mail.outlook.com', // Outlook SMTP
-            port: 587,
-            secure: false, // Use STARTTLS
+            service: 'gmail',
             auth: {
                 user: process.env.EMAIL_USER,
                 pass: process.env.EMAIL_PASSWORD
@@ -741,34 +735,7 @@ export const sendEnhancedInterviewConfirmationEmail = async (
             html: htmlContent
         };
 
-        console.log('📧 Sending enhanced confirmation email...');
-        
-        // Try SendGrid first (most reliable)
-        if (process.env.SENDGRID_API_KEY) {
-            console.log('📧 Using SendGrid API...');
-            
-            const msg = {
-                to: candidateEmail,
-                from: process.env.EMAIL_FROM || 'hirewise88@outlook.com',
-                subject: `Interview Invitation - ${position} Position`,
-                html: htmlContent
-            };
-
-            try {
-                const [response] = await sgMail.send(msg);
-                console.log('✅ SendGrid email sent:', response.statusCode);
-                return {
-                    success: true,
-                    messageId: response.headers['x-message-id']
-                };
-            } catch (error) {
-                console.error('❌ SendGrid failed:', error.response?.body?.errors || error.message);
-                // Fall through to Outlook backup
-            }
-        }
-
-        // Fallback to Outlook SMTP
-        console.log('📧 Falling back to Outlook SMTP...');
+        console.log('📧 Sending enhanced confirmation email via Gmail SMTP...');
         
         // Enhanced timeout with retry logic (same as other functions)
         const sendWithRetry = async (maxRetries = 2) => {

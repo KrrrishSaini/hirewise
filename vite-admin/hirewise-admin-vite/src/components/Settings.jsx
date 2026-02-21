@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import DepartmentPositionManagement from './DepartmentPositionManagement.jsx';
 
 const Settings = () => {
   const [profile, setProfile] = useState({
@@ -316,6 +317,9 @@ const Settings = () => {
             </div>
           </div>
         </div>
+
+        {/* Department and Position Management */}
+        <DepartmentPositionManagement />
         
       </div>
     </div>

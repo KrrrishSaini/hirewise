@@ -23,85 +23,88 @@ const PositionSelection = ({ formData, setFormData, onNext, onSaveExit, savingDr
   const [errors, setErrors] = useState({});
   const [departments, setDepartments] = useState([]);
   const [branches, setBranches] = useState([]);
-  const teachingPosts = [
-    { id: 'assistant_professor', name: 'Assistant Professor' },
-    { id: 'associate_professor', name: 'Associate Professor' },
-    { id: 'professor', name: 'Professor' },
-    { id: 'professor_of_practice', name: 'Professor of Practice' },
-    { id: 'lecturer', name: 'Lecturer' },
-  ];
-  const nonTeachingPosts = [
-    { id: 'admin_officer', name: 'Administrative Officer' },
-    { id: 'it_support', name: 'IT Support' },
-    { id: 'security_officer', name: 'Security Officer' },
-    { id: 'lab_technician', name: 'Lab Technician' },
-  ];
-  const teachingDepartments = [
-    { id: 'engineering', name: 'School of Engineering & Technology' },
-    { id: 'law', name: 'School of Law' },
-    { id: 'management', name: 'School of Management' },
-    { id: 'liberal', name: 'School of Liberal Studies' },
-  ];
-  const nonTeachingDepartments = [
-    { id: 'admin', name: 'Administration' },
-    { id: 'it', name: 'IT Maintenance' },
-    { id: 'security', name: 'Security' },
-    { id: 'lab', name: 'Lab Assistants' },
-  ];
-  const engineeringBranches = [
-    { id: 'cse', name: 'Computer Science & Engineering' },
-    { id: 'mech', name: 'Mechanical Engineering' },
-    { id: 'ece', name: 'Electronics and Communication Engineering' },
-    { id: 'math', name: 'Mathematics' },
-    { id: 'chemistry', name: 'Chemistry' },
-    { id: 'physics', name: 'Physics' },
-  ];
-  const lawBranches = [
-    { id: 'criminal', name: 'Criminal Law' },
-    { id: 'corporate', name: 'Corporate Law' },
-    { id: 'civil', name: 'Civil Law' },
-  ];
-  const managementBranches = [
-    { id: 'finance', name: 'Finance' },
-    { id: 'marketing', name: 'Marketing' },
-    { id: 'hr', name: 'Human Resources' },
-  ];
-  const liberalBranches = [
-    { id: 'english', name: 'English' },
-    { id: 'history', name: 'History' },
-    { id: 'sociology', name: 'Sociology' },
-  ];
+  const [teachingPosts, setTeachingPosts] = useState([]);
+  const [nonTeachingPosts, setNonTeachingPosts] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  // Load dynamic data from API
   useEffect(() => {
-    if (formData.position === 'teaching') {
-      setDepartments(teachingDepartments);
-    } else if (formData.position === 'non-teaching') {
-      setDepartments(nonTeachingDepartments);
-    } else {
-      setDepartments([]);
-    }
-  }, [formData.position]);
-  useEffect(() => {
-    if (formData.department) {
-      switch (formData.department) {
-        case 'engineering':
-          setBranches(engineeringBranches);
-          break;
-        case 'law':
-          setBranches(lawBranches);
-          break;
-        case 'management':
-          setBranches(managementBranches);
-          break;
-        case 'liberal':
-          setBranches(liberalBranches);
-          break;
-        default:
-          setBranches([]);
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      // Load ONLY ACTIVE departments, positions, and branches for client form
+      const [departmentsRes, positionsRes, branchesRes] = await Promise.all([
+        fetch(`${API_BASE}/api/admin/departments?status=ACTIVE`),
+        fetch(`${API_BASE}/api/admin/positions?status=ACTIVE`),
+        fetch(`${API_BASE}/api/admin/branches?status=ACTIVE`)
+      ]);
+
+      if (departmentsRes.ok) {
+        const depts = await departmentsRes.json();
+        setDepartments(depts);
       }
-    } else {
-      setBranches([]);
+
+      if (positionsRes.ok) {
+        const positions = await positionsRes.json();
+        const teachingPositions = positions.filter(p => p.type === 'TEACHING');
+        const nonTeachingPositions = positions.filter(p => p.type === 'NON_TEACHING');
+        setTeachingPosts(teachingPositions);
+        setNonTeachingPosts(nonTeachingPositions);
+      }
+
+      if (branchesRes.ok) {
+        const branchesData = await branchesRes.json();
+        setBranches(branchesData);
+      }
+    } catch (error) {
+      console.error('Error loading form data:', error);
+      // Fallback to hardcoded values if API fails
+      setDepartments([
+        { id: 'eng', name: 'School of Engineering & Technology', type: 'TEACHING', status: 'ACTIVE' },
+        { id: 'law', name: 'School of Law', type: 'TEACHING', status: 'ACTIVE' },
+        { id: 'mgmt', name: 'School of Management', type: 'TEACHING', status: 'ACTIVE' },
+        { id: 'lib', name: 'School of Liberal Studies', type: 'TEACHING', status: 'ACTIVE' },
+        { id: 'adm', name: 'Administration', type: 'NON_TEACHING', status: 'ACTIVE' },
+        { id: 'it', name: 'IT Maintenance', type: 'NON_TEACHING', status: 'ACTIVE' },
+        { id: 'sec', name: 'Security', type: 'NON_TEACHING', status: 'ACTIVE' },
+        { id: 'lab', name: 'Lab Assistants', type: 'NON_TEACHING', status: 'ACTIVE' }
+      ]);
+      setTeachingPosts([
+        { id: 'ap', name: 'Assistant Professor', type: 'TEACHING', status: 'ACTIVE' },
+        { id: 'acp', name: 'Associate Professor', type: 'TEACHING', status: 'ACTIVE' },
+        { id: 'prof', name: 'Professor', type: 'TEACHING', status: 'ACTIVE' },
+        { id: 'pop', name: 'Professor of Practice', type: 'TEACHING', status: 'ACTIVE' },
+        { id: 'lec', name: 'Lecturer', type: 'TEACHING', status: 'ACTIVE' }
+      ]);
+      setNonTeachingPosts([
+        { id: 'ao', name: 'Administrative Officer', type: 'NON_TEACHING', status: 'ACTIVE' },
+        { id: 'its', name: 'IT Support', type: 'NON_TEACHING', status: 'ACTIVE' },
+        { id: 'so', name: 'Security Officer', type: 'NON_TEACHING', status: 'ACTIVE' },
+        { id: 'lt', name: 'Lab Technician', type: 'NON_TEACHING', status: 'ACTIVE' }
+      ]);
     }
-  }, [formData.department]);
+    setLoading(false);
+  };
+
+  // Get departments based on selected position type
+  const getFilteredDepartments = () => {
+    if (!formData.position) return [];
+    // Convert 'teaching' or 'non-teaching' to 'TEACHING' or 'NON_TEACHING'
+    const positionType = formData.position.replace('-', '_').toUpperCase();
+    return departments.filter(dept => dept.type === positionType);
+  };
+
+  // Get branches based on selected department
+  const getFilteredBranches = () => {
+    if (!formData.department) return [];
+    const selectedDept = departments.find(d => d.id === formData.department);
+    if (!selectedDept) return [];
+    return branches.filter(branch => branch.department_id === selectedDept.id);
+  };
+
   const validateForm = () => {
     const newErrors = {};
     if (!formData.position) {
@@ -122,6 +125,7 @@ const PositionSelection = ({ formData, setFormData, onNext, onSaveExit, savingDr
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (validateForm()) {
@@ -142,6 +146,13 @@ const PositionSelection = ({ formData, setFormData, onNext, onSaveExit, savingDr
   };
   return (
     <form onSubmit={handleSubmit} noValidate>
+      {loading && (
+        <div className="text-center py-4">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <p className="mt-2 text-gray-600">Loading departments and positions...</p>
+        </div>
+      )}
+      
       <div className="two-column-row">
         <div className="form-field">
           <label htmlFor="position">Position Applying For*</label>
@@ -177,7 +188,7 @@ const PositionSelection = ({ formData, setFormData, onNext, onSaveExit, savingDr
             >
               <option value="">Select Teaching Post</option>
               {teachingPosts.map((post) => (
-                <option key={post.id} value={post.id}>{post.name}</option>
+                <option key={post.id} value={post.name}>{post.name}</option>
               ))}
             </select>
             {errors.teachingPost && <span className="error">{errors.teachingPost}</span>}
@@ -194,7 +205,7 @@ const PositionSelection = ({ formData, setFormData, onNext, onSaveExit, savingDr
             >
               <option value="">Select Non-Teaching Post</option>
               {nonTeachingPosts.map((post) => (
-                <option key={post.id} value={post.id}>{post.name}</option>
+                <option key={post.id} value={post.name}>{post.name}</option>
               ))}
             </select>
             {errors.nonTeachingPost && <span className="error">{errors.nonTeachingPost}</span>}
@@ -216,7 +227,7 @@ const PositionSelection = ({ formData, setFormData, onNext, onSaveExit, savingDr
             disabled={!formData.position}
           >
             <option value="">{formData.position === 'non-teaching' ? 'Select Department' : 'Select School'}</option>
-            {departments.map((dept) => (
+            {getFilteredDepartments().map((dept) => (
               <option key={dept.id} value={dept.id}>
                 {dept.name}
               </option>
@@ -237,7 +248,7 @@ const PositionSelection = ({ formData, setFormData, onNext, onSaveExit, savingDr
               disabled={!formData.department}
             >
               <option value="">Select Department</option>
-              {branches.map((branch) => (
+              {getFilteredBranches().map((branch) => (
                 <option key={branch.id} value={branch.id}>
                   {branch.name}
                 </option>

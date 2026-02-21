@@ -72,10 +72,20 @@ const Dashboard = () => {
     const fetchCandidates = async () => {
       try {
         setLoading(true);
-        // ⚡ OPTIMIZED: Use API client with retry & caching, but skip cache to get fresh data
-        const data = await candidatesApi.getTopRankings({ _t: Date.now() });
+        console.log('Dashboard: Starting to fetch candidates...');
+        
+        // Add timeout to prevent infinite loading
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Request timeout after 10 seconds')), 10000)
+        );
+        
+        const apiPromise = candidatesApi.getTopRankings({ _t: Date.now() });
+        
+        const data = await Promise.race([apiPromise, timeoutPromise]);
+        console.log('Dashboard: API response:', data);
         const arr = Array.isArray(data) ? data : [];
         const unique = dedupeCandidates(arr);
+        console.log('Dashboard: Final candidates after dedup:', unique.length);
         setCandidates(unique);
 
         // Load confirmation states for all candidates
@@ -89,16 +99,28 @@ const Dashboard = () => {
           setConfirmationStates(confirmStates);
         }
       } catch (error) {
-        console.error('Error fetching candidates:', error);
+        console.error('Dashboard: Error fetching candidates:', error);
+        console.error('Dashboard: Error details:', {
+          message: error.message,
+          status: error.status,
+          stack: error.stack
+        });
         // No fallback dummy data — show empty state if the API fails
         setCandidates([]);
       } finally {
+        console.log('Dashboard: Setting loading to false');
         setLoading(false);
       }
     };
 
     // Immediate fetch without delay
     fetchCandidates();
+    
+    // Fallback: Force stop loading after 12 seconds no matter what
+    const fallbackTimeout = setTimeout(() => {
+      console.warn('Dashboard: Force stopping loading after 12 seconds');
+      setLoading(false);
+    }, 12000);
 
     // Refetch when window gains focus (user returns from other pages)
     const handleFocus = () => {
@@ -108,6 +130,7 @@ const Dashboard = () => {
     window.addEventListener('focus', handleFocus);
 
     return () => {
+      clearTimeout(fallbackTimeout);
       window.removeEventListener('focus', handleFocus);
     };
   }, []);

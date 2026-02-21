@@ -46,7 +46,7 @@ const DEFAULT_FILTERS = {
 const AllCandidates = () => {
   const [selectedCandidate, setSelectedCandidate] = useState(null);
   const [selectedDepartment, setSelectedDepartment] = useState('All');
-  const [selectedStage, setSelectedStage] = useState('new');
+  const [selectedStage, setSelectedStage] = useState('all');
   const [candidates, setCandidates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -68,6 +68,10 @@ const AllCandidates = () => {
   const [multiAssignMode, setMultiAssignMode] = useState(false);
   const [selectedCandidateIds, setSelectedCandidateIds] = useState([]);
   const [bulkAssigning, setBulkAssigning] = useState(false);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(10); // 10 candidates per page
   // Status pill meta for consistent styling
   const getStatusMeta = (status) => {
     const map = {
@@ -89,13 +93,25 @@ const AllCandidates = () => {
     setShowEvaluationModal(true);
   };
 
-  const departments = ['All', 'law', 'liberal', 'engineering', 'management'];
+  const departments = ['All', 'law', 'liberal', 'engineering', 'management']; // All is first now
+  
   const toTitleCase = (value) => {
     if (!value || typeof value !== 'string') return value || '';
     return value
       .split(/\s+/)
       .map((w) => (w ? w.charAt(0).toUpperCase() + w.slice(1) : ''))
       .join(' ');
+  };
+
+  // Reset to page 1 when department or stage changes
+  const handleDepartmentChange = (department) => {
+    setSelectedDepartment(department);
+    setCurrentPage(1);
+  };
+
+  const handleStageChange = (stage) => {
+    setSelectedStage(stage);
+    setCurrentPage(1);
   };
 
   const normalizeCandidateStatus = (status) => {
@@ -396,6 +412,13 @@ const AllCandidates = () => {
   const fetchCandidates = async () => {
     try {
       setLoading(true);
+      setError(null); // Clear any previous errors
+      console.log('AllCandidates: Starting to fetch candidates for department:', selectedDepartment);
+      
+      // Add timeout to prevent infinite loading
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Supabase query timeout after 8 seconds')), 8000)
+      );
       
       // Direct Supabase query to get ALL fields including research data
       let query = supabase
@@ -407,9 +430,15 @@ const AllCandidates = () => {
         query = query.eq('department', selectedDepartment);
       }
       
+      console.log('AllCandidates: Executing Supabase query...');
       const { data, error } = await query;
       
-      if (error) throw error;
+      if (error) {
+        console.error('AllCandidates: Supabase query error:', error);
+        throw error;
+      }
+      
+      console.log('AllCandidates: Raw Supabase response:', data?.length, 'records');
       
       // Keep all active candidates (exclude deleted only)
       const filteredData = (data || []).filter(candidate => 
@@ -425,17 +454,35 @@ const AllCandidates = () => {
         ...candidate,
         status: normalizeCandidateStatus(candidate.status)
       }));
+      console.log('AllCandidates: Setting candidates:', normalized.length);
       setCandidates(normalized);
     } catch (err) {
-      console.error('Error fetching candidates:', err);
+      console.error('AllCandidates: Error fetching candidates:', err);
+      console.error('AllCandidates: Error details:', {
+        message: err.message,
+        code: err.code,
+        details: err.details,
+        stack: err.stack
+      });
       setError(err.message);
     } finally {
+      console.log('AllCandidates: Setting loading to false');
       setLoading(false);
     }
   };
 
   useEffect(() => {
     fetchCandidates();
+    
+    // Fallback: Force stop loading after 10 seconds no matter what
+    const fallbackTimeout = setTimeout(() => {
+      console.warn('AllCandidates: Force stopping loading after 10 seconds');
+      setLoading(false);
+    }, 10000);
+    
+    return () => {
+      clearTimeout(fallbackTimeout);
+    };
   }, [selectedDepartment]); // Re-fetch when department filter changes
 
   const handleViewDetails = async (candidate) => {
@@ -649,7 +696,35 @@ const AllCandidates = () => {
 
   const stageFiltered = departmentFiltered.filter(candidate => matchesStage(candidate, selectedStage));
   const filteredCandidates = stageFiltered.filter(passesAdvancedFilters);
-  const assignableVisibleCandidates = filteredCandidates.filter((candidate) => getAssignableType(candidate.status));
+  
+  // Pagination logic
+  const totalCandidates = filteredCandidates.length;
+  const totalPages = Math.ceil(totalCandidates / pageSize);
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+  const paginatedCandidates = filteredCandidates.slice(startIndex, endIndex);
+  
+  // Pagination controls
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+  
+  const handlePrevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+  
+  // Reset to page 1 if current page exceeds total pages
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(1);
+    }
+  }, [currentPage, totalPages]);
+  
+  const assignableVisibleCandidates = paginatedCandidates.filter((candidate) => getAssignableType(candidate.status));
   const areAllAssignableSelected =
     assignableVisibleCandidates.length > 0 &&
     assignableVisibleCandidates.every((candidate) => selectedCandidateIds.includes(candidate.id));
@@ -810,27 +885,28 @@ const AllCandidates = () => {
         <div className="p-6 border-b border-gray-200 sticky top-0 bg-white z-10">
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-semibold text-gray-800">All Candidates</h2>
-            <div className="flex flex-wrap gap-2">
-              {departments.map(dept => (
-                <button
-                  key={dept}
-                  onClick={() => setSelectedDepartment(dept)}
-                  className={`px-4 py-2 rounded-lg transition-colors ${
-                    selectedDepartment === dept
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                  }`}
+            <div className="flex items-center gap-4">
+              <div className="flex flex-col">
+                <label className="text-sm font-medium text-gray-700 mb-1">Select Department</label>
+                <select
+                  value={selectedDepartment}
+                  onChange={(e) => handleDepartmentChange(e.target.value)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white min-w-[180px]"
                 >
-                  {dept.charAt(0).toUpperCase() + dept.slice(1)}
-                </button>
-              ))}
+                  {departments.map(dept => (
+                    <option key={dept} value={dept}>
+                      {dept.charAt(0).toUpperCase() + dept.slice(1)}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
             {PIPELINE_STAGES.map((stage) => (
               <button
                 key={stage.key}
-                onClick={() => setSelectedStage(stage.key)}
+                onClick={() => handleStageChange(stage.key)}
                 className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
                   selectedStage === stage.key
                     ? 'bg-indigo-600 text-white'
@@ -1077,8 +1153,10 @@ const AllCandidates = () => {
                   <div>Actions</div>
                 </div>
 
-                {filteredCandidates.map((candidate, index) => (
-                  <div
+                {paginatedCandidates.map((candidate, index) => {
+                  const globalIndex = startIndex + index; // Calculate global position
+                  return (
+                    <div
                     key={candidate.id}
                     // style={{ backgroundColor: getGenderRowBackground(candidate.gender) }}
                     className={`grid ${multiAssignMode ? 'grid-cols-[54px_90px_1.9fr_1.4fr_1.2fr_2fr]' : 'grid-cols-[90px_1.9fr_1.4fr_1.2fr_2fr]'} items-center gap-4 border-b border-gray-100 px-3 py-3 transition-colors`}
@@ -1096,7 +1174,7 @@ const AllCandidates = () => {
                     )}
                     <div>
                       <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-blue-500 text-xs font-bold text-white">
-                        {index + 1}
+                        {globalIndex + 1}
                       </span>
                     </div>
 
@@ -1157,8 +1235,71 @@ const AllCandidates = () => {
                       )}
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
+              
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200">
+                  <div className="flex items-center text-sm text-gray-700">
+                    Showing {startIndex + 1} to {Math.min(endIndex, totalCandidates)} of {totalCandidates} candidates
+                    (Page {currentPage} of {totalPages})
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={handlePrevPage}
+                      disabled={currentPage === 1}
+                      className={`px-3 py-2 rounded-lg border font-medium text-sm ${
+                        currentPage === 1
+                          ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                          : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      ← Previous
+                    </button>
+                    <div className="flex items-center space-x-1">
+                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                        let pageNum;
+                        if (totalPages <= 5) {
+                          pageNum = i + 1;
+                        } else if (currentPage <= 3) {
+                          pageNum = i + 1;
+                        } else if (currentPage >= totalPages - 2) {
+                          pageNum = totalPages - 4 + i;
+                        } else {
+                          pageNum = currentPage - 2 + i;
+                        }
+                        
+                        return (
+                          <button
+                            key={pageNum}
+                            onClick={() => setCurrentPage(pageNum)}
+                            className={`px-3 py-2 rounded-lg text-sm font-medium ${
+                              currentPage === pageNum
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                            }`}
+                          >
+                            {pageNum}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <button
+                      onClick={handleNextPage}
+                      disabled={currentPage === totalPages}
+                      className={`px-3 py-2 rounded-lg border font-medium text-sm ${
+                        currentPage === totalPages
+                          ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                          : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      Next →
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <div className="p-6 text-center text-gray-500">

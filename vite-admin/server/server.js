@@ -17,6 +17,7 @@ import documentsRoute from './routes/documents.js';
 import mlRoute from './routes/ml.js';
 import authRoute from './routes/auth.js';
 import googleRoute from './routes/google.js';
+import departmentsRoute from './routes/departments.js';
 
 // ✅ 1. Create the app FIRST
 const app = express();
@@ -101,6 +102,7 @@ app.use("/api/documents", documentsRoute);
 app.use("/api/ml", mlRoute);
 app.use("/api/auth", authRoute);
 app.use("/api/google", googleRoute);
+app.use("/api/admin", departmentsRoute);
 
 // OAuth2 callback route (at root level for Google redirect)
 app.get('/oauth2callback', (req, res) => {
