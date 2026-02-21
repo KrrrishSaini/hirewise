@@ -31,14 +31,17 @@ const getTransporter = () => {
                 user: process.env.EMAIL_USER,
                 pass: process.env.EMAIL_PASSWORD
             },
-            // Add timeout and connection settings for production
-            connectionTimeout: 30000, // 30 seconds
-            greetingTimeout: 30000,   // 30 seconds  
-            socketTimeout: 60000,     // 60 seconds
+            // INCREASED timeouts for Render's slower network
+            connectionTimeout: 90000, // 90 seconds (was 30)
+            greetingTimeout: 90000,   // 90 seconds (was 30)
+            socketTimeout: 90000,     // 90 seconds (was 60)
             pool: true,               // Use connection pooling
             maxConnections: 5,        // Max 5 concurrent connections
-            rateDelta: 20000,         // Wait 20s between messages (avoid rate limiting)
-            rateLimit: 5              // Max 5 messages per rateDelta
+            rateDelta: 20000,         // Wait 20s between messages
+            rateLimit: 5,             // Max 5 messages per rateDelta
+            tls: {
+                rejectUnauthorized: false // Allow self-signed certs on Render
+            }
         });
     }
     return transporter;
@@ -745,8 +748,8 @@ export const sendEnhancedInterviewConfirmationEmail = async (
                     
                     const sendWithTimeout = new Promise((resolve, reject) => {
                         const timeout = setTimeout(() => {
-                            reject(new Error(`Email timeout after 30 seconds (attempt ${attempt})`));
-                        }, 30000); // 30 seconds timeout
+                            reject(new Error(`Email timeout after 90 seconds (attempt ${attempt})`));
+                        }, 90000); // 90 seconds timeout (increased from 30)
 
                         getTransporter().sendMail(mailOptions)
                             .then(info => {
