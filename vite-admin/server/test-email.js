@@ -6,14 +6,12 @@ dotenv.config();
 
 const testEmailSending = async () => {
     try {
-        console.log('📧 Testing Outlook SMTP connection...');
+        console.log('📧 Testing Gmail SMTP connection...');
         console.log('EMAIL_USER:', process.env.EMAIL_USER);
         console.log('EMAIL_PASSWORD length:', process.env.EMAIL_PASSWORD?.length);
         
         const transporter = nodemailer.createTransport({
-            host: 'smtp-mail.outlook.com', // Outlook SMTP
-            port: 587,
-            secure: false, // Use STARTTLS
+            service: 'gmail',
             auth: {
                 user: process.env.EMAIL_USER,
                 pass: process.env.EMAIL_PASSWORD
@@ -24,9 +22,9 @@ const testEmailSending = async () => {
         });
 
         // Test connection
-        console.log('🔍 Verifying Outlook connection...');
+        console.log('🔍 Verifying Gmail connection...');
         await transporter.verify();
-        console.log('✅ Outlook SMTP connection verified!');
+        console.log('✅ Gmail SMTP connection verified!');
 
         // Send test email
         console.log('📤 Sending test email...');
