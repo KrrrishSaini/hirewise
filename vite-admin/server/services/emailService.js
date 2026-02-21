@@ -9,13 +9,17 @@ const supabase = createClient(
     process.env.SUPABASE_SERVICE_KEY
 );
 
-// Configure email service - Gmail SMTP (Free)
+// Configure email service - SendGrid PRIMARY (works on Render), Gmail fallback
 const initializeEmailService = () => {
-    if (process.env.EMAIL_USER && process.env.EMAIL_PASSWORD) {
-        console.log('✅ Using Gmail SMTP for email delivery');
+    if (process.env.SENDGRID_API_KEY) {
+        console.log('✅ Using SendGrid API for email delivery (Render-compatible)');
+        sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+        return 'sendgrid';
+    } else if (process.env.EMAIL_USER && process.env.EMAIL_PASSWORD) {
+        console.log('✅ Using Gmail SMTP for email delivery (local only)');
         return 'gmail';
     } else {
-        console.error('❌ Gmail SMTP credentials not configured');
+        console.error('❌ No email service configured');
         return null;
     }
 };
@@ -738,7 +742,34 @@ export const sendEnhancedInterviewConfirmationEmail = async (
             html: htmlContent
         };
 
-        console.log('📧 Sending enhanced confirmation email via Gmail SMTP...');
+        console.log('📧 Sending enhanced confirmation email...');
+        
+        // TRY SENDGRID FIRST (works on Render - uses HTTPS not SMTP)
+        if (process.env.SENDGRID_API_KEY) {
+            console.log('📧 Using SendGrid API...');
+            
+            const msg = {
+                to: candidateEmail,
+                from: process.env.EMAIL_FROM || 'hirewisebmu8@gmail.com',
+                subject: `Interview Invitation - ${position} Position`,
+                html: htmlContent
+            };
+
+            try {
+                const [response] = await sgMail.send(msg);
+                console.log('✅ SendGrid email sent:', response.statusCode);
+                return {
+                    success: true,
+                    messageId: response.headers['x-message-id']
+                };
+            } catch (error) {
+                console.error('❌ SendGrid failed:', error.response?.body?.errors || error.message);
+                // Fall through to Gmail SMTP backup
+            }
+        }
+
+        // FALLBACK TO GMAIL SMTP (for local development only)
+        console.log('📧 Falling back to Gmail SMTP...');
         
         // Enhanced timeout with retry logic (same as other functions)
         const sendWithRetry = async (maxRetries = 2) => {
