@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Bell, Users, FileText, AlertTriangle, Clock, Send, X, CheckCircle } from 'lucide-react';
-import { API_BASE } from '../lib/config';
+import { supabase } from '../../lib/supabase-client';
 
 const Notification = () => {
+  const [activeTab, setActiveTab] = useState('admin');
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
   const [recipients, setRecipients] = useState('all');
@@ -10,7 +11,44 @@ const Notification = () => {
   const [alertType, setAlertType] = useState('general');
   const [notifications, setNotifications] = useState([]);
   const [adminAlerts, setAdminAlerts] = useState([]);
+  const [applicationAlerts, setApplicationAlerts] = useState([]);
+  const [applicationAlertsLoading, setApplicationAlertsLoading] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
+
+  const toTitleCase = (value) =>
+    String(value || '')
+      .replace(/[_-]/g, ' ')
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+
+  const formatApplicantName = (row) => {
+    const titlePart = row?.title ? `${toTitleCase(row.title)} ` : '';
+    const first = toTitleCase(row?.first_name);
+    const last = toTitleCase(row?.last_name);
+    return `${titlePart}${first}${last ? ` ${last}` : ''}`.trim() || 'An applicant';
+  };
+
+  const buildApplicationAlert = (row) => {
+    const submittedAt = row?.submitted_at || row?.created_at || new Date().toISOString();
+    const postLabel = row?.post_applied_for || row?.position || 'position not specified';
+    const deptLabel = row?.department ? ` (${toTitleCase(row.department)})` : '';
+
+    return {
+      id: row?.id ? `app-${row.id}` : `app-${Date.now()}`,
+      sourceId: row?.id ?? null,
+      type: 'job_application',
+      priority: 'normal',
+      read: false,
+      actionRequired: false,
+      title: 'New Application Submitted',
+      applicantName: formatApplicantName(row),
+      message: `${formatApplicantName(row)} submitted an application for ${toTitleCase(postLabel)}${deptLabel}.`,
+      timestamp: new Date(submittedAt),
+      raw: row,
+    };
+  };
 
   // Mock data for admin alerts - replace with API calls
   useEffect(() => {
@@ -19,6 +57,75 @@ const Notification = () => {
     
     setAdminAlerts(mockAlerts);
     setUnreadCount(mockAlerts.filter(alert => !alert.read).length);
+  }, []);
+
+  // Fetch application submission notifications + live updates
+  useEffect(() => {
+    let mounted = true;
+
+    const fetchApplicationAlerts = async () => {
+      try {
+        setApplicationAlertsLoading(true);
+
+        let { data, error } = await supabase
+          .from('faculty_applications')
+          .select('id, title, first_name, last_name, position, department, post_applied_for, status, submitted_at, created_at')
+          .neq('status', 'draft')
+          .limit(200);
+
+        if (error) {
+          console.warn('Application notifications query (submitted_at) failed, retrying fallback:', error.message);
+          const fallback = await supabase
+            .from('faculty_applications')
+            .select('id, title, first_name, last_name, position, department, post_applied_for, status, created_at')
+            .neq('status', 'draft')
+            .limit(200);
+          if (fallback.error) throw fallback.error;
+          data = fallback.data;
+        }
+
+        const sorted = (data || [])
+          .slice()
+          .sort((a, b) => {
+            const aTime = new Date(a.submitted_at || a.created_at || 0).getTime();
+            const bTime = new Date(b.submitted_at || b.created_at || 0).getTime();
+            return bTime - aTime;
+          })
+          .map(buildApplicationAlert);
+
+        if (mounted) setApplicationAlerts(sorted);
+      } catch (error) {
+        console.error('Failed to fetch application notifications:', error);
+        if (mounted) setApplicationAlerts([]);
+      } finally {
+        if (mounted) setApplicationAlertsLoading(false);
+      }
+    };
+
+    fetchApplicationAlerts();
+
+    const channel = supabase
+      .channel('admin-application-notifications')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'faculty_applications' },
+        (payload) => {
+          const row = payload?.new;
+          if (!row || row.status === 'draft') return;
+          const alert = buildApplicationAlert(row);
+          setApplicationAlerts((prev) => {
+            const exists = prev.some((item) => item.sourceId && item.sourceId === row.id);
+            if (exists) return prev;
+            return [alert, ...prev];
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      mounted = false;
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const handleSendNotification = async () => {
@@ -83,6 +190,16 @@ const Notification = () => {
     }
   };
 
+  const markApplicationAlertAsRead = (alertId) => {
+    setApplicationAlerts((prev) =>
+      prev.map((alert) => (alert.id === alertId ? { ...alert, read: true } : alert))
+    );
+  };
+
+  const dismissApplicationAlert = (alertId) => {
+    setApplicationAlerts((prev) => prev.filter((alert) => alert.id !== alertId));
+  };
+
   const getAlertIcon = (type) => {
     switch (type) {
       case 'new_registration': return <Users className="w-5 h-5" />;
@@ -104,7 +221,9 @@ const Notification = () => {
 
   const formatTimeAgo = (timestamp) => {
     const now = new Date();
-    const diff = now - timestamp;
+    const ts = timestamp instanceof Date ? timestamp : new Date(timestamp);
+    if (Number.isNaN(ts.getTime())) return 'Unknown time';
+    const diff = now - ts;
     const minutes = Math.floor(diff / 60000);
     const hours = Math.floor(diff / 3600000);
     const days = Math.floor(diff / 86400000);
@@ -115,6 +234,9 @@ const Notification = () => {
     return 'Just now';
   };
 
+  const applicationUnreadCount = applicationAlerts.filter((alert) => !alert.read).length;
+  const totalUnreadCount = unreadCount + applicationUnreadCount;
+
   return (
     <div className="h-screen w-full bg-gray-50 flex flex-col overflow-hidden">
       {/* Header */}
@@ -122,9 +244,9 @@ const Notification = () => {
         <h1 className="text-2xl font-bold text-gray-800">Admin Notifications</h1>
         <div className="flex items-center space-x-2">
           <Bell className="w-5 h-5 text-gray-600" />
-          {unreadCount > 0 && (
+          {totalUnreadCount > 0 && (
             <span className="bg-red-500 text-white text-xs rounded-full px-2 py-1 min-w-[20px] text-center">
-              {unreadCount}
+              {totalUnreadCount}
             </span>
           )}
         </div>
@@ -135,24 +257,52 @@ const Notification = () => {
         {/* Admin Alerts Section - Takes up 2/3 of width */}
         <div className="flex-1 bg-white rounded-lg shadow-sm flex flex-col min-h-0">
           <div className="p-4 border-b flex-shrink-0">
-            <h2 className="text-lg font-semibold text-gray-800 flex items-center">
-              <AlertTriangle className="w-5 h-5 mr-2 text-orange-500" />
-              Admin Alerts
-              {unreadCount > 0 && (
-                <span className="ml-2 bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full">
-                  {unreadCount} new
-                </span>
-              )}
-            </h2>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setActiveTab('admin')}
+                className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                  activeTab === 'admin'
+                    ? 'bg-orange-100 text-orange-700 border border-orange-200'
+                    : 'bg-gray-100 text-gray-700 border border-transparent hover:bg-gray-200'
+                }`}
+              >
+                <AlertTriangle className="w-4 h-4" />
+                <span>Admin Alerts</span>
+                {unreadCount > 0 && (
+                  <span className="bg-white/90 text-orange-700 text-xs px-2 py-0.5 rounded-full">
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('applications')}
+                className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                  activeTab === 'applications'
+                    ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                    : 'bg-gray-100 text-gray-700 border border-transparent hover:bg-gray-200'
+                }`}
+              >
+                <FileText className="w-4 h-4" />
+                <span>Applications Notifications</span>
+                {applicationUnreadCount > 0 && (
+                  <span className="bg-white/90 text-blue-700 text-xs px-2 py-0.5 rounded-full">
+                    {applicationUnreadCount}
+                  </span>
+                )}
+              </button>
+            </div>
           </div>
           
           <div className="flex-1 p-4 overflow-y-auto">
             <div className="space-y-3">
-              {adminAlerts.length === 0 ? (
+              {activeTab === 'admin' && adminAlerts.length === 0 ? (
                 <div className="flex items-center justify-center h-full">
                   <p className="text-gray-500 text-center">No admin alerts at this time</p>
                 </div>
-              ) : (
+              ) : activeTab === 'admin' ? (
                 adminAlerts.map((alert) => (
                   <div
                     key={alert.id}
@@ -206,6 +356,72 @@ const Notification = () => {
                         )}
                         <button
                           onClick={() => dismissAlert(alert.id)}
+                          className="p-1 text-gray-400 hover:bg-gray-100 rounded"
+                          title="Dismiss"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : applicationAlertsLoading ? (
+                <div className="flex items-center justify-center h-full">
+                  <div className="flex flex-col items-center gap-3 text-gray-500">
+                    <div className="animate-spin rounded-full h-8 w-8 border-4 border-blue-500 border-t-transparent"></div>
+                    <p className="text-sm">Loading application notifications...</p>
+                  </div>
+                </div>
+              ) : applicationAlerts.length === 0 ? (
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-gray-500 text-center">No application submissions yet</p>
+                </div>
+              ) : (
+                applicationAlerts.map((alert) => (
+                  <div
+                    key={alert.id}
+                    className={`p-3 rounded-lg border-l-4 border-blue-500 bg-blue-50 ${
+                      !alert.read ? 'bg-opacity-80' : 'bg-opacity-50'
+                    } transition-all`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start space-x-2 flex-1">
+                        <div className="flex-shrink-0 mt-1 text-blue-600">
+                          <FileText className="w-5 h-5" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center space-x-2">
+                            <h3 className={`font-semibold truncate ${!alert.read ? 'text-gray-900' : 'text-gray-700'}`}>
+                              {alert.title}
+                            </h3>
+                            {!alert.read && (
+                              <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0"></div>
+                            )}
+                          </div>
+                          <p className="text-sm text-gray-700 mt-1">{alert.message}</p>
+                          <div className="flex items-center justify-between mt-2">
+                            <div className="flex flex-col">
+                              <p className="text-xs font-medium text-gray-700">{alert.applicantName}</p>
+                              <p className="text-xs text-gray-500">{formatTimeAgo(alert.timestamp)}</p>
+                            </div>
+                            <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700">
+                              Submitted
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-1 ml-2 flex-shrink-0">
+                        {!alert.read && (
+                          <button
+                            onClick={() => markApplicationAlertAsRead(alert.id)}
+                            className="p-1 text-blue-600 hover:bg-blue-100 rounded"
+                            title="Mark as read"
+                          >
+                            <CheckCircle className="w-4 h-4" />
+                          </button>
+                        )}
+                        <button
+                          onClick={() => dismissApplicationAlert(alert.id)}
                           className="p-1 text-gray-400 hover:bg-gray-100 rounded"
                           title="Dismiss"
                         >
