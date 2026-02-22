@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Users, Eye, CheckCircle, XCircle, User, Building, ChevronDown, Filter, X, Star, Calendar } from 'lucide-react';
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import Charts from './charts'; // Adjust path as needed
 import { candidatesApi } from '../lib/api';
 import { supabase } from '../../lib/supabase-client';
@@ -30,6 +30,8 @@ const Dashboard = () => {
   const [confirmationStates, setConfirmationStates] = useState({}); // Track confirmation status per application
   const [sendingConfirmation, setSendingConfirmation] = useState({}); // Track which confirmations are being sent
   const [schedulingInterview, setSchedulingInterview] = useState({}); // Track which interviews are being scheduled
+  const [applicationTrendRows, setApplicationTrendRows] = useState([]);
+  const [trendLoading, setTrendLoading] = useState(true);
 
 
   // Remove default margins from body and html
@@ -46,6 +48,41 @@ const Dashboard = () => {
       document.documentElement.style.margin = '';
       document.documentElement.style.padding = '';
     };
+  }, []);
+
+  useEffect(() => {
+    const fetchApplicationTrend = async () => {
+      try {
+        setTrendLoading(true);
+
+        // Prefer submitted_at, but gracefully fallback for DBs where the column is not added yet.
+        let { data, error } = await supabase
+          .from('faculty_applications')
+          .select('id, position, submitted_at, created_at');
+
+        if (error) {
+          console.warn('Dashboard trend query (submitted_at) failed, retrying with created_at only:', error.message);
+          const fallback = await supabase
+            .from('faculty_applications')
+            .select('id, position, created_at');
+          if (fallback.error) throw fallback.error;
+          data = fallback.data;
+        }
+
+        setApplicationTrendRows(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error('Dashboard: Error fetching monthly application trend:', err);
+        setApplicationTrendRows([]);
+      } finally {
+        setTrendLoading(false);
+      }
+    };
+
+    fetchApplicationTrend();
+
+    const handleFocus = () => fetchApplicationTrend();
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
   }, []);
 
   // Helper to deduplicate candidates (prefer higher research score for same email)
@@ -214,6 +251,57 @@ const Dashboard = () => {
     return filtered;
   };
   const filteredCandidates = getFilteredCandidates();
+
+  const monthlyApplicationsTrend = React.useMemo(() => {
+    const isTeachingPosition = (rawPosition) => {
+      const position = String(rawPosition || '').toLowerCase().trim();
+      return position.includes('professor') || position === 'teaching' || position.includes('lecturer');
+    };
+
+    const rowsForView = (applicationTrendRows || []).filter((row) => {
+      const teaching = isTeachingPosition(row.position);
+      return selectedView === 'teaching' ? teaching : !teaching;
+    });
+
+    const countsByMonth = new Map();
+
+    rowsForView.forEach((row) => {
+      const rawDate = row.submitted_at || row.created_at;
+      if (!rawDate) return;
+
+      const parsed = new Date(rawDate);
+      if (Number.isNaN(parsed.getTime())) return;
+
+      const monthKey = `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}`;
+      countsByMonth.set(monthKey, (countsByMonth.get(monthKey) || 0) + 1);
+    });
+
+    if (countsByMonth.size === 0) return [];
+
+    const sortedKeys = [...countsByMonth.keys()].sort();
+    const [startYear, startMonth] = sortedKeys[0].split('-').map(Number);
+    const [endYear, endMonth] = sortedKeys[sortedKeys.length - 1].split('-').map(Number);
+
+    const cursor = new Date(startYear, startMonth - 1, 1);
+    const end = new Date(endYear, endMonth - 1, 1);
+    const series = [];
+
+    while (cursor <= end) {
+      const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}`;
+      const monthDate = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
+      series.push({
+        monthKey: key,
+        monthLabel: monthDate.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
+        monthFullLabel: monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+        applications: countsByMonth.get(key) || 0,
+      });
+      cursor.setMonth(cursor.getMonth() + 1);
+    }
+
+    return series;
+  }, [applicationTrendRows, selectedView]);
+
+  const totalApplicationsInTrend = monthlyApplicationsTrend.reduce((sum, item) => sum + (item.applications || 0), 0);
 
   // Sort by the active ranking metric (QS or NIRF) in descending order
   const sortedCandidates = React.useMemo(() => {
@@ -486,268 +574,71 @@ const Dashboard = () => {
         <Charts selectedView={selectedView} />
 
 
-        {/* Top 10 Selected Candidates */}
+        {/* Monthly Applications Trend */}
         <div className="bg-white rounded-lg shadow-sm p-4 mb-4 mx-4">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-xl font-bold text-gray-900">
-              Top Selected Candidates ({loading ? 0 : Math.min(filteredCandidates.length, 10)}/10)
-            </h2>
-
-            {/* Filters Row - All aligned together */}
-            <div className="flex gap-3">
-              {/* Position Filter */}
-              <div className="relative">
-                <button
-                  onClick={() => setIsPositionFilterOpen(!isPositionFilterOpen)}
-                  className="flex items-center gap-2 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-                >
-                  <Filter className="h-4 w-4" />
-                  <span className="text-sm font-medium">
-                    {positionFilter === 'All' ? 'All Positions' : positionFilter}
-                  </span>
-                  <ChevronDown className={`h-4 w-4 transition-transform ${isPositionFilterOpen ? 'rotate-180' : ''}`} />
-                </button>
-
-                {isPositionFilterOpen && (
-                  <div className="absolute top-full right-0 mt-1 w-56 bg-white rounded-lg shadow-lg border z-50 max-h-60 overflow-y-auto">
-                    <div className="py-1">
-                      {getPositionFilterOptions().map((option) => (
-                        <button
-                          key={option}
-                          onClick={() => {
-                            setPositionFilter(option);
-                            setIsPositionFilterOpen(false);
-                          }}
-                          className={`w-full text-left px-4 py-2 hover:bg-gray-50 ${positionFilter === option ? 'bg-blue-50 text-blue-700' : 'text-gray-700'
-                            }`}
-                        >
-                          {option}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* School Filter */}
-              <div className="relative">
-                <button
-                  onClick={() => setIsSchoolFilterOpen(!isSchoolFilterOpen)}
-                  className="flex items-center gap-2 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-                >
-                  <Filter className="h-4 w-4" />
-                  <span className="text-sm font-medium">
-                    {schoolFilter === 'All' ? 'All Schools' : schoolFilter}
-                  </span>
-                  <ChevronDown className={`h-4 w-4 transition-transform ${isSchoolFilterOpen ? 'rotate-180' : ''}`} />
-                </button>
-
-                {isSchoolFilterOpen && (
-                  <div className="absolute top-full right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border z-50">
-                    <div className="py-1">
-                      {getSchoolFilterOptions().map((option) => (
-                        <button
-                          key={option}
-                          onClick={() => handleSchoolFilterChange(option)}
-                          className={`w-full text-left px-4 py-2 hover:bg-gray-50 ${schoolFilter === option ? 'bg-blue-50 text-blue-700' : 'text-gray-700'
-                            }`}
-                        >
-                          {option === 'All' ? 'All Schools' : option}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Department Filter */}
-              <div className="relative">
-                <button
-                  onClick={() => setIsDepartmentFilterOpen(!isDepartmentFilterOpen)}
-                  className="flex items-center gap-2 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-                >
-                  <Filter className="h-4 w-4" />
-                  <span className="text-sm font-medium">
-                    {departmentFilter === 'All' ? 'All Departments' : departmentFilter}
-                  </span>
-                  <ChevronDown className={`h-4 w-4 transition-transform ${isDepartmentFilterOpen ? 'rotate-180' : ''}`} />
-                </button>
-
-                {isDepartmentFilterOpen && (
-                  <div className="absolute top-full right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border z-50">
-                    <div className="py-1">
-                      {getFilterOptions().map((option) => (
-                        <button
-                          key={option}
-                          onClick={() => handleDepartmentFilterChange(option)}
-                          className={`w-full text-left px-4 py-2 hover:bg-gray-50 ${departmentFilter === option ? 'bg-blue-50 text-blue-700' : 'text-gray-700'
-                            }`}
-                        >
-                          {option === 'All' ? 'All Departments' : option}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">Monthly Applications Trend</h2>
+              <p className="text-sm text-gray-500 mt-1">
+                Based on application submitted date ({selectedView === 'teaching' ? 'Teaching' : 'Non-Teaching'} view)
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-xl font-bold text-blue-700">{trendLoading ? '—' : totalApplicationsInTrend}</p>
+              <p className="text-xs text-gray-500 uppercase tracking-wide">Applications counted</p>
             </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-2 text-base font-bold text-gray-900">Rank</th>
-                  <th className="text-left py-3 px-2 text-base font-bold text-gray-900">Name</th>
-                  <th className="text-left py-3 px-2 text-base font-bold text-gray-900">Position Applied</th>
-                  <th className="text-left py-3 px-2 text-base font-bold text-gray-900">Department</th>
-                  <th className="text-left py-3 px-2 text-base font-bold text-gray-900">
-                    <div className="flex items-center gap-2">
-                      <span>Research Rank</span>
-                      {/* Research Metric Dropdown (Papers/H-Index) */}
-                      <div className="relative">
-                        <button
-                          onClick={() => setIsResearchMetricOpen(!isResearchMetricOpen)}
-                          className="flex items-center gap-1 px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-xs"
-                        >
-                          <span className="font-medium">{researchMetric}</span>
-                          <ChevronDown className={`h-3 w-3 transition-transform ${isResearchMetricOpen ? 'rotate-180' : ''}`} />
-                        </button>
-                        {isResearchMetricOpen && (
-                          <div className="absolute top-full right-0 mt-1 w-32 bg-white rounded-lg shadow-lg border z-50">
-                            <div className="py-1">
-                              {['Papers', 'H-Index'].map(opt => (
-                                <button
-                                  key={opt}
-                                  onClick={() => { setResearchMetric(opt); setIsResearchMetricOpen(false); }}
-                                  className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 ${researchMetric === opt ? 'bg-green-50 text-green-700' : 'text-gray-700'}`}
-                                >
-                                  {opt}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </th>
-                  <th className="text-left py-3 px-2 text-base font-bold text-gray-900">
-                    <div className="flex items-center gap-2">
-                      <span>{rankingMetric}</span>
-                      {/* Ranking Metric Dropdown (NIRF/QS) */}
-                      <div className="relative">
-                        <button
-                          onClick={() => setIsRankingMetricOpen(!isRankingMetricOpen)}
-                          className="flex items-center gap-1 px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-xs"
-                        >
-                          <span className="font-medium">{rankingMetric}</span>
-                          <ChevronDown className={`h-3 w-3 transition-transform ${isRankingMetricOpen ? 'rotate-180' : ''}`} />
-                        </button>
-                        {isRankingMetricOpen && (
-                          <div className="absolute top-full right-0 mt-1 w-32 bg-white rounded-lg shadow-lg border z-50">
-                            <div className="py-1">
-                              {['NIRF', 'QS'].map(opt => (
-                                <button
-                                  key={opt}
-                                  onClick={() => { setRankingMetric(opt); setIsRankingMetricOpen(false); }}
-                                  className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 ${rankingMetric === opt ? 'bg-blue-50 text-blue-700' : 'text-gray-700'}`}
-                                >
-                                  {opt}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </th>
-                  <th className="text-left py-3 px-2 text-base font-bold text-gray-900">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr>
-                    <td colSpan="7" className="py-12 text-center">
-                      <div className="flex flex-col items-center justify-center">
-                        <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mb-4"></div>
-                        <p className="text-gray-700 font-semibold text-lg">Loading candidate data...</p>
-                        <p className="text-gray-500 text-sm mt-2">This may take a few seconds on first load</p>
-                      </div>
-                    </td>
-                  </tr>
-                ) : sortedCandidates.length > 0 ? (
-                  sortedCandidates.slice(0, 10).map((candidate, index) => (
-                    <tr key={candidate.id || candidate.rank || index} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="py-2 px-2">
-                        <div className="flex items-center">
-                          {/* Rank colored by gender: blue for Male, pink for Female */}
-                          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white ${(candidate.gender || '').toLowerCase() === 'female' ? 'bg-pink-500' : 'bg-blue-500'
-                            }`}>
-                            {index + 1}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-3 px-2 text-base font-medium text-gray-900">
-                        {candidate.title ? `${candidate.title} ` : ''}{candidate.first_name
-                          ? `${candidate.first_name.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ')}${candidate.last_name ? ' ' + candidate.last_name.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ') : ''}`
-                          : 'N/A'
-                        }
-                      </td>
-                      <td className="py-3 px-2 text-base font-medium text-gray-800">
-                        {(candidate.teachingPost || candidate.positionApplied || candidate.position || 'N/A')
-                          .split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ')}
-                      </td>
-                      <td className="py-3 px-2">
-                        <span className={`inline-flex px-2 py-1 text-sm font-medium rounded-full ${getDepartmentColor(candidate.department)}`}>
-                          {(candidate.department || 'N/A').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ')}
-                        </span>
-                      </td>
-                      <td className="py-3 px-2 text-base font-medium text-gray-900">
-                        {(() => {
-                          // compute research rank among current view list
-                          const key = candidate.id ?? index;
-                          return computeResearchRank(sortedCandidates, candidate);
-                        })()}
-                      </td>
-                      <td className="py-3 px-2 text-base font-bold text-gray-900">
-                        {(() => {
-                          const metricValue = rankingMetric === 'NIRF'
-                            ? (candidate.nirf10 ?? null)
-                            : (candidate.qs10 ?? null);
-                          const val = typeof metricValue === 'number' ? metricValue : null;
-                          return (
-                            <span className={`px-2 py-1 rounded-full text-base font-bold ${val === null ? 'bg-gray-100 text-gray-600' :
-                                val >= 7 ? 'bg-green-100 text-green-800' :
-                                  val >= 4 ? 'bg-yellow-100 text-yellow-800' :
-                                    'bg-red-100 text-red-800'
-                              }`}>
-                              {val !== null ? val.toFixed(1) : 'N/A'}
-                            </span>
-                          );
-                        })()}
-                      </td>
-
-                      <td className="py-3 px-2">
-                        <div className="flex space-x-1">
-                          <button
-                            onClick={() => openCandidatePopup(candidate)}
-                            className="px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
-                          >
-                            View Details
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="9" className="py-8 text-center text-gray-500">
-                      No candidates found for the selected filters.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+          <div className="h-[340px]">
+            {trendLoading ? (
+              <div className="h-full flex flex-col items-center justify-center text-gray-500">
+                <div className="animate-spin rounded-full h-10 w-10 border-4 border-blue-500 border-t-transparent mb-3"></div>
+                <p className="text-sm font-medium">Loading monthly application trend...</p>
+              </div>
+            ) : monthlyApplicationsTrend.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart
+                  data={monthlyApplicationsTrend}
+                  margin={{ top: 12, right: 20, left: 4, bottom: 8 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis
+                    dataKey="monthLabel"
+                    tick={{ fontSize: 12, fill: '#4b5563' }}
+                    axisLine={{ stroke: '#d1d5db' }}
+                    tickLine={{ stroke: '#d1d5db' }}
+                  />
+                  <YAxis
+                    allowDecimals={false}
+                    tick={{ fontSize: 12, fill: '#4b5563' }}
+                    axisLine={{ stroke: '#d1d5db' }}
+                    tickLine={{ stroke: '#d1d5db' }}
+                  />
+                  <Tooltip
+                    formatter={(value) => [`${value} application${Number(value) === 1 ? '' : 's'}`, 'Applications']}
+                    labelFormatter={(label, payload) => payload?.[0]?.payload?.monthFullLabel || label}
+                    contentStyle={{
+                      backgroundColor: '#fff',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '0.5rem',
+                      boxShadow: '0 8px 24px rgba(0,0,0,0.08)'
+                    }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="applications"
+                    stroke="#2563eb"
+                    strokeWidth={3}
+                    dot={{ r: 4, fill: '#2563eb' }}
+                    activeDot={{ r: 6, fill: '#1d4ed8' }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex items-center justify-center text-gray-500">
+                No application dates available yet to plot the monthly trend.
+              </div>
+            )}
           </div>
         </div>
       </div>
