@@ -299,6 +299,18 @@ const AllCandidates = () => {
     return parsed.toLocaleDateString('en-GB');
   };
 
+  const getCandidateSubmittedTimestamp = (candidate) => {
+    const rawValue =
+      candidate?.submitted_at ||
+      candidate?.submittedAt ||
+      candidate?.created_at ||
+      candidate?.createdAt;
+    if (!rawValue) return 0;
+
+    const parsed = new Date(rawValue);
+    return Number.isNaN(parsed.getTime()) ? 0 : parsed.getTime();
+  };
+
   const getHighestDegreeInstitution = (candidate) => {
     const firstNonEmpty = (...values) =>
       values
@@ -708,7 +720,13 @@ const AllCandidates = () => {
   };
 
   const stageFiltered = departmentFiltered.filter(candidate => matchesStage(candidate, selectedStage));
-  const filteredCandidates = stageFiltered.filter(passesAdvancedFilters);
+  const filteredCandidates = stageFiltered
+    .filter(passesAdvancedFilters)
+    .sort((a, b) => {
+      const timestampDiff = getCandidateSubmittedTimestamp(b) - getCandidateSubmittedTimestamp(a);
+      if (timestampDiff !== 0) return timestampDiff;
+      return (Number(b?.id) || 0) - (Number(a?.id) || 0);
+    });
   
   // Pagination logic
   const totalCandidates = filteredCandidates.length;
