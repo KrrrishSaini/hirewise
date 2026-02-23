@@ -41,6 +41,8 @@ const DEFAULT_FILTERS = {
   minExperienceMonths: '',
   phdStatus: [],
   colleges: [],
+  submittedDateFrom: '',
+  submittedDateTo: '',
 };
 
 const AllCandidates = () => {
@@ -687,7 +689,8 @@ const AllCandidates = () => {
     (filters.postApplied?.length || 0) +
     (filters.phdStatus?.length || 0) +
     (filters.colleges?.length || 0) +
-    (filters.minExperienceMonths ? 1 : 0);
+    (filters.minExperienceMonths ? 1 : 0) +
+    (filters.submittedDateFrom || filters.submittedDateTo ? 1 : 0);
 
   const passesAdvancedFilters = (candidate) => {
     const norm = (v) => (v === null || v === undefined ? 0 : Number(v) || 0);
@@ -695,6 +698,7 @@ const AllCandidates = () => {
     const expMonths = numericMonths > 0
       ? numericMonths
       : parseExperienceMonths(candidate.years_of_experience || candidate.experience || candidate.total_experience);
+    const submittedTimestamp = getCandidateSubmittedTimestamp(candidate);
     const phdStatus = derivePhdStatus(candidate);
     const highestDegreeCollege = normalizeFilterValue(getHighestDegreeInstitution(candidate));
     const appliedPost = normalizeFilterValue(
@@ -713,6 +717,14 @@ const AllCandidates = () => {
       .filter(Boolean);
 
     if (filters.minExperienceMonths && expMonths < Number(filters.minExperienceMonths)) return false;
+    if (filters.submittedDateFrom) {
+      const fromTimestamp = new Date(`${filters.submittedDateFrom}T00:00:00`).getTime();
+      if (!Number.isNaN(fromTimestamp) && submittedTimestamp < fromTimestamp) return false;
+    }
+    if (filters.submittedDateTo) {
+      const toTimestamp = new Date(`${filters.submittedDateTo}T23:59:59.999`).getTime();
+      if (!Number.isNaN(toTimestamp) && submittedTimestamp > toTimestamp) return false;
+    }
     if (normalizedPhdFilters.length > 0 && !normalizedPhdFilters.includes(phdStatus)) return false;
     if (normalizedPostFilters.length > 0 && !normalizedPostFilters.includes(appliedPost)) return false;
     if (normalizedCollegeFilters.length > 0 && !normalizedCollegeFilters.includes(highestDegreeCollege)) return false;
@@ -1037,7 +1049,7 @@ const AllCandidates = () => {
               </div>
 
               <div className="space-y-4 overflow-y-auto overscroll-contain p-4 pb-6">
-                <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
                   <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
                     <div className="mb-2 flex items-center justify-between">
                       <label className="text-sm font-semibold text-slate-700">Post Applied For</label>
@@ -1112,6 +1124,35 @@ const AllCandidates = () => {
                           </label>
                         );
                       })}
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <div className="mb-2 flex items-center justify-between">
+                      <label className="text-sm font-semibold text-slate-700">Submitted Date Range</label>
+                      <span className="text-xs text-slate-500">
+                        {filters.submittedDateFrom || filters.submittedDateTo ? 'Active' : 'Any'}
+                      </span>
+                    </div>
+                    <div className="space-y-2">
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-slate-500">From</label>
+                        <input
+                          type="date"
+                          value={filters.submittedDateFrom}
+                          onChange={(e) => setFilters({ ...filters, submittedDateFrom: e.target.value })}
+                          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 focus:border-indigo-500 focus:ring-indigo-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-slate-500">To</label>
+                        <input
+                          type="date"
+                          value={filters.submittedDateTo}
+                          onChange={(e) => setFilters({ ...filters, submittedDateTo: e.target.value })}
+                          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 focus:border-indigo-500 focus:ring-indigo-500"
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
