@@ -1586,4 +1586,33 @@ router.post('/parse-cv/:id', async (req, res) => {
   }
 });
 
+// ⚡ NEW: Get application stats (fast, no filters)
+router.get('/stats', async (req, res) => {
+  try {
+    // Simple query - fetch only position and status fields
+    const { data, error } = await supabase
+      .from('faculty_applications')
+      .select('position, status');
+
+    if (error) throw error;
+
+    // Calculate stats
+    const all = data || [];
+    const total = all.length;
+    const shortlisted = all.filter(app => app.status === 'final_shortlisted').length;
+    const rejected = all.filter(app => 
+      app.status === 'final_rejected' || app.status === 'cv_rejected'
+    ).length;
+
+    res.json({
+      total,
+      shortlisted,
+      rejected
+    });
+  } catch (error) {
+    console.error('Stats endpoint error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;

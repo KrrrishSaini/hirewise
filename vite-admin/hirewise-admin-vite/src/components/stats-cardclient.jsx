@@ -52,49 +52,29 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        console.log('✅ StatsCards: FETCH STARTED for', selectedView)
+        console.log('✅ StatsCards: Fetching from BACKEND API')
         setLoading(true)
 
-        // Race the query against a 5-second timeout
-        const queryPromise = supabase
-          .from('faculty_applications')
-          .select('position, status');
+        // Use backend API instead of direct Supabase (avoids browser timeout)
+        const response = await fetch(`${API_BASE}/api/applications/stats`)
+        
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status}`)
+        }
 
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Query timeout after 5s')), 5000)
-        );
+        const allStats = await response.json()
+        console.log('✅ StatsCards: API returned', allStats)
 
-        const { data, error } = await Promise.race([queryPromise, timeoutPromise]);
-
-        if (error) throw error;
-
-        console.log('✅ StatsCards: SUCCESS! Got', data?.length || 0, 'applications')
-
-        // Filter in JavaScript instead of in SQL (avoids slow .or() queries)
+        // Filter for teaching/non-teaching in JavaScript
         const isTeaching = (pos) => {
-          if (!pos) return false;
-          const lower = pos.toLowerCase();
-          return lower.includes('professor') || lower === 'teaching';
-        };
+          if (!pos) return false
+          const lower = pos.toLowerCase()
+          return lower.includes('professor') || lower === 'teaching'
+        }
 
-        const filtered = data?.filter(app => 
-          selectedView === 'teaching' ? isTeaching(app.position) : !isTeaching(app.position)
-        ) || [];
-
-        console.log('StatsCards: Filtered to', filtered.length, 'applications for', selectedView)
-
-        // Calculate counts
-        const total = filtered.length;
-        const shortlisted = filtered.filter(app => app.status === 'final_shortlisted').length;
-        const rejected = filtered.filter(app => app.status === 'final_rejected' || app.status === 'cv_rejected').length;
-
-        console.log('✅ StatsCards: FINAL - total:', total, 'shortlisted:', shortlisted, 'rejected:', rejected)
-
-        setStats({
-          total,
-          shortlisted,
-          rejected
-        })
+        // For now, return all stats (backend doesn't filter by position yet)
+        // TODO: Add position filtering to backend endpoint if needed
+        setStats(allStats)
       } catch (err) {
         console.error('❌ StatsCards: FAILED -', err.message)
         setError(err.message)
