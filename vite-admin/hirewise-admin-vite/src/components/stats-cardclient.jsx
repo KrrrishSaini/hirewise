@@ -52,6 +52,7 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
   useEffect(() => {
     const fetchStats = async () => {
       try {
+        console.log('StatsCards: Starting to fetch stats for view:', selectedView)
         setLoading(true)
 
         // Fetch only the necessary fields for counting (much faster)
@@ -70,9 +71,13 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
 
         if (error) throw error;
 
+        console.log('StatsCards: Query result - count:', count, 'data length:', data?.length)
+
         // Calculate counts from the single query result
         const shortlisted = data?.filter(app => app.status === 'final_shortlisted').length || 0;
         const rejected = data?.filter(app => app.status === 'final_rejected' || app.status === 'cv_rejected').length || 0;
+
+        console.log('StatsCards: Calculated stats - total:', count, 'shortlisted:', shortlisted, 'rejected:', rejected)
 
         setStats({
           total: count || 0,
@@ -81,13 +86,22 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
         })
       } catch (err) {
         setError(err.message)
-        console.error('Error fetching stats:', err)
+        console.error('❌ StatsCards: Error fetching stats:', err)
       } finally {
+        console.log('StatsCards: Setting loading to false')
         setLoading(false)
       }
     }
 
     fetchStats()
+    
+    // Fallback: Force stop loading after 10 seconds
+    const timeout = setTimeout(() => {
+      console.warn('StatsCards: Force stopping loading after 10 seconds')
+      setLoading(false)
+    }, 10000)
+
+    return () => clearTimeout(timeout)
   }, [selectedView]) // Re-fetch when selectedView changes
 
   // Load all confirmation response states on mount and when activePanel changes
