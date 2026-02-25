@@ -52,17 +52,23 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        console.log('StatsCards: Starting to fetch stats for view:', selectedView)
+        console.log('✅ StatsCards: FETCH STARTED for', selectedView)
         setLoading(true)
 
-        // Fetch ALL applications (no filters) - simple, fast query
-        const { data, error } = await supabase
+        // Race the query against a 5-second timeout
+        const queryPromise = supabase
           .from('faculty_applications')
           .select('position, status');
 
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Query timeout after 5s')), 5000)
+        );
+
+        const { data, error } = await Promise.race([queryPromise, timeoutPromise]);
+
         if (error) throw error;
 
-        console.log('StatsCards: Query returned', data?.length || 0, 'total applications')
+        console.log('✅ StatsCards: SUCCESS! Got', data?.length || 0, 'applications')
 
         // Filter in JavaScript instead of in SQL (avoids slow .or() queries)
         const isTeaching = (pos) => {
@@ -82,7 +88,7 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
         const shortlisted = filtered.filter(app => app.status === 'final_shortlisted').length;
         const rejected = filtered.filter(app => app.status === 'final_rejected' || app.status === 'cv_rejected').length;
 
-        console.log('StatsCards: Stats - total:', total, 'shortlisted:', shortlisted, 'rejected:', rejected)
+        console.log('✅ StatsCards: FINAL - total:', total, 'shortlisted:', shortlisted, 'rejected:', rejected)
 
         setStats({
           total,
@@ -90,23 +96,17 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
           rejected
         })
       } catch (err) {
+        console.error('❌ StatsCards: FAILED -', err.message)
         setError(err.message)
-        console.error('❌ StatsCards: Error:', err)
+        // Set zeros on error so at least something displays
+        setStats({ total: 0, shortlisted: 0, rejected: 0 })
       } finally {
-        console.log('StatsCards: Setting loading to false')
+        console.log('✅ StatsCards: DONE (loading = false)')
         setLoading(false)
       }
     }
 
     fetchStats()
-    
-    // Fallback timeout
-    const timeout = setTimeout(() => {
-      console.warn('⏰ StatsCards: Timeout after 10s')
-      setLoading(false)
-    }, 10000)
-
-    return () => clearTimeout(timeout)
   }, [selectedView])
 
   // Load all confirmation response states on mount and when activePanel changes
