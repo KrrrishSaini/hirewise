@@ -8,6 +8,7 @@ import documentService from '../../services/documentService.js';
 import scoringService from '../../services/scoringService.js';
 import cache from '../../config/cache.js';
 import emailService from '../../services/emailService.js';
+import { parseCV } from '../../services/cvParsingService.js';
 
 // Initialize Supabase client
 const supabase = createClient(
@@ -1553,6 +1554,36 @@ router.get('/prefer-another-time-form/:id', async (req, res) => {
 </html>`;
 
   res.send(htmlForm);
+});
+
+// ── CV PARSING ROUTE ────────────────────────────────────
+// POST /api/applications/parse-cv/:id
+router.post('/parse-cv/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log(`📄 CV parsing request for application ID: ${id}`);
+
+    const result = await parseCV(id);
+
+    if (!result.success) {
+      return res.status(400).json({ 
+        error: result.error || 'Failed to parse CV'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: result.data,
+      candidateName: result.candidateName
+    });
+
+  } catch (error) {
+    console.error('CV parsing route error:', error);
+    res.status(500).json({ 
+      error: 'Internal server error during CV parsing',
+      details: error.message 
+    });
+  }
 });
 
 export default router;
