@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { candidatesApi } from '../../lib/api';
 import { supabase } from '../../../lib/supabase-client';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import CVParsingSection from '../CVParsingSection';
 
 // Committee Dashboard - Evaluation System
 const FacultyDashboard = () => {
@@ -1452,6 +1453,11 @@ const FacultyDashboard = () => {
                       </div>
                     </div>
                   </div>
+
+                  <CVParsingSection
+                    candidateId={selectedCandidate.id}
+                    isOpen={Boolean(selectedCandidate?.id)}
+                  />
 
                 </div>
               </div>

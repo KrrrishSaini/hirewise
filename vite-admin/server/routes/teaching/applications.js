@@ -695,7 +695,6 @@ router.get('/all/detailed', cache.middleware(120), async (req, res) => {
         research_experiences (*),
         research_info (*)
       `)
-      .neq('status', 'final_rejected')
       .order('created_at', { ascending: false });
 
     if (department && department !== 'All') {

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase-client';
 import { candidatesApi } from '../lib/api';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import CVParsingSection from './CVParsingSection';
 
 const COMMITTEES = [
   { code: 'soet', name: 'SOET Committee' },
@@ -441,39 +442,50 @@ const AllCandidates = () => {
       setLoading(true);
       setError(null); // Clear any previous errors
       console.log('AllCandidates: Starting to fetch candidates for department:', selectedDepartment);
-      
-      // Add timeout to prevent infinite loading
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Supabase query timeout after 8 seconds')), 8000)
-      );
-      
-      // Direct Supabase query to get ALL fields including research data
-      let query = supabase
-        .from('faculty_applications')
-        .select('*')
-        .order('created_at', { ascending: false });
-      
-      if (selectedDepartment !== 'All') {
-        query = query.eq('department', selectedDepartment);
+
+      let data = [];
+      let usedFallback = false;
+
+      try {
+        console.log('AllCandidates: Fetching candidates from backend detailed endpoint...');
+        data = await candidatesApi.getAllDetailed(selectedDepartment, { fresh: true });
+        console.log('AllCandidates: Backend response:', data?.length, 'records');
+      } catch (apiErr) {
+        usedFallback = true;
+        console.warn('AllCandidates: Backend fetch failed, falling back to direct Supabase query:', apiErr?.message || apiErr);
+
+        // Fallback to direct Supabase only if backend fetch fails
+        let query = supabase
+          .from('faculty_applications')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (selectedDepartment !== 'All') {
+          query = query.eq('department', selectedDepartment);
+        }
+
+        console.log('AllCandidates: Executing fallback Supabase query...');
+        const { data: supabaseData, error: supabaseError } = await query;
+
+        if (supabaseError) {
+          console.error('AllCandidates: Fallback Supabase query error:', supabaseError);
+          throw new Error(
+            `Backend fetch failed (${apiErr?.message || 'unknown'}). Fallback query failed (${supabaseError.message || 'unknown'}).`
+          );
+        }
+
+        data = supabaseData || [];
       }
-      
-      console.log('AllCandidates: Executing Supabase query...');
-      const { data, error } = await query;
-      
-      if (error) {
-        console.error('AllCandidates: Supabase query error:', error);
-        throw error;
-      }
-      
-      console.log('AllCandidates: Raw Supabase response:', data?.length, 'records');
-      
+
       // Keep all active candidates (exclude deleted only)
       const filteredData = (data || []).filter(candidate => 
         candidate.status !== 'deleted' &&
         candidate.status !== 'Deleted'
       );
-      
-      console.log('Fetched candidates:', data?.length, 'total, filtered to:', filteredData.length);
+
+      console.log(
+        `AllCandidates: Loaded ${data?.length || 0} candidates (${usedFallback ? 'fallback Supabase' : 'backend API'}), filtered to ${filteredData.length} active records`
+      );
       console.log('All statuses in DB:', [...new Set(data?.map(c => c.status))]);
       console.log('First few candidates:', filteredData.slice(0, 5).map(c => ({ id: c.id, name: c.first_name, status: c.status })));
       
@@ -1833,6 +1845,11 @@ const AllCandidates = () => {
                       </div>
                     </div>
                   </div>
+
+                  <CVParsingSection
+                    candidateId={selectedCandidate.id}
+                    isOpen={Boolean(selectedCandidate?.id)}
+                  />
 
                 </div>
               </div>

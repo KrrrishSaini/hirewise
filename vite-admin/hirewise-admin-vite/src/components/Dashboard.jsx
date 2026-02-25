@@ -52,24 +52,64 @@ const Dashboard = () => {
 
   useEffect(() => {
     const fetchApplicationTrend = async () => {
+      let settled = false;
       try {
         setTrendLoading(true);
 
-        // Prefer submitted_at, but gracefully fallback for DBs where the column is not added yet.
-        let { data, error } = await supabase
-          .from('faculty_applications')
-          .select('id, position, submitted_at, created_at');
+        // Prefer backend API to avoid browser-side Supabase fetch failures.
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 12000);
+          let response;
+          try {
+            response = await fetch(`${API_BASE}/api/applications/stats/charts?_t=${Date.now()}`, {
+              method: 'GET',
+              signal: controller.signal
+            });
+          } finally {
+            clearTimeout(timeoutId);
+          }
 
-        if (error) {
-          console.warn('Dashboard trend query (submitted_at) failed, retrying with created_at only:', error.message);
-          const fallback = await supabase
-            .from('faculty_applications')
-            .select('id, position, created_at');
-          if (fallback.error) throw fallback.error;
-          data = fallback.data;
+          if (!response.ok) {
+            throw new Error(`Trend API failed: HTTP ${response.status}`);
+          }
+
+          const trendRows = await response.json();
+          setApplicationTrendRows(Array.isArray(trendRows) ? trendRows : []);
+          settled = true;
+        } catch (apiErr) {
+          console.warn('Dashboard trend API fetch failed, falling back to Supabase:', apiErr?.message || apiErr);
         }
 
-        setApplicationTrendRows(Array.isArray(data) ? data : []);
+        if (!settled) {
+          const withTimeout = (promise, message, ms = 10000) =>
+            Promise.race([
+              promise,
+              new Promise((_, reject) => setTimeout(() => reject(new Error(message)), ms))
+            ]);
+
+          // Fallback for local debugging or when backend route is unavailable.
+          let { data, error } = await withTimeout(
+            supabase
+              .from('faculty_applications')
+              .select('id, position, submitted_at, created_at'),
+            'Supabase trend query timeout'
+          );
+
+          if (error) {
+            console.warn('Dashboard trend query (submitted_at) failed, retrying with created_at only:', error.message);
+            const fallback = await withTimeout(
+              supabase
+                .from('faculty_applications')
+                .select('id, position, created_at'),
+              'Supabase fallback trend query timeout'
+            );
+            if (fallback.error) throw fallback.error;
+            data = fallback.data;
+          }
+
+          setApplicationTrendRows(Array.isArray(data) ? data : []);
+        }
       } catch (err) {
         console.error('Dashboard: Error fetching monthly application trend:', err);
         setApplicationTrendRows([]);
