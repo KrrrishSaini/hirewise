@@ -199,6 +199,38 @@ router.get('/rankings/top', cache.middleware(30), async (req, res) => {
   }
 });
 
+// ⚡ Get application stats (MUST be before /:id route!)
+router.get('/stats', async (req, res) => {
+  try {
+    console.log('📊 Stats endpoint hit');
+    // Simple query - fetch only position and status fields
+    const { data, error } = await supabase
+      .from('faculty_applications')
+      .select('position, status');
+
+    if (error) throw error;
+
+    // Calculate stats
+    const all = data || [];
+    const total = all.length;
+    const shortlisted = all.filter(app => app.status === 'final_shortlisted').length;
+    const rejected = all.filter(app => 
+      app.status === 'final_rejected' || app.status === 'cv_rejected'
+    ).length;
+
+    console.log('📊 Stats calculated:', { total, shortlisted, rejected });
+
+    res.json({
+      total,
+      shortlisted,
+      rejected
+    });
+  } catch (error) {
+    console.error('❌ Stats endpoint error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ⚡ Get available timezones (MUST be before /:id route!)
 router.get('/timezones', async (req, res) => {
   try {
@@ -1583,35 +1615,6 @@ router.post('/parse-cv/:id', async (req, res) => {
       error: 'Internal server error during CV parsing',
       details: error.message 
     });
-  }
-});
-
-// ⚡ NEW: Get application stats (fast, no filters)
-router.get('/stats', async (req, res) => {
-  try {
-    // Simple query - fetch only position and status fields
-    const { data, error } = await supabase
-      .from('faculty_applications')
-      .select('position, status');
-
-    if (error) throw error;
-
-    // Calculate stats
-    const all = data || [];
-    const total = all.length;
-    const shortlisted = all.filter(app => app.status === 'final_shortlisted').length;
-    const rejected = all.filter(app => 
-      app.status === 'final_rejected' || app.status === 'cv_rejected'
-    ).length;
-
-    res.json({
-      total,
-      shortlisted,
-      rejected
-    });
-  } catch (error) {
-    console.error('Stats endpoint error:', error);
-    res.status(500).json({ error: error.message });
   }
 });
 
