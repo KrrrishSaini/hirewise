@@ -162,20 +162,37 @@ const RegistrationPage = ({ onRegistrationSuccess, onLoginSuccess }) => {
       // Clear any previous errors
       setGeneralFormError('');
       
-      // 2) Sign in on the frontend to create session
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: form.email,
-        password: form.password
-      });
+      // 2) Wait for Supabase to fully process the user creation
+      await new Promise(resolve => setTimeout(resolve, 1500));
       
-      if (error) {
+      // 3) Sign in on the frontend to create session (with retry)
+      let loginSuccess = false;
+      let lastError = null;
+      
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: form.email,
+          password: form.password
+        });
+        
+        if (!error && data?.session) {
+          loginSuccess = true;
+          break;
+        }
+        
+        lastError = error;
+        // Wait before retry
+        if (attempt < 2) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+      
+      if (!loginSuccess) {
+        console.error('Auto-login failed:', lastError);
         throw new Error('Registration succeeded but automatic login failed. Please login manually.');
       }
       
-      // Quick check to ensure session is active
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      // 3) Navigate to application form
+      // 4) Navigate to application form
       navigate('/application');
     } catch (err) {
       console.error('Registration error:', err);
