@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { User, Building, Briefcase } from 'lucide-react';
-import { supabase } from '../../lib/supabase-client';
+import { API_BASE } from '../lib/config';
 import {
   PieChart,
   Pie,
@@ -60,26 +60,31 @@ export default function AnalyticsDashboard({ selectedView = 'teaching' }) {
     const fetchData = async () => {
       try {
         setLoading(true);
+        console.log('📊 Fetching chart data from BACKEND');
 
-        // Single query to get rows used by all charts, filtered by position type
-        let query = supabase
-          .from('faculty_applications')
-          .select('gender, department, years_of_experience, position');
+        // Use backend API instead of direct Supabase
+        const response = await fetch(`${API_BASE}/api/applications/stats/charts`);
         
-        // Filter based on selectedView (teaching vs non-teaching)
-        if (selectedView === 'teaching') {
-          // Teaching positions
-          query = query.or('position.ilike.%professor%,position.eq.teaching');
-        } else {
-          // Non-teaching positions
-          query = query.not('position', 'ilike', '%professor%').neq('position', 'teaching');
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status}`);
         }
-        
-        const { data: rows, error: rowsErr } = await query;
-        if (rowsErr) throw rowsErr;
+
+        const rows = await response.json();
+        console.log('📊 Got', rows.length, 'rows from backend');
+
+        // Filter by teaching/non-teaching in JavaScript
+        const isTeaching = (pos) => {
+          if (!pos) return false;
+          const lower = pos.toLowerCase();
+          return lower.includes('professor') || lower === 'teaching';
+        };
+
+        const filtered = rows.filter(row => 
+          selectedView === 'teaching' ? isTeaching(row.position) : !isTeaching(row.position)
+        );
 
         // Experience aggregation
-        const expRaw = rows?.map(r => ({ years_of_experience: r.years_of_experience })) || [];
+        const expRaw = filtered.map(r => ({ years_of_experience: r.years_of_experience }));
         if (expRaw.length > 0) {
           const experienceCounts = {
             '0–2 Years': 0,
@@ -106,7 +111,7 @@ export default function AnalyticsDashboard({ selectedView = 'teaching' }) {
         }
 
         // Gender aggregation
-        const genderCounts = (rows || []).reduce((acc, r) => {
+        const genderCounts = filtered.reduce((acc, r) => {
           const g = (r.gender || 'Other').trim() || 'Other';
           acc[g] = (acc[g] || 0) + 1;
           return acc;
@@ -120,7 +125,7 @@ export default function AnalyticsDashboard({ selectedView = 'teaching' }) {
         );
 
         // Department aggregation
-        const deptCounts = (rows || []).reduce((acc, r) => {
+        const deptCounts = filtered.reduce((acc, r) => {
           const d = (r.department || 'Unknown').trim() || 'Unknown';
           acc[d] = (acc[d] || 0) + 1;
           return acc;

@@ -231,6 +231,50 @@ router.get('/stats', async (req, res) => {
   }
 });
 
+// ⚡ Get stats panel list (MUST be before /:id route!)
+router.get('/stats/list/:type', async (req, res) => {
+  try {
+    const { type } = req.params; // 'all', 'shortlisted', or 'rejected'
+    
+    let query = supabase
+      .from('faculty_applications')
+      .select('id, first_name, last_name, email, position, department, status, created_at, confirmation_response, candidate_response_message')
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    // Filter by status type
+    if (type === 'shortlisted') {
+      query = query.eq('status', 'final_shortlisted');
+    } else if (type === 'rejected') {
+      query = query.in('status', ['final_rejected', 'cv_rejected']);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    res.json(data || []);
+  } catch (error) {
+    console.error('❌ Stats list endpoint error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ⚡ Get chart data (MUST be before /:id route!)
+router.get('/stats/charts', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('faculty_applications')
+      .select('gender, department, years_of_experience, position, submitted_at, created_at');
+
+    if (error) throw error;
+
+    res.json(data || []);
+  } catch (error) {
+    console.error('❌ Charts endpoint error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ⚡ Get available timezones (MUST be before /:id route!)
 router.get('/timezones', async (req, res) => {
   try {

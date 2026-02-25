@@ -131,35 +131,22 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
     setPanelLoading(true)
     setPanelError(null)
     try {
-      let query = supabase
-        .from('faculty_applications')
-        .select('id, first_name, last_name, email, position, department, status, created_at, confirmation_response, candidate_response_message')
-        .order('created_at', { ascending: false })
-        .limit(50)
-
-      // Filter by teaching/non-teaching
-      if (selectedView === 'teaching') {
-        query = query.or('position.ilike.%professor%,position.eq.teaching');
-      } else {
-        query = query.not('position', 'ilike', '%professor%').neq('position', 'teaching');
+      console.log('📋 Fetching list from BACKEND for:', kind)
+      
+      // Use backend API instead of direct Supabase
+      const response = await fetch(`${API_BASE}/api/applications/stats/list/${kind}`)
+      
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`)
       }
 
-      if (kind === 'shortlisted') {
-        query = query.eq('status', 'final_shortlisted')
-      }
-
-      if (kind === 'rejected') {
-        query = query.in('status', ['final_rejected', 'cv_rejected'])
-      }
-
-      const { data, error: selErr } = await query
-      if (selErr) throw selErr
+      const data = await response.json()
+      console.log('📋 Got', data.length, 'items from backend')
 
       // Update confirmation states from fetched data
       if (Array.isArray(data)) {
         const confirmStates = {}
         data.forEach(item => {
-          // Load all confirmation responses (NULL, PENDING, ACCEPTED, REJECTED)
           if (item.confirmation_response) {
             confirmStates[item.id] = item.confirmation_response
           }
@@ -169,6 +156,7 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
 
       setPanelItems(Array.isArray(data) ? data : [])
     } catch (e) {
+      console.error('❌ Error fetching list:', e)
       setPanelError(e.message)
       setPanelItems([])
     } finally {
