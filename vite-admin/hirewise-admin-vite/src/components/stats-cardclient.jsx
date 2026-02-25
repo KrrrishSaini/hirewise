@@ -55,30 +55,34 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
         console.log('StatsCards: Starting to fetch stats for view:', selectedView)
         setLoading(true)
 
-        // Fetch ONLY position and status fields (fast, no count option)
-        let query = supabase
+        // Fetch ALL applications (no filters) - simple, fast query
+        const { data, error } = await supabase
           .from('faculty_applications')
           .select('position, status');
 
-        // Filter by teaching/non-teaching
-        if (selectedView === 'teaching') {
-          query = query.or('position.ilike.%professor%,position.eq.teaching');
-        } else {
-          query = query.not('position', 'ilike', '%professor%').neq('position', 'teaching');
-        }
-
-        const { data, error } = await query;
-
         if (error) throw error;
 
-        console.log('StatsCards: Query returned', data?.length || 0, 'applications')
+        console.log('StatsCards: Query returned', data?.length || 0, 'total applications')
 
-        // Calculate all counts from the data array (no separate count query needed)
-        const total = data?.length || 0;
-        const shortlisted = data?.filter(app => app.status === 'final_shortlisted').length || 0;
-        const rejected = data?.filter(app => app.status === 'final_rejected' || app.status === 'cv_rejected').length || 0;
+        // Filter in JavaScript instead of in SQL (avoids slow .or() queries)
+        const isTeaching = (pos) => {
+          if (!pos) return false;
+          const lower = pos.toLowerCase();
+          return lower.includes('professor') || lower === 'teaching';
+        };
 
-        console.log('StatsCards: Stats calculated - total:', total, 'shortlisted:', shortlisted, 'rejected:', rejected)
+        const filtered = data?.filter(app => 
+          selectedView === 'teaching' ? isTeaching(app.position) : !isTeaching(app.position)
+        ) || [];
+
+        console.log('StatsCards: Filtered to', filtered.length, 'applications for', selectedView)
+
+        // Calculate counts
+        const total = filtered.length;
+        const shortlisted = filtered.filter(app => app.status === 'final_shortlisted').length;
+        const rejected = filtered.filter(app => app.status === 'final_rejected' || app.status === 'cv_rejected').length;
+
+        console.log('StatsCards: Stats - total:', total, 'shortlisted:', shortlisted, 'rejected:', rejected)
 
         setStats({
           total,
@@ -87,7 +91,7 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
         })
       } catch (err) {
         setError(err.message)
-        console.error('❌ StatsCards: Error fetching stats:', err)
+        console.error('❌ StatsCards: Error:', err)
       } finally {
         console.log('StatsCards: Setting loading to false')
         setLoading(false)
@@ -96,14 +100,14 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
 
     fetchStats()
     
-    // Fallback: Force stop loading after 10 seconds
+    // Fallback timeout
     const timeout = setTimeout(() => {
-      console.warn('StatsCards: Force stopping loading after 10 seconds')
+      console.warn('⏰ StatsCards: Timeout after 10s')
       setLoading(false)
     }, 10000)
 
     return () => clearTimeout(timeout)
-  }, [selectedView]) // Re-fetch when selectedView changes
+  }, [selectedView])
 
   // Load all confirmation response states on mount and when activePanel changes
   useEffect(() => {
