@@ -55,10 +55,10 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
         console.log('StatsCards: Starting to fetch stats for view:', selectedView)
         setLoading(true)
 
-        // Fetch only the necessary fields for counting (much faster)
+        // Fetch ONLY position and status fields (fast, no count option)
         let query = supabase
           .from('faculty_applications')
-          .select('position, status', { count: 'exact', head: false });
+          .select('position, status');
 
         // Filter by teaching/non-teaching
         if (selectedView === 'teaching') {
@@ -67,20 +67,21 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
           query = query.not('position', 'ilike', '%professor%').neq('position', 'teaching');
         }
 
-        const { data, error, count } = await query;
+        const { data, error } = await query;
 
         if (error) throw error;
 
-        console.log('StatsCards: Query result - count:', count, 'data length:', data?.length)
+        console.log('StatsCards: Query returned', data?.length || 0, 'applications')
 
-        // Calculate counts from the single query result
+        // Calculate all counts from the data array (no separate count query needed)
+        const total = data?.length || 0;
         const shortlisted = data?.filter(app => app.status === 'final_shortlisted').length || 0;
         const rejected = data?.filter(app => app.status === 'final_rejected' || app.status === 'cv_rejected').length || 0;
 
-        console.log('StatsCards: Calculated stats - total:', count, 'shortlisted:', shortlisted, 'rejected:', rejected)
+        console.log('StatsCards: Stats calculated - total:', total, 'shortlisted:', shortlisted, 'rejected:', rejected)
 
         setStats({
-          total: count || 0,
+          total,
           shortlisted,
           rejected
         })
