@@ -1467,7 +1467,7 @@ const AllCandidates = () => {
             {/* Header */}
             <div className="flex items-start justify-between py-5 pr-6 pl-2 border-b bg-gradient-to-r from-blue-50 to-indigo-50">
               <div className="min-w-0">
-                <h2 className="m-0 text-2xl font-bold text-gray-900">
+                <h2 className="m-0 text-left text-2xl font-bold text-gray-900">
                   {formatCandidateName(selectedCandidate)}
                 </h2>
             <div className="flex items-center space-x-2 mt-1">
