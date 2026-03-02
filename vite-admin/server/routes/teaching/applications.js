@@ -400,6 +400,15 @@ router.post(
         highest_degree,
         university,
         graduation_year,
+        bachelor_institute,
+        bachelor_degree_name,
+        bachelor_year,
+        master_institute,
+        master_degree_name,
+        master_year,
+        phd_institute,
+        phd_degree_name,
+        phd_year,
         previous_positions,
         years_of_experience,
         phd_status,
@@ -503,6 +512,18 @@ router.post(
       }
 
       const submittedAt = new Date().toISOString();
+      const normalizedEducation = {
+        phdStatus: normalizedPhdStatus,
+        bachelorInstitute: (bachelor_institute || '').toString().trim(),
+        bachelorDegreeName: (bachelor_degree_name || '').toString().trim(),
+        bachelorYear: (bachelor_year || '').toString().trim(),
+        masterInstitute: (master_institute || '').toString().trim(),
+        masterDegreeName: (master_degree_name || '').toString().trim(),
+        masterYear: (master_year || '').toString().trim(),
+        phdInstitute: (phd_institute || '').toString().trim(),
+        phdDegreeName: (phd_degree_name || '').toString().trim(),
+        phdYear: (phd_year || '').toString().trim()
+      };
 
       // Insert main application
       const insertPayload = {
@@ -521,9 +542,7 @@ router.post(
         graduation_year,
         previous_positions,
         years_of_experience,
-        education: {
-          phdStatus: normalizedPhdStatus
-        },
+        education: normalizedEducation,
         gender,
         date_of_birth,
         nationality,

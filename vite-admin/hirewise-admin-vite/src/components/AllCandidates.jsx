@@ -212,32 +212,114 @@ const AllCandidates = () => {
 
   const getAdditionalEducation = (candidate) => {
     if (!candidate) return null;
+    const firstNonEmpty = (...values) =>
+      values
+        .map((value) => (value === null || value === undefined ? '' : String(value).trim()))
+        .find(Boolean) || '';
+
+    const highestDegree = firstNonEmpty(
+      candidate.highest_degree,
+      candidate.highestDegree,
+      candidate.education?.highest_degree,
+      candidate.education?.highestDegree
+    );
+    const highestRank = normalizeDegreeRank(highestDegree);
+    const highestGradYear = firstNonEmpty(
+      candidate.graduation_year,
+      candidate.graduationYear,
+      candidate.education?.graduation_year,
+      candidate.education?.graduationYear
+    );
+
     const degrees = [
       {
         rank: 3,
-        degree: candidate.phd_degree_name || candidate.phdDegreeName || candidate.phdDegree || candidate.highest_degree,
-        institute: candidate.phd_institute || candidate.phdInstitute,
-        year: candidate.phd_year || candidate.phdYear,
+        degree: firstNonEmpty(
+          candidate.phd_degree_name,
+          candidate.phdDegreeName,
+          candidate.phdDegree,
+          candidate.education?.phd_degree_name,
+          candidate.education?.phdDegreeName,
+          highestRank === 3 ? highestDegree : ''
+        ),
+        institute: firstNonEmpty(
+          candidate.phd_institute,
+          candidate.phdInstitute,
+          candidate.education?.phd_institute,
+          candidate.education?.phdInstitute
+        ),
+        year: firstNonEmpty(
+          candidate.phd_year,
+          candidate.phdYear,
+          candidate.education?.phd_year,
+          candidate.education?.phdYear,
+          highestRank === 3 ? highestGradYear : ''
+        ),
       },
       {
         rank: 2,
-        degree: candidate.master_degree_name || candidate.masterDegreeName || candidate.masterDegree,
-        institute: candidate.master_institute || candidate.masterInstitute,
-        year: candidate.master_year || candidate.masterYear,
+        degree: firstNonEmpty(
+          candidate.master_degree_name,
+          candidate.masterDegreeName,
+          candidate.masterDegree,
+          candidate.education?.master_degree_name,
+          candidate.education?.masterDegreeName,
+          highestRank === 2 ? highestDegree : ''
+        ),
+        institute: firstNonEmpty(
+          candidate.master_institute,
+          candidate.masterInstitute,
+          candidate.education?.master_institute,
+          candidate.education?.masterInstitute
+        ),
+        year: firstNonEmpty(
+          candidate.master_year,
+          candidate.masterYear,
+          candidate.education?.master_year,
+          candidate.education?.masterYear,
+          highestRank === 2 ? highestGradYear : ''
+        ),
       },
       {
         rank: 1,
-        degree: candidate.bachelor_degree_name || candidate.bachelorDegreeName || candidate.bachelorDegree,
-        institute: candidate.bachelor_institute || candidate.bachelorInstitute,
-        year: candidate.bachelor_year || candidate.bachelorYear,
+        degree: firstNonEmpty(
+          candidate.bachelor_degree_name,
+          candidate.bachelorDegreeName,
+          candidate.bachelorDegree,
+          candidate.education?.bachelor_degree_name,
+          candidate.education?.bachelorDegreeName,
+          highestRank === 1 ? highestDegree : ''
+        ),
+        institute: firstNonEmpty(
+          candidate.bachelor_institute,
+          candidate.bachelorInstitute,
+          candidate.education?.bachelor_institute,
+          candidate.education?.bachelorInstitute
+        ),
+        year: firstNonEmpty(
+          candidate.bachelor_year,
+          candidate.bachelorYear,
+          candidate.education?.bachelor_year,
+          candidate.education?.bachelorYear,
+          highestRank === 1 ? highestGradYear : ''
+        ),
       },
     ].filter((d) => d.degree || d.institute || d.year);
 
     if (degrees.length === 0) return null;
-    const sorted = degrees.sort((a, b) => b.rank - a.rank || normalizeDegreeRank(b.degree) - normalizeDegreeRank(a.degree));
-    const highest = sorted[0];
-    const next = sorted.find((d) => d.rank < highest.rank);
-    return next || null;
+
+    const resolvedHighestRank =
+      highestRank || Math.max(...degrees.map((degree) => degree.rank));
+    const nextLowerDegree = degrees
+      .filter((degree) => degree.rank < resolvedHighestRank)
+      .sort((a, b) => b.rank - a.rank)[0];
+
+    if (nextLowerDegree) return nextLowerDegree;
+
+    // Fallback labels when lower-degree metadata is missing in legacy records.
+    if (resolvedHighestRank === 3) return { rank: 2, degree: 'Masters', institute: '', year: '' };
+    if (resolvedHighestRank === 2) return { rank: 1, degree: 'Bachelors', institute: '', year: '' };
+    return null;
   };
 
   const computeExperienceFromArrays = (teaching = [], research = []) => {

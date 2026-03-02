@@ -2771,6 +2771,19 @@ const CombinedMultiStepForm = () => {
     derivedGradYear = normalized.bachelorYear || '';
   }
 
+  const resolvedBachelorDegreeName =
+    normalized.bachelorDegreeName === 'Other'
+      ? (normalized.bachelorDegreeNameOther || 'Other')
+      : (normalized.bachelorDegreeName || '');
+  const resolvedMasterDegreeName =
+    normalized.masterDegreeName === 'Other'
+      ? (normalized.masterDegreeNameOther || 'Other')
+      : (normalized.masterDegreeName || '');
+  const resolvedPhdDegreeName =
+    (normalized.phdStatus && normalized.phdStatus !== 'Not done')
+      ? (normalized.phdDegreeName || 'PhD')
+      : '';
+
   // Build multipart/form-data so files are actually uploaded via multer on the server
   const fd = new FormData();
   fd.append('position', normalized.position || '');
@@ -2788,6 +2801,15 @@ const CombinedMultiStepForm = () => {
   fd.append('highest_degree', derivedHighestDegree);
   fd.append('university', derivedUniversity);
   fd.append('graduation_year', derivedGradYear);
+  fd.append('bachelor_institute', normalized.bachelorInstitute || '');
+  fd.append('bachelor_degree_name', resolvedBachelorDegreeName);
+  fd.append('bachelor_year', normalized.bachelorYear || '');
+  fd.append('master_institute', normalized.masterInstitute || '');
+  fd.append('master_degree_name', resolvedMasterDegreeName);
+  fd.append('master_year', normalized.masterYear || '');
+  fd.append('phd_institute', normalized.phdInstitute || '');
+  fd.append('phd_degree_name', resolvedPhdDegreeName);
+  fd.append('phd_year', normalized.phdYear || '');
   fd.append('previous_positions', normalized.previous_positions || '');
   fd.append('years_of_experience', normalized.totalExperience || '');
   fd.append('phd_status', normalized.phdStatus || 'Not done');
