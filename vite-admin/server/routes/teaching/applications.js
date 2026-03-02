@@ -310,6 +310,153 @@ router.get('/:id', cache.middleware(300), async (req, res) => {
       return res.status(404).json({ error: 'Application not found' });
     }
 
+    const firstNonEmpty = (...values) =>
+      values
+        .map((value) => (value === null || value === undefined ? '' : String(value).trim()))
+        .find(Boolean) || '';
+
+    const appEducation = app?.education && typeof app.education === 'object' ? app.education : {};
+
+    const normalizeFromOther = (value, otherValue) => {
+      const normalized = (value || '').toString().trim();
+      if (normalized.toLowerCase() === 'other') {
+        return firstNonEmpty(otherValue, normalized);
+      }
+      return normalized;
+    };
+
+    let resolvedEducation = {
+      bachelorInstitute: firstNonEmpty(
+        app.bachelor_institute,
+        app.bachelorInstitute,
+        appEducation.bachelorInstitute,
+        appEducation.bachelor_institute
+      ),
+      bachelorDegreeName: firstNonEmpty(
+        app.bachelor_degree_name,
+        app.bachelorDegreeName,
+        appEducation.bachelorDegreeName,
+        appEducation.bachelor_degree_name
+      ),
+      bachelorYear: firstNonEmpty(
+        app.bachelor_year,
+        app.bachelorYear,
+        appEducation.bachelorYear,
+        appEducation.bachelor_year
+      ),
+      masterInstitute: firstNonEmpty(
+        app.master_institute,
+        app.masterInstitute,
+        appEducation.masterInstitute,
+        appEducation.master_institute
+      ),
+      masterDegreeName: firstNonEmpty(
+        app.master_degree_name,
+        app.masterDegreeName,
+        appEducation.masterDegreeName,
+        appEducation.master_degree_name
+      ),
+      masterYear: firstNonEmpty(
+        app.master_year,
+        app.masterYear,
+        appEducation.masterYear,
+        appEducation.master_year
+      ),
+      phdInstitute: firstNonEmpty(
+        app.phd_institute,
+        app.phdInstitute,
+        appEducation.phdInstitute,
+        appEducation.phd_institute
+      ),
+      phdDegreeName: firstNonEmpty(
+        app.phd_degree_name,
+        app.phdDegreeName,
+        appEducation.phdDegreeName,
+        appEducation.phd_degree_name
+      ),
+      phdYear: firstNonEmpty(
+        app.phd_year,
+        app.phdYear,
+        appEducation.phdYear,
+        appEducation.phd_year
+      )
+    };
+
+    const hasAdditionalEducationDetails = Boolean(
+      resolvedEducation.masterInstitute ||
+      resolvedEducation.masterDegreeName ||
+      resolvedEducation.masterYear ||
+      resolvedEducation.bachelorInstitute ||
+      resolvedEducation.bachelorDegreeName ||
+      resolvedEducation.bachelorYear
+    );
+
+    // Backfill education details for older submitted applications using latest matching draft.
+    if (!hasAdditionalEducationDetails && app.user_id) {
+      try {
+        const { data: draftRows, error: draftError } = await supabase
+          .from('draft_applications')
+          .select('form_data, updated_at, created_at')
+          .eq('user_id', app.user_id)
+          .order('updated_at', { ascending: false })
+          .limit(10);
+
+        if (!draftError && Array.isArray(draftRows) && draftRows.length > 0) {
+          const matchesApplication = (row) => {
+            const form = row?.form_data || {};
+            const sameEmail = firstNonEmpty(form.email).toLowerCase() === firstNonEmpty(app.email).toLowerCase();
+            const samePosition = firstNonEmpty(form.position).toLowerCase() === firstNonEmpty(app.position).toLowerCase();
+            const sameDepartment = firstNonEmpty(form.department).toLowerCase() === firstNonEmpty(app.department).toLowerCase();
+            return sameEmail && samePosition && sameDepartment;
+          };
+
+          const draftRow = draftRows.find(matchesApplication) || draftRows[0];
+          const formData = draftRow?.form_data || {};
+
+          const draftEducation = {
+            bachelorInstitute: normalizeFromOther(
+              firstNonEmpty(formData.bachelorInstitute, formData.bachelor_institute),
+              firstNonEmpty(formData.bachelorInstituteOther, formData.bachelor_institute_other)
+            ),
+            bachelorDegreeName: normalizeFromOther(
+              firstNonEmpty(formData.bachelorDegreeName, formData.bachelor_degree_name),
+              firstNonEmpty(formData.bachelorDegreeNameOther, formData.bachelor_degree_name_other)
+            ),
+            bachelorYear: firstNonEmpty(formData.bachelorYear, formData.bachelor_year),
+            masterInstitute: normalizeFromOther(
+              firstNonEmpty(formData.masterInstitute, formData.master_institute),
+              firstNonEmpty(formData.masterInstituteOther, formData.master_institute_other)
+            ),
+            masterDegreeName: normalizeFromOther(
+              firstNonEmpty(formData.masterDegreeName, formData.master_degree_name),
+              firstNonEmpty(formData.masterDegreeNameOther, formData.master_degree_name_other)
+            ),
+            masterYear: firstNonEmpty(formData.masterYear, formData.master_year),
+            phdInstitute: normalizeFromOther(
+              firstNonEmpty(formData.phdInstitute, formData.phd_institute),
+              firstNonEmpty(formData.phdInstituteOther, formData.phd_institute_other)
+            ),
+            phdDegreeName: firstNonEmpty(formData.phdDegreeName, formData.phd_degree_name),
+            phdYear: firstNonEmpty(formData.phdYear, formData.phd_year)
+          };
+
+          resolvedEducation = {
+            bachelorInstitute: resolvedEducation.bachelorInstitute || draftEducation.bachelorInstitute,
+            bachelorDegreeName: resolvedEducation.bachelorDegreeName || draftEducation.bachelorDegreeName,
+            bachelorYear: resolvedEducation.bachelorYear || draftEducation.bachelorYear,
+            masterInstitute: resolvedEducation.masterInstitute || draftEducation.masterInstitute,
+            masterDegreeName: resolvedEducation.masterDegreeName || draftEducation.masterDegreeName,
+            masterYear: resolvedEducation.masterYear || draftEducation.masterYear,
+            phdInstitute: resolvedEducation.phdInstitute || draftEducation.phdInstitute,
+            phdDegreeName: resolvedEducation.phdDegreeName || draftEducation.phdDegreeName,
+            phdYear: resolvedEducation.phdYear || draftEducation.phdYear
+          };
+        }
+      } catch (draftLookupError) {
+        console.warn('Draft education lookup warning:', draftLookupError.message);
+      }
+    }
+
     const researchInfo = researchInfoResult.data;
     const teachingExp = teachingExpResult.data || [];
     const researchExp = researchExpResult.data || [];
@@ -354,6 +501,27 @@ router.get('/:id', cache.middleware(300), async (req, res) => {
     // Combine all data
     const fullData = {
       ...app,
+      bachelor_institute: resolvedEducation.bachelorInstitute || null,
+      bachelor_degree_name: resolvedEducation.bachelorDegreeName || null,
+      bachelor_year: resolvedEducation.bachelorYear || null,
+      master_institute: resolvedEducation.masterInstitute || null,
+      master_degree_name: resolvedEducation.masterDegreeName || null,
+      master_year: resolvedEducation.masterYear || null,
+      phd_institute: resolvedEducation.phdInstitute || null,
+      phd_degree_name: resolvedEducation.phdDegreeName || null,
+      phd_year: resolvedEducation.phdYear || null,
+      education: {
+        ...(appEducation || {}),
+        bachelorInstitute: resolvedEducation.bachelorInstitute || appEducation.bachelorInstitute || '',
+        bachelorDegreeName: resolvedEducation.bachelorDegreeName || appEducation.bachelorDegreeName || '',
+        bachelorYear: resolvedEducation.bachelorYear || appEducation.bachelorYear || '',
+        masterInstitute: resolvedEducation.masterInstitute || appEducation.masterInstitute || '',
+        masterDegreeName: resolvedEducation.masterDegreeName || appEducation.masterDegreeName || '',
+        masterYear: resolvedEducation.masterYear || appEducation.masterYear || '',
+        phdInstitute: resolvedEducation.phdInstitute || appEducation.phdInstitute || '',
+        phdDegreeName: resolvedEducation.phdDegreeName || appEducation.phdDegreeName || '',
+        phdYear: resolvedEducation.phdYear || appEducation.phdYear || ''
+      },
       researchInfo,
       teachingExperiences: teachingExp || [],
       researchExperiences: researchExp || [],

@@ -314,12 +314,7 @@ const AllCandidates = () => {
       .filter((degree) => degree.rank < resolvedHighestRank)
       .sort((a, b) => b.rank - a.rank)[0];
 
-    if (nextLowerDegree) return nextLowerDegree;
-
-    // Fallback labels when lower-degree metadata is missing in legacy records.
-    if (resolvedHighestRank === 3) return { rank: 2, degree: 'Masters', institute: '', year: '' };
-    if (resolvedHighestRank === 2) return { rank: 1, degree: 'Bachelors', institute: '', year: '' };
-    return null;
+    return nextLowerDegree || null;
   };
 
   const computeExperienceFromArrays = (teaching = [], research = []) => {
