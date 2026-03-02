@@ -1465,9 +1465,9 @@ const AllCandidates = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-7xl max-h-[95vh] overflow-hidden flex flex-col">
             {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b bg-gradient-to-r from-blue-50 to-indigo-50">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">
+            <div className="flex items-start justify-between py-5 pr-6 pl-2 border-b bg-gradient-to-r from-blue-50 to-indigo-50">
+              <div className="min-w-0">
+                <h2 className="m-0 text-2xl font-bold text-gray-900">
                   {formatCandidateName(selectedCandidate)}
                 </h2>
             <div className="flex items-center space-x-2 mt-1">
@@ -1475,16 +1475,6 @@ const AllCandidates = () => {
               <span className="text-xs font-medium text-blue-600 bg-blue-100 px-2 py-1 rounded-full">
                 {toTitleCase(selectedCandidate.department)}
               </span>
-              {selectedCandidate.status && (
-                <span
-                  className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getStatusMeta(normalizeCandidateStatus(selectedCandidate.status)).color}`}
-                >
-                  <span
-                    className={`w-2 h-2 rounded-full mr-1.5 ${getStatusMeta(normalizeCandidateStatus(selectedCandidate.status)).dot}`}
-                  />
-                  {getStatusMeta(normalizeCandidateStatus(selectedCandidate.status)).label}
-                </span>
-              )}
             </div>
           </div>
             <div className="flex items-start gap-3">
@@ -1496,6 +1486,17 @@ const AllCandidates = () => {
                 >
                   {evaluationLoading ? 'Loading...' : 'Show Evaluation'}
                 </button>
+
+                {selectedCandidate.status && (
+                  <span
+                    className={`inline-flex items-center self-end px-2.5 py-1 rounded-full text-xs font-medium ${getStatusMeta(normalizeCandidateStatus(selectedCandidate.status)).color}`}
+                  >
+                    <span
+                      className={`w-2 h-2 rounded-full mr-1.5 ${getStatusMeta(normalizeCandidateStatus(selectedCandidate.status)).dot}`}
+                    />
+                    {getStatusMeta(normalizeCandidateStatus(selectedCandidate.status)).label}
+                  </span>
+                )}
 
                 {selectedCandidateStatus === 'interview_completed' && (
                   <div className="flex items-center gap-2">
