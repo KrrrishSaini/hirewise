@@ -10,6 +10,12 @@ import { API_BASE } from '../lib/config';
 
 import StatsCardsClient from './stats-cardclient';
 
+const TREND_WINDOW_OPTIONS = [
+  { id: '3m', label: '3M', months: 3 },
+  { id: '6m', label: '6M', months: 6 },
+  { id: '12m', label: '1Y', months: 12 },
+];
+
 const Dashboard = () => {
   const [selectedView, setSelectedView] = useState('teaching');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -32,6 +38,7 @@ const Dashboard = () => {
   const [schedulingInterview, setSchedulingInterview] = useState({}); // Track which interviews are being scheduled
   const [applicationTrendRows, setApplicationTrendRows] = useState([]);
   const [trendLoading, setTrendLoading] = useState(true);
+  const [trendWindow, setTrendWindow] = useState('12m');
 
 
   // Remove default margins from body and html
@@ -291,6 +298,7 @@ const Dashboard = () => {
     return filtered;
   };
   const filteredCandidates = getFilteredCandidates();
+  const trendWindowMonths = TREND_WINDOW_OPTIONS.find((option) => option.id === trendWindow)?.months || 12;
 
   const monthlyApplicationsTrend = React.useMemo(() => {
     const isTeachingPosition = (rawPosition) => {
@@ -304,6 +312,7 @@ const Dashboard = () => {
     });
 
     const countsByMonth = new Map();
+    let latestMonthDate = null;
 
     rowsForView.forEach((row) => {
       const rawDate = row.submitted_at || row.created_at;
@@ -314,19 +323,21 @@ const Dashboard = () => {
 
       const monthKey = `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}`;
       countsByMonth.set(monthKey, (countsByMonth.get(monthKey) || 0) + 1);
+
+      const monthDate = new Date(parsed.getFullYear(), parsed.getMonth(), 1);
+      if (!latestMonthDate || monthDate > latestMonthDate) {
+        latestMonthDate = monthDate;
+      }
     });
 
-    if (countsByMonth.size === 0) return [];
+    if (countsByMonth.size === 0 || !latestMonthDate) return [];
 
-    const sortedKeys = [...countsByMonth.keys()].sort();
-    const [startYear, startMonth] = sortedKeys[0].split('-').map(Number);
-    const [endYear, endMonth] = sortedKeys[sortedKeys.length - 1].split('-').map(Number);
-
-    const cursor = new Date(startYear, startMonth - 1, 1);
-    const end = new Date(endYear, endMonth - 1, 1);
+    const end = new Date(latestMonthDate.getFullYear(), latestMonthDate.getMonth(), 1);
+    const start = new Date(end.getFullYear(), end.getMonth() - (trendWindowMonths - 1), 1);
+    const cursor = new Date(start);
     const series = [];
 
-    while (cursor <= end) {
+    while (cursor.getTime() <= end.getTime()) {
       const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}`;
       const monthDate = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
       series.push({
@@ -339,7 +350,7 @@ const Dashboard = () => {
     }
 
     return series;
-  }, [applicationTrendRows, selectedView]);
+  }, [applicationTrendRows, selectedView, trendWindowMonths]);
 
   const totalApplicationsInTrend = monthlyApplicationsTrend.reduce((sum, item) => sum + (item.applications || 0), 0);
 
@@ -619,13 +630,28 @@ const Dashboard = () => {
           <div className="flex items-start justify-between mb-4">
             <div>
               <h2 className="text-xl font-bold text-gray-900">Monthly Applications Trend</h2>
-              <p className="text-sm text-gray-500 mt-1">
-                Based on application submitted date ({selectedView === 'teaching' ? 'Teaching' : 'Non-Teaching'} view)
-              </p>
             </div>
-            <div className="text-right">
-              <p className="text-xl font-bold text-blue-700">{trendLoading ? '—' : totalApplicationsInTrend}</p>
-              <p className="text-xs text-gray-500 uppercase tracking-wide">Applications counted</p>
+            <div className="flex flex-col items-end gap-2">
+              <div className="inline-flex items-center rounded-lg border border-gray-200 bg-gray-50 p-1">
+                {TREND_WINDOW_OPTIONS.map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => setTrendWindow(option.id)}
+                    className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${
+                      trendWindow === option.id
+                        ? 'bg-blue-600 text-white'
+                        : 'text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+              <div className="text-right">
+                <p className="text-xl font-bold text-blue-700">{trendLoading ? '—' : totalApplicationsInTrend}</p>
+                <p className="text-xs text-gray-500 uppercase tracking-wide">Applications counted</p>
+              </div>
             </div>
           </div>
 
