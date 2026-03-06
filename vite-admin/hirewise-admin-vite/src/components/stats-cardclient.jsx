@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase-client'
 import { API_BASE } from '../lib/config'
-import { Users, CheckCircle, XCircle, Trash2, Star, Calendar, X } from 'lucide-react'
+import { Users, CheckCircle, XCircle, Trash2, Star, Calendar } from 'lucide-react'
 import CandidateDetailsModal from './CandidateDetailsModal'
 import DateTimePickerModal from './DateTimePickerModal'
 import CommunicationModal from './CommunicationModal'
@@ -45,8 +45,6 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
 
   // Candidate details modal
   const [selectedCandidate, setSelectedCandidate] = useState(null)
-  const [candidateDetails, setCandidateDetails] = useState(null)
-  const [loadingDetails, setLoadingDetails] = useState(false)
   const [isPopupOpen, setIsPopupOpen] = useState(false)
 
   useEffect(() => {
@@ -282,39 +280,36 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
     try {
       setSelectedCandidate({ ...candidate, loading: true })
       setIsPopupOpen(true)
-      setLoadingDetails(true)
 
       const response = await fetch(`${API_BASE}/api/applications/${candidate.id}`)
       if (!response.ok) throw new Error('Failed to fetch details')
       const details = await response.json()
-      setSelectedCandidate(prev => ({
-        ...prev,
+      const normalizedStatus = (candidate?.status || '').toString().toLowerCase()
+      const resolvedStatus = normalizedStatus || (details?.status || '')
+      const flattened = {
+        ...candidate,
         ...details,
-        loading: false
-      }))
+        status: resolvedStatus,
+        scopus_general_papers: details.researchInfo?.scopus_general_papers || 0,
+        conference_papers: details.researchInfo?.conference_papers || 0,
+        edited_books: details.researchInfo?.edited_books || 0,
+        scopus_id: details.researchInfo?.scopus_id || details.scopus_id,
+        orchid_id: details.researchInfo?.orchid_id || details.orchid_id,
+        google_scholar_id: details.researchInfo?.google_scholar_id,
+        experience: details.total_experience || candidate.total_experience || candidate.experience || 'N/A',
+        loading: false,
+      }
+      setSelectedCandidate(flattened)
     } catch (err) {
       console.error('Error fetching candidate details:', err)
       alert('Failed to load candidate details: ' + err.message)
       setSelectedCandidate(prev => ({ ...prev, loading: false }))
-    } finally {
-      setLoadingDetails(false)
     }
   }
 
   const closeCandidatePopup = () => {
     setSelectedCandidate(null)
     setIsPopupOpen(false)
-  }
-
-  const getDepartmentColor = (department) => {
-    switch (department) {
-      case 'SOET': return 'bg-blue-100 text-blue-800';
-      case 'SOL': return 'bg-purple-100 text-purple-800';
-      case 'engineering': return 'bg-blue-100 text-blue-800';
-      case 'law': return 'bg-purple-100 text-purple-800';
-      case 'Research': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
   }
 
   // ========================================
@@ -739,111 +734,13 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
         </div>
       )}
 
-      {/* Candidate Details Modal - Full Detailed View */}
-      {isPopupOpen && selectedCandidate && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-            {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b bg-gradient-to-r from-blue-50 to-indigo-50">
-              <div className="flex items-center gap-4">
-                <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold text-white ${(selectedCandidate.gender || '').toLowerCase() === 'female' ? 'bg-pink-500' : 'bg-blue-500'
-                  }`}>
-                  {selectedCandidate.first_name?.charAt(0) || '?'}
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900">
-                    {selectedCandidate.first_name
-                      ? `${selectedCandidate.first_name}${selectedCandidate.middle_name ? ' ' + selectedCandidate.middle_name : ''}${selectedCandidate.last_name ? ' ' + selectedCandidate.last_name : ''}`
-                      : 'N/A'
-                    }
-                  </h2>
-                  <p className="text-sm text-gray-600">{selectedCandidate.email}</p>
-                </div>
-              </div>
-              <button
-                onClick={closeCandidatePopup}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <X className="h-6 w-6" />
-              </button>
-            </div>
-
-            {/* Content */}
-            <div className="flex-1 overflow-y-auto p-6">
-              {selectedCandidate.loading ? (
-                <div className="text-center py-8 text-gray-500">Loading details...</div>
-              ) : (
-                <div className="space-y-6">
-                  {/* Basic Info */}
-                  <div className="bg-white border rounded-lg p-4">
-                    <h3 className="text-lg font-bold text-gray-900 mb-4 border-b pb-2">Basic Information</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-xs font-semibold text-gray-500 uppercase">Email</p>
-                        <p className="text-sm text-gray-900">{selectedCandidate.email || 'N/A'}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs font-semibold text-gray-500 uppercase">Position Applied</p>
-                        <p className="text-sm text-gray-900">{selectedCandidate.position || 'N/A'}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs font-semibold text-gray-500 uppercase">Department</p>
-                        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getDepartmentColor(selectedCandidate.department)}`}>
-                          {selectedCandidate.department || 'N/A'}
-                        </span>
-                      </div>
-                      <div>
-                        <p className="text-xs font-semibold text-gray-500 uppercase">Phone</p>
-                        <p className="text-sm text-gray-900">{selectedCandidate.phone || 'N/A'}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Education */}
-                  <div className="bg-white border rounded-lg p-4">
-                    <h3 className="text-lg font-bold text-gray-900 mb-4 border-b pb-2">Education</h3>
-                    <div className="space-y-3">
-                      {selectedCandidate.highest_degree && (
-                        <div className="bg-blue-50 rounded p-3">
-                          <p className="text-xs font-semibold text-blue-600 uppercase">Highest Qualification</p>
-                          <p className="text-sm text-gray-900">{selectedCandidate.highest_degree}</p>
-                          <p className="text-xs text-gray-600">{selectedCandidate.university || 'N/A'}</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Experience */}
-                  <div className="bg-white border rounded-lg p-4">
-                    <h3 className="text-lg font-bold text-gray-900 mb-4 border-b pb-2">Experience</h3>
-                    <div className="bg-blue-50 rounded p-3">
-                      <p className="text-xs font-semibold text-blue-600 uppercase">Total Experience</p>
-                      <p className="text-lg font-bold text-gray-900">{selectedCandidate.total_experience || selectedCandidate.experience || 'N/A'}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Footer */}
-            <div className="p-4 border-t bg-gray-50 flex justify-end">
-              <button
-                onClick={closeCandidatePopup}
-                className="px-6 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-medium transition-colors"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Candidate Details Modal */}
       <CandidateDetailsModal
         isOpen={isPopupOpen}
         candidate={selectedCandidate}
         onClose={closeCandidatePopup}
-        getDepartmentColor={getDepartmentColor}
+        onShowEvaluation={viewEvaluation}
+        evaluationLoading={evaluationLoading && Boolean(isPopupOpen)}
       />
 
       {/* Loading State */}
