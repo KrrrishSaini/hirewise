@@ -189,17 +189,6 @@ const AdminLayout = () => {
           </div>
         </header>
 
-        {/* Breadcrumb */}
-        <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center text-sm text-gray-600">
-          <span className="text-gray-900 font-medium">Admin</span>
-          <svg className="h-4 w-4 mx-2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>
-          <span className={`text-gray-800 ${activeItem === 'allcandidates' ? '' : 'capitalize'}`}>
-            {activeItem === 'allcandidates' ? 'All candidates' : activeItem.replace(/([A-Z])/g, ' $1').trim()}
-          </span>
-        </div>
-
         {/* Nested routes render here */}
         <main className="flex-1 p-6 min-h-0 overflow-hidden bg-gray-50">
           <div className="h-full overflow-auto rounded-lg bg-white shadow-xs border border-gray-200 p-6">
