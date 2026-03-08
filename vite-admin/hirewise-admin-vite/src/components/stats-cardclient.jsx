@@ -12,6 +12,54 @@ const capitalize = (str) => {
   return str.charAt(0).toUpperCase() + str.slice(1)
 }
 
+const parseEvaluationAverages = (remarks) => {
+  if (!remarks || typeof remarks !== 'string') {
+    return { teaching: null, research: null, general: null, total: null }
+  }
+
+  const extract = (label) => {
+    const match = remarks.match(new RegExp(`Average \\(${label}\\):\\s*([0-9]+(?:\\.[0-9]+)?)`, 'i'))
+    return match ? Number(match[1]) : null
+  }
+
+  const totalMatch = remarks.match(/Total Score \\(I \\+ II \\+ III\\):\\s*([0-9]+(?:\\.[0-9]+)?)/i)
+  return {
+    teaching: extract('I'),
+    research: extract('II'),
+    general: extract('III'),
+    total: totalMatch ? Number(totalMatch[1]) : null,
+  }
+}
+
+const normalizeSectionScore = (value) => {
+  if (value === null || value === undefined || value === '') return null
+  const numeric = Number(value)
+  if (Number.isNaN(numeric)) return null
+
+  // Older records may store section values on a 10-point scale.
+  const converted = numeric > 5 ? numeric / 2 : numeric
+  return Math.max(0, Math.min(5, converted))
+}
+
+const getSectionEvaluationSummary = (evaluation) => {
+  const parsed = parseEvaluationAverages(evaluation?.remarks)
+
+  const teaching = parsed.teaching ?? normalizeSectionScore(evaluation?.teaching_competence)
+  const research = parsed.research ?? normalizeSectionScore(evaluation?.research_potential)
+  const general =
+    parsed.general ??
+    normalizeSectionScore(evaluation?.industry_experience) ??
+    normalizeSectionScore(evaluation?.communication_skills)
+
+  const total =
+    parsed.total ??
+    (teaching !== null && research !== null && general !== null
+      ? teaching + research + general
+      : null)
+
+  return { teaching, research, general, total }
+}
+
 export default function StatsCardsClient({ selectedView = 'teaching' }) {
   const [stats, setStats] = useState({
     total: 0,
@@ -275,6 +323,8 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
     setSelectedEvaluation(null)
     setEvaluationData(null)
   }
+
+  const sectionSummary = getSectionEvaluationSummary(evaluationData)
 
   const openCandidateDetails = async (candidate) => {
     try {
@@ -667,26 +717,21 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
                 <h3 className="font-semibold text-gray-700 mb-3">Evaluation Scores</h3>
 
                 {[
-                  { label: 'Teaching Competence', value: evaluationData.teaching_competence },
-                  { label: 'Research Potential', value: evaluationData.research_potential },
-                  { label: 'Industry Experience', value: evaluationData.industry_experience },
-                  { label: 'Communication Skills', value: evaluationData.communication_skills },
-                  { label: 'Subject Knowledge', value: evaluationData.subject_knowledge },
-                  { label: 'Overall Suitability', value: evaluationData.overall_suitability }
+                  { label: 'Teaching', value: sectionSummary.teaching, color: 'bg-green-500' },
+                  { label: 'Research', value: sectionSummary.research, color: 'bg-blue-500' },
+                  { label: 'General: Culture Alignment', value: sectionSummary.general, color: 'bg-purple-500' }
                 ].map((item, idx) => (
                   <div key={idx} className="space-y-1">
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-700 font-medium">{item.label}</span>
-                      <span className="text-gray-900 font-bold">{item.value}/10</span>
+                      <span className="text-gray-900 font-bold">
+                        {item.value === null ? 'N/A' : `${item.value.toFixed(2)}/5`}
+                      </span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2.5">
                       <div
-                        className={`h-2.5 rounded-full ${item.value >= 8 ? 'bg-green-500' :
-                          item.value >= 6 ? 'bg-blue-500' :
-                            item.value >= 4 ? 'bg-yellow-500' :
-                              'bg-red-500'
-                          }`}
-                        style={{ width: `${(item.value / 10) * 100}%` }}
+                        className={`h-2.5 rounded-full ${item.color}`}
+                        style={{ width: `${item.value === null ? 0 : (item.value / 5) * 100}%` }}
                       ></div>
                     </div>
                   </div>
@@ -696,16 +741,9 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
               {/* Average Score */}
               <div className="mb-6 p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg border border-purple-200">
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-700 font-semibold">Average Score</span>
+                  <span className="text-gray-700 font-semibold">Combined Score</span>
                   <span className="text-2xl font-bold text-purple-700">
-                    {(
-                      (evaluationData.teaching_competence +
-                        evaluationData.research_potential +
-                        evaluationData.industry_experience +
-                        evaluationData.communication_skills +
-                        evaluationData.subject_knowledge +
-                        evaluationData.overall_suitability) / 6
-                    ).toFixed(2)}/10
+                    {sectionSummary.total === null ? 'N/A' : `${sectionSummary.total.toFixed(2)}/15`}
                   </span>
                 </div>
               </div>
