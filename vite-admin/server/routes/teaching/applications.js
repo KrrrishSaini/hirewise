@@ -1217,7 +1217,7 @@ router.post('/send-confirmation-enhanced/:id', async (req, res) => {
 
         // Construct base URL
         const baseUrl = process.env.API_BASE_URL ||
-          `http://localhost:${process.env.PORT || 5001}`;
+          `http://localhost:${process.env.PORT || 5000}`;
 
         console.log('📧 Sending email in background...');
         const emailResult = await emailService.sendEnhancedInterviewConfirmationEmail(

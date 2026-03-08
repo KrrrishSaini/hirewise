@@ -10,16 +10,44 @@ const AdminLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeItem, setActiveItem] = useState('');
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [adminName, setAdminName] = useState('');
+  const [adminEmail, setAdminEmail] = useState('');
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Check admin authentication
+  // Check admin authentication and load admin info
   useEffect(() => {
     const isAdminAuth = localStorage.getItem('adminAuth');
     if (!isAdminAuth) {
       navigate('/admin/login', { replace: true });
+    } else {
+      loadAdminInfo();
     }
   }, [navigate]);
+
+  // Load admin info from localStorage
+  const loadAdminInfo = () => {
+    const name = localStorage.getItem('adminName') || 'Administrator';
+    const email = localStorage.getItem('adminEmail') || 'admin@bmu.edu.in';
+    setAdminName(name);
+    setAdminEmail(email);
+  };
+
+  // Listen for storage changes (when profile is updated)
+  useEffect(() => {
+    const handleStorageChange = () => {
+      loadAdminInfo();
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    // Also listen for custom event from same window
+    window.addEventListener('adminProfileUpdated', handleStorageChange);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('adminProfileUpdated', handleStorageChange);
+    };
+  }, []);
 
   const navigation = [
     { id: 'dashboard', name: 'Dashboard', icon: Home, path: '/admin/dashboard' },
@@ -84,10 +112,10 @@ const AdminLayout = () => {
         <div className="absolute bottom-0 w-full px-4 py-3 bg-gray-800 border-t border-gray-700">
           <div className="flex items-center">
             <div className="h-8 w-8 bg-gray-700 rounded-full flex items-center justify-center mr-2 border border-gray-600">
-              <span className="text-white font-medium text-sm">A</span>
+              <span className="text-white font-medium text-sm">{adminName.charAt(0).toUpperCase()}</span>
             </div>
             <div>
-              <p className="font-medium text-white">Administrator</p>
+              <p className="font-medium text-white">{adminName}</p>
               <p className="text-gray-400 text-xs">Super Admin</p>
             </div>
           </div>
@@ -140,7 +168,7 @@ const AdminLayout = () => {
                   className="h-8 w-8 bg-gray-800 rounded-full flex items-center justify-center shadow-sm hover:shadow-md transition-shadow duration-200 cursor-pointer"
                   onClick={() => setShowUserMenu(!showUserMenu)}
                 >
-                  <span className="text-white font-medium text-sm">A</span>
+                  <span className="text-white font-medium text-sm">{adminName.charAt(0).toUpperCase()}</span>
                 </div>
                 
                 {/* Dropdown Menu */}
@@ -156,8 +184,8 @@ const AdminLayout = () => {
                     <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-20">
                       {/* User Info */}
                       <div className="px-4 py-3 border-b border-gray-200">
-                        <p className="text-sm font-semibold text-gray-900">Administrator</p>
-                        <p className="text-xs text-gray-600 mt-1">admin@bmu.edu.in</p>
+                        <p className="text-sm font-semibold text-gray-900">{adminName}</p>
+                        <p className="text-xs text-gray-600 mt-1">{adminEmail}</p>
                       </div>
                       
                       {/* Menu Items */}

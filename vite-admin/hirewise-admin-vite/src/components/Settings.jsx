@@ -1,12 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { API_BASE } from '../lib/config';
 import DepartmentPositionManagement from './DepartmentPositionManagement.jsx';
 
 const Settings = () => {
   const [profile, setProfile] = useState({
-    name: 'Administrator',
-    email: 'admin@example.com',
+    name: '',
+    email: '',
     password: ''
   });
+
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+
+  const [loading, setLoading] = useState(false);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [message, setMessage] = useState({ text: '', type: '' });
 
   const [systemSettings, setSystemSettings] = useState({
     emailNotifications: true,
@@ -23,8 +34,56 @@ const Settings = () => {
     requiredDocuments: true
   });
 
+  // Load profile on mount
+  useEffect(() => {
+    loadProfile();
+  }, []);
+
+  const getAuthToken = () => {
+    return localStorage.getItem('adminToken');
+  };
+
+  const loadProfile = async () => {
+    try {
+      const token = getAuthToken();
+      if (!token) {
+        setMessage({ text: 'No authentication token found', type: 'error' });
+        return;
+      }
+
+      const response = await fetch(`${API_BASE}/api/admin/profile`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to load profile');
+      }
+
+      const data = await response.json();
+      setProfile({
+        name: data.user.name || '',
+        email: data.user.email || '',
+        password: ''
+      });
+    } catch (err) {
+      console.error('Load profile error:', err);
+      setMessage({ text: 'Failed to load profile data', type: 'error' });
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
   const handleProfileChange = (field, value) => {
     setProfile(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handlePasswordChange = (field, value) => {
+    setPasswordData(prev => ({
       ...prev,
       [field]: value
     }));
@@ -51,13 +110,108 @@ const Settings = () => {
     }));
   };
 
-  const handleUpdateProfile = () => {
-    console.log('Updating profile:', profile);
+  const handleUpdateProfile = async () => {
+    setLoading(true);
+    setMessage({ text: '', type: '' });
+
+    try {
+      const token = getAuthToken();
+      if (!token) {
+        throw new Error('No authentication token');
+      }
+
+      const response = await fetch(`${API_BASE}/api/admin/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: profile.name,
+          email: profile.email
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to update profile');
+      }
+
+      // Update localStorage
+      localStorage.setItem('adminEmail', data.user.email);
+      localStorage.setItem('adminName', data.user.name);
+
+      // Dispatch custom event to notify AdminLayout
+      window.dispatchEvent(new Event('adminProfileUpdated'));
+
+      setMessage({ text: 'Profile updated successfully!', type: 'success' });
+    } catch (err) {
+      console.error('Update profile error:', err);
+      setMessage({ text: err.message || 'Failed to update profile', type: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    setMessage({ text: '', type: '' });
+
+    if (!passwordData.currentPassword || !passwordData.newPassword) {
+      setMessage({ text: 'Please fill in all password fields', type: 'error' });
+      return;
+    }
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setMessage({ text: 'New passwords do not match', type: 'error' });
+      return;
+    }
+
+    if (passwordData.newPassword.length < 6) {
+      setMessage({ text: 'New password must be at least 6 characters', type: 'error' });
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const token = getAuthToken();
+      if (!token) {
+        throw new Error('No authentication token');
+      }
+
+      const response = await fetch(`${API_BASE}/api/admin/password`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          currentPassword: passwordData.currentPassword,
+          newPassword: passwordData.newPassword
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to change password');
+      }
+
+      setMessage({ text: 'Password changed successfully!', type: 'success' });
+      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    } catch (err) {
+      console.error('Change password error:', err);
+      setMessage({ text: err.message || 'Failed to change password', type: 'error' });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleResetData = () => {
     if (window.confirm('Are you sure you want to reset all data? This action cannot be undone.')) {
       console.log('Resetting all data...');
+      setMessage({ text: 'This feature is not yet implemented', type: 'error' });
     }
   };
 
@@ -104,6 +258,13 @@ const Settings = () => {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
         
+        {/* Message Display */}
+        {message.text && (
+          <div className={`p-4 rounded-xl border-2 ${message.type === 'success' ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'}`}>
+            <p className="font-semibold">{message.text}</p>
+          </div>
+        )}
+
         {/* Profile Settings */}
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
           <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-8 py-6">
@@ -116,45 +277,102 @@ const Settings = () => {
           </div>
           
           <div className="p-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Admin Name</label>
-                <input 
-                  type="text" 
-                  value={profile.name}
-                  onChange={(e) => handleProfileChange('name', e.target.value)}
-                  className="w-full p-4 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all"
-                />
+            {profileLoading ? (
+              <div className="flex justify-center py-8">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
               </div>
-              
+            ) : (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Admin Name</label>
+                    <input 
+                      type="text" 
+                      value={profile.name}
+                      onChange={(e) => handleProfileChange('name', e.target.value)}
+                      className="w-full p-4 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Email Address</label>
+                    <input 
+                      type="email" 
+                      value={profile.email}
+                      onChange={(e) => handleProfileChange('email', e.target.value)}
+                      className="w-full p-4 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all"
+                    />
+                  </div>
+                </div>
+                
+                <div className="mt-8">
+                  <button 
+                    onClick={handleUpdateProfile}
+                    disabled={loading}
+                    className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-8 py-4 rounded-xl font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {loading ? 'Updating...' : 'Update Profile'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Change Password Section */}
+        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+          <div className="bg-gradient-to-r from-green-600 to-green-700 px-8 py-6">
+            <div className="flex items-center space-x-3">
+              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+              <h2 className="text-2xl font-bold text-white">Change Password</h2>
+            </div>
+          </div>
+          
+          <div className="p-8">
+            <div className="grid grid-cols-1 gap-6 max-w-2xl">
               <div className="space-y-2">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Email Address</label>
-                <input 
-                  type="email" 
-                  value={profile.email}
-                  onChange={(e) => handleProfileChange('email', e.target.value)}
-                  className="w-full p-4 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all"
-                />
-              </div>
-              
-              <div className="space-y-2 md:col-span-2">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Change Password</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Current Password</label>
                 <input 
                   type="password" 
-                  value={profile.password}
-                  onChange={(e) => handleProfileChange('password', e.target.value)}
-                  className="w-full p-4 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all"
-                  placeholder="Enter new password"
+                  value={passwordData.currentPassword}
+                  onChange={(e) => handlePasswordChange('currentPassword', e.target.value)}
+                  className="w-full p-4 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-green-500 focus:ring-4 focus:ring-green-100 transition-all"
+                  placeholder="Enter current password"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">New Password</label>
+                <input 
+                  type="password" 
+                  value={passwordData.newPassword}
+                  onChange={(e) => handlePasswordChange('newPassword', e.target.value)}
+                  className="w-full p-4 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-green-500 focus:ring-4 focus:ring-green-100 transition-all"
+                  placeholder="Enter new password (min 6 characters)"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Confirm New Password</label>
+                <input 
+                  type="password" 
+                  value={passwordData.confirmPassword}
+                  onChange={(e) => handlePasswordChange('confirmPassword', e.target.value)}
+                  className="w-full p-4 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-green-500 focus:ring-4 focus:ring-green-100 transition-all"
+                  placeholder="Confirm new password"
                 />
               </div>
             </div>
             
             <div className="mt-8">
               <button 
-                onClick={handleUpdateProfile}
-                className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-8 py-4 rounded-xl font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+                onClick={handleChangePassword}
+                disabled={loading}
+                className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-8 py-4 rounded-xl font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Update Profile
+                {loading ? 'Changing...' : 'Change Password'}
               </button>
             </div>
           </div>

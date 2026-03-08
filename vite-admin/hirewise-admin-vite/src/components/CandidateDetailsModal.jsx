@@ -1,6 +1,7 @@
 import { X } from 'lucide-react';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { supabase } from '../../lib/supabase-client';
+import CVParsingSection from './CVParsingSection';
 
 const toTitleCase = (value = '') =>
   String(value)
@@ -601,6 +602,12 @@ export default function CandidateDetailsModal({
                     </div>
                   </div>
                 </div>
+
+                {/* CV Parsing Section */}
+                <CVParsingSection 
+                  candidateId={candidate.id} 
+                  isOpen={isOpen}
+                />
               </div>
             </div>
           )}

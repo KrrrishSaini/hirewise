@@ -124,6 +124,13 @@ Return ONLY a valid JSON object with these fields (skip any that don't have data
     "any administrative role mentioned like Dean, HOD, Coordinator, Committee roles, etc"
   ],
   
+  "phd_guidance": {
+    "total_phd_scholars": "number if mentioned",
+    "ongoing_supervision": "number if mentioned",
+    "completed_supervision": "number if mentioned",
+    "scholar_details": ["brief details about PhD supervision if mentioned"]
+  },
+  
   "consultancy_startup": {
     "consultancy_projects": ["project if mentioned"],
     "industry_collaborations": ["collaboration if mentioned"],
@@ -150,13 +157,13 @@ async function extractSpecializationWithGroq(cvText) {
         const cvTrimmed = cvText.length > 12000 ? cvText.substring(0, 12000) : cvText;
 
         const response = await groq.chat.completions.create({
-            model: "llama-3.3-70b-versatile",
+            model: "llama-3.1-8b-instant",
             messages: [
                 { role: "system", content: SYSTEM_MESSAGE },
                 { role: "user", content: USER_PROMPT.replace('{cv_text}', cvTrimmed) }
             ],
             temperature: 0,
-            max_tokens: 3000
+            max_tokens: 2000
         });
 
         let raw = response.choices[0].message.content.trim();
@@ -181,6 +188,23 @@ async function extractSpecializationWithGroq(cvText) {
 export async function parseCV(applicationId) {
     try {
         console.log(`📄 Parsing CV for application ID: ${applicationId}`);
+
+        // 0. Check cache first (stored in application's cv_parsed_data column)
+        const { data: cachedApp, error: cacheError } = await supabase
+            .from('faculty_applications')
+            .select('cv_parsed_data, cv_path, first_name, last_name')
+            .eq('id', applicationId)
+            .single();
+
+        if (cachedApp?.cv_parsed_data && typeof cachedApp.cv_parsed_data === 'object') {
+            console.log(`✅ Using cached CV parsing data for application ${applicationId}`);
+            return {
+                success: true,
+                data: cachedApp.cv_parsed_data,
+                candidateName: `${cachedApp.first_name} ${cachedApp.last_name}`,
+                cached: true
+            };
+        }
 
         // 1. Fetch application and CV file path from database
         const { data: application, error: fetchError } = await supabase
@@ -223,6 +247,14 @@ export async function parseCV(applicationId) {
         const parsedData = await extractSpecializationWithGroq(cvText);
 
         console.log(`✅ CV parsing completed successfully`);
+
+        // Save parsed data to cache
+        await supabase
+            .from('faculty_applications')
+            .update({ cv_parsed_data: parsedData })
+            .eq('id', applicationId);
+
+        console.log(`💾 Cached CV parsing data for application ${applicationId}`);
 
         return {
             success: true,

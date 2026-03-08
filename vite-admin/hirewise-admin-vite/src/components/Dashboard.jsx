@@ -5,6 +5,7 @@ import Charts from './charts'; // Adjust path as needed
 import { candidatesApi } from '../lib/api';
 import { supabase } from '../../lib/supabase-client';
 import { API_BASE } from '../lib/config';
+import CVParsingSection from './CVParsingSection';
 
 
 
@@ -970,6 +971,12 @@ const Dashboard = () => {
                           <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedCandidate.certifications}</p>
                         </div>
                       )}
+
+                      {/* CV Parsing Section */}
+                      <CVParsingSection 
+                        candidateId={selectedCandidate.id} 
+                        isOpen={isPopupOpen}
+                      />
                     </>
                   )}
                 </div>

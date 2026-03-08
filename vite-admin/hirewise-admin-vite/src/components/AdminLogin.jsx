@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, Mail } from 'lucide-react';
+import { supabase } from '../../lib/supabase-client';
+import { API_BASE } from '../lib/config';
 
 const AdminLogin = () => {
   const [email, setEmail] = useState('');
@@ -9,38 +11,42 @@ const AdminLogin = () => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
-  // Hardcoded admin credentials (replace with actual auth later)
-  const ADMIN_CREDENTIALS = {
-    email: 'admin@bmu.edu.in',
-    password: 'admin123'
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
 
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
+    try {
+      // Call backend admin login endpoint
+      const response = await fetch(`${API_BASE}/api/admin/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
 
-    if (email === ADMIN_CREDENTIALS.email && password === ADMIN_CREDENTIALS.password) {
-      // Set admin session
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Login failed');
+      }
+
+      // Store session data
       localStorage.setItem('adminAuth', 'true');
-      localStorage.setItem('adminEmail', email);
+      localStorage.setItem('adminEmail', data.user.email);
+      localStorage.setItem('adminName', data.user.name);
+      localStorage.setItem('adminToken', data.session.access_token);
+      localStorage.setItem('adminRefreshToken', data.session.refresh_token);
       
       // Navigate to dashboard
       navigate('/admin/dashboard');
-    } else {
-      setError('Invalid email or password');
+    } catch (err) {
+      console.error('Login error:', err);
+      setError(err.message || 'Invalid email or password');
+    } finally {
+      setIsLoading(false);
     }
-
-    setIsLoading(false);
-  };
-
-  // Auto-fill credentials for easy access
-  const handleAutoFill = () => {
-    setEmail(ADMIN_CREDENTIALS.email);
-    setPassword(ADMIN_CREDENTIALS.password);
   };
 
   return (
@@ -55,21 +61,12 @@ const AdminLogin = () => {
           <p className="text-gray-600">Sign in to access the admin panel</p>
         </div>
 
-        {/* Quick Access Info */}
-        <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4 mb-6">
-          <p className="text-sm font-semibold text-blue-900 mb-2">📋 Admin Credentials:</p>
-          <div className="space-y-1 text-sm text-blue-800">
-            <p><span className="font-semibold">Email:</span> admin@bmu.edu.in</p>
-            <p><span className="font-semibold">Password:</span> admin123</p>
+        {/* Error Message */}
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-sm text-red-800">{error}</p>
           </div>
-          <button
-            type="button"
-            onClick={handleAutoFill}
-            className="mt-3 w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-2 px-4 rounded-lg transition-colors"
-          >
-            Click to Auto-Fill Credentials
-          </button>
-        </div>
+        )}
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-6">

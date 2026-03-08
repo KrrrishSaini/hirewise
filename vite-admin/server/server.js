@@ -18,6 +18,7 @@ import mlRoute from './routes/ml.js';
 import authRoute from './routes/auth.js';
 import googleRoute from './routes/google.js';
 import departmentsRoute from './routes/departments.js';
+import adminRoute from './routes/admin.js';
 
 // ✅ 1. Create the app FIRST
 const app = express();
@@ -39,7 +40,7 @@ app.use(compression({
 // ✅ 3. Rate limiting to prevent abuse
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
+  max: 500, // Limit each IP to 500 requests per windowMs (increased for CV parsing)
   standardHeaders: true,
   legacyHeaders: false,
   message: 'Too many requests from this IP, please try again later.'
@@ -102,7 +103,8 @@ app.use("/api/documents", documentsRoute);
 app.use("/api/ml", mlRoute);
 app.use("/api/auth", authRoute);
 app.use("/api/google", googleRoute);
-app.use("/api/admin", departmentsRoute);
+app.use("/api/departments", departmentsRoute);
+app.use("/api/admin", adminRoute);
 
 // OAuth2 callback route (at root level for Google redirect)
 app.get('/oauth2callback', (req, res) => {
@@ -120,7 +122,7 @@ app.use((err, req, res, next) => {
 });
 
 // ✅ 9. Start server
-const PORT = process.env.PORT || 5001;
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📦 Compression: ENABLED`);

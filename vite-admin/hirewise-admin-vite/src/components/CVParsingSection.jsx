@@ -64,190 +64,136 @@ export default function CVParsingSection({ candidateId, isOpen }) {
 
       {cvData && !cvLoading && !cvError && (
         <div className="space-y-4 max-h-96 overflow-y-auto">
-          {/* Primary Specialization */}
-          {cvData.primary_specialization && (
-            <div className="bg-white rounded-lg p-3 shadow-sm">
-              <p className="text-xs font-semibold text-purple-600 uppercase mb-1">Primary Specialization</p>
-              <p className="text-sm text-gray-900 font-medium">{cvData.primary_specialization}</p>
-            </div>
-          )}
-
-          {/* Research Information */}
-          {cvData.research_information && (
-            <div className="bg-white rounded-lg p-3 shadow-sm">
-              <p className="text-xs font-semibold text-blue-600 uppercase mb-2">Research Profile</p>
-              <div className="space-y-2 text-xs">
-                {cvData.research_information.research_topics?.length > 0 && (
-                  <div>
-                    <span className="font-medium text-gray-700">Topics:</span>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {cvData.research_information.research_topics.map((topic, i) => (
-                        <span key={i} className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
-                          {topic}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {cvData.research_information.specializations?.length > 0 && (
-                  <div>
-                    <span className="font-medium text-gray-700">Specializations:</span>
-                    <p className="text-gray-900 mt-1">{cvData.research_information.specializations.join(', ')}</p>
-                  </div>
-                )}
-                {cvData.research_information.total_projects && (
-                  <div>
-                    <span className="font-medium text-gray-700">Total Projects:</span>
-                    <span className="text-gray-900 ml-1">{cvData.research_information.total_projects}</span>
-                  </div>
-                )}
+          {/* 1. Teaching Contribution */}
+          <div className="bg-white rounded-lg p-3 shadow-sm">
+            <p className="text-xs font-semibold text-orange-600 uppercase mb-2">1. Teaching Contribution</p>
+            <div className="space-y-1 text-xs">
+              <div>
+                <span className="font-medium text-gray-700">Courses Taught:</span>
+                <p className="text-gray-900">{cvData.teaching_contribution?.courses_taught?.length > 0 ? cvData.teaching_contribution.courses_taught.join(', ') : 'N/A'}</p>
+              </div>
+              <div>
+                <span className="font-medium text-gray-700">Level:</span>
+                <span className="text-gray-900 ml-1">{cvData.teaching_contribution?.ug_pg_level || 'N/A'}</span>
+              </div>
+              <div>
+                <span className="font-medium text-gray-700">Number of Courses:</span>
+                <span className="text-gray-900 ml-1">{cvData.teaching_contribution?.number_of_courses || 'N/A'}</span>
               </div>
             </div>
-          )}
+          </div>
 
-          {/* Project Information */}
-          {cvData.project_information?.length > 0 && (
-            <div className="bg-white rounded-lg p-3 shadow-sm">
-              <p className="text-xs font-semibold text-green-600 uppercase mb-2">Projects ({cvData.project_information.length})</p>
+          {/* 2. Research Projects */}
+          <div className="bg-white rounded-lg p-3 shadow-sm">
+            <p className="text-xs font-semibold text-green-600 uppercase mb-2">2. Research Projects</p>
+            {cvData.project_information?.length > 0 ? (
               <div className="space-y-2">
-                {cvData.project_information.slice(0, 3).map((proj, i) => (
+                {cvData.project_information.slice(0, 5).map((proj, i) => (
                   <div key={i} className="border-l-2 border-green-400 pl-2 text-xs">
-                    {proj.title && <p className="font-medium text-gray-900">{proj.title}</p>}
+                    <p className="font-medium text-gray-900">{proj.title || 'Untitled Project'}</p>
                     <div className="flex flex-wrap gap-2 mt-1 text-xs text-gray-600">
                       {proj.duration && <span>⏱ {proj.duration}</span>}
                       {proj.role && <span>👤 {proj.role}</span>}
                       {proj.funding_agency && <span>🏛 {proj.funding_agency}</span>}
+                      {proj.funding_amount && <span>💰 {proj.funding_amount}</span>}
                     </div>
                   </div>
                 ))}
-              </div>
-            </div>
-          )}
-
-          {/* Funding Information */}
-          {cvData.funding_information && (
-            <div className="bg-white rounded-lg p-3 shadow-sm">
-              <p className="text-xs font-semibold text-yellow-600 uppercase mb-2">Funding Details</p>
-              <div className="space-y-1 text-xs">
-                {cvData.funding_information.agencies?.length > 0 && (
-                  <div>
-                    <span className="font-medium text-gray-700">Agencies:</span>
-                    <p className="text-gray-900">{cvData.funding_information.agencies.join(', ')}</p>
-                  </div>
-                )}
-                {cvData.funding_information.total_funding && (
-                  <div>
-                    <span className="font-medium text-gray-700">Total Funding:</span>
-                    <span className="text-gray-900 ml-1">{cvData.funding_information.total_funding}</span>
-                  </div>
+                {cvData.project_information.length > 5 && (
+                  <p className="text-xs text-gray-500 italic">+ {cvData.project_information.length - 5} more projects</p>
                 )}
               </div>
-            </div>
-          )}
+            ) : (
+              <p className="text-xs text-gray-500">No research projects information available</p>
+            )}
+          </div>
 
-          {/* Intellectual Property */}
-          {cvData.intellectual_property && (
-            <div className="bg-white rounded-lg p-3 shadow-sm">
-              <p className="text-xs font-semibold text-indigo-600 uppercase mb-2">Intellectual Property</p>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                {cvData.intellectual_property.patents_filed && (
-                  <div>
-                    <span className="font-medium text-gray-700">Patents Filed:</span>
-                    <span className="text-gray-900 ml-1">{cvData.intellectual_property.patents_filed}</span>
-                  </div>
-                )}
-                {cvData.intellectual_property.patents_granted && (
-                  <div>
-                    <span className="font-medium text-gray-700">Patents Granted:</span>
-                    <span className="text-gray-900 ml-1">{cvData.intellectual_property.patents_granted}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Teaching Contribution */}
-          {cvData.teaching_contribution && (
-            <div className="bg-white rounded-lg p-3 shadow-sm">
-              <p className="text-xs font-semibold text-orange-600 uppercase mb-2">Teaching Contribution</p>
-              <div className="space-y-1 text-xs">
-                {cvData.teaching_contribution.courses_taught?.length > 0 && (
-                  <div>
-                    <span className="font-medium text-gray-700">Courses:</span>
-                    <p className="text-gray-900">{cvData.teaching_contribution.courses_taught.join(', ')}</p>
-                  </div>
-                )}
-                {cvData.teaching_contribution.ug_pg_level && (
-                  <div>
-                    <span className="font-medium text-gray-700">Level:</span>
-                    <span className="text-gray-900 ml-1">{cvData.teaching_contribution.ug_pg_level}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Administrative Responsibilities */}
-          {cvData.administrative_responsibilities?.length > 0 && (
-            <div className="bg-white rounded-lg p-3 shadow-sm">
-              <p className="text-xs font-semibold text-red-600 uppercase mb-2">Administrative Roles</p>
+          {/* 3. Administrative Responsibilities */}
+          <div className="bg-white rounded-lg p-3 shadow-sm">
+            <p className="text-xs font-semibold text-red-600 uppercase mb-2">3. Administrative Responsibilities</p>
+            {cvData.administrative_responsibilities?.length > 0 ? (
               <ul className="list-disc list-inside text-xs text-gray-900 space-y-1">
                 {cvData.administrative_responsibilities.map((role, i) => (
                   <li key={i}>{role}</li>
                 ))}
               </ul>
-            </div>
-          )}
+            ) : (
+              <p className="text-xs text-gray-500">No administrative responsibilities information available</p>
+            )}
+          </div>
 
-          {/* Consultancy & Startup */}
-          {cvData.consultancy_startup && (
-            <div className="bg-white rounded-lg p-3 shadow-sm">
-              <p className="text-xs font-semibold text-teal-600 uppercase mb-2">Consultancy & Startups</p>
-              <div className="space-y-1 text-xs">
-                {cvData.consultancy_startup.consultancy_projects?.length > 0 && (
-                  <div>
-                    <span className="font-medium text-gray-700">Consultancy:</span>
-                    <p className="text-gray-900">{cvData.consultancy_startup.consultancy_projects.join(', ')}</p>
-                  </div>
-                )}
-                {cvData.consultancy_startup.startup_involvement?.length > 0 && (
-                  <div>
-                    <span className="font-medium text-gray-700">Startups:</span>
-                    <p className="text-gray-900">{cvData.consultancy_startup.startup_involvement.join(', ')}</p>
-                  </div>
+          {/* 4. PhD Guidance */}
+          <div className="bg-white rounded-lg p-3 shadow-sm">
+            <p className="text-xs font-semibold text-purple-600 uppercase mb-2">4. PhD Guidance</p>
+            <div className="space-y-1 text-xs">
+              <div>
+                <span className="font-medium text-gray-700">Total PhD Scholars:</span>
+                <span className="text-gray-900 ml-1">{cvData.phd_guidance?.total_phd_scholars || 'N/A'}</span>
+              </div>
+              <div>
+                <span className="font-medium text-gray-700">Ongoing Supervision:</span>
+                <span className="text-gray-900 ml-1">{cvData.phd_guidance?.ongoing_supervision || 'N/A'}</span>
+              </div>
+              <div>
+                <span className="font-medium text-gray-700">Completed Supervision:</span>
+                <span className="text-gray-900 ml-1">{cvData.phd_guidance?.completed_supervision || 'N/A'}</span>
+              </div>
+              <div>
+                <span className="font-medium text-gray-700">Details:</span>
+                {cvData.phd_guidance?.scholar_details?.length > 0 ? (
+                  <ul className="list-disc list-inside mt-1 text-gray-900">
+                    {cvData.phd_guidance.scholar_details.map((detail, i) => (
+                      <li key={i}>{detail}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-gray-500 ml-1">N/A</p>
                 )}
               </div>
             </div>
-          )}
+          </div>
 
-          {/* Technical Skills */}
-          {cvData.technical_skills && (
-            <div className="bg-white rounded-lg p-3 shadow-sm">
-              <p className="text-xs font-semibold text-pink-600 uppercase mb-2">Technical Skills</p>
-              <div className="space-y-1 text-xs">
-                {cvData.technical_skills.languages_frameworks?.length > 0 && (
-                  <div>
-                    <span className="font-medium text-gray-700">Languages & Frameworks:</span>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {cvData.technical_skills.languages_frameworks.map((skill, i) => (
-                        <span key={i} className="bg-pink-100 text-pink-800 px-2 py-0.5 rounded text-xs">
-                          {skill}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
+          {/* 5. Intellectual Property */}
+          <div className="bg-white rounded-lg p-3 shadow-sm">
+            <p className="text-xs font-semibold text-indigo-600 uppercase mb-2">5. Intellectual Property</p>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div>
+                <span className="font-medium text-gray-700">Patents Filed:</span>
+                <span className="text-gray-900 ml-1">{cvData.intellectual_property?.patents_filed || 'N/A'}</span>
+              </div>
+              <div>
+                <span className="font-medium text-gray-700">Patents Granted:</span>
+                <span className="text-gray-900 ml-1">{cvData.intellectual_property?.patents_granted || 'N/A'}</span>
+              </div>
+              <div className="col-span-2">
+                <span className="font-medium text-gray-700">Copyrights:</span>
+                <p className="text-gray-900">{cvData.intellectual_property?.copyrights?.length > 0 ? cvData.intellectual_property.copyrights.join(', ') : 'N/A'}</p>
               </div>
             </div>
-          )}
+          </div>
 
-          {/* Publications */}
-          {cvData.publications && (
-            <div className="bg-white rounded-lg p-3 shadow-sm">
-              <p className="text-xs font-semibold text-gray-700 uppercase mb-1">Publications</p>
-              <p className="text-2xl font-bold text-gray-900">{cvData.publications}</p>
+          {/* 6. Consultancy and Startups */}
+          <div className="bg-white rounded-lg p-3 shadow-sm">
+            <p className="text-xs font-semibold text-teal-600 uppercase mb-2">6. Consultancy and Startups</p>
+            <div className="space-y-1 text-xs">
+              <div>
+                <span className="font-medium text-gray-700">Consultancy Projects:</span>
+                <p className="text-gray-900">{cvData.consultancy_startup?.consultancy_projects?.length > 0 ? cvData.consultancy_startup.consultancy_projects.join(', ') : 'N/A'}</p>
+              </div>
+              <div>
+                <span className="font-medium text-gray-700">Industry Collaborations:</span>
+                <p className="text-gray-900">{cvData.consultancy_startup?.industry_collaborations?.length > 0 ? cvData.consultancy_startup.industry_collaborations.join(', ') : 'N/A'}</p>
+              </div>
+              <div>
+                <span className="font-medium text-gray-700">Startup Involvement:</span>
+                <p className="text-gray-900">{cvData.consultancy_startup?.startup_involvement?.length > 0 ? cvData.consultancy_startup.startup_involvement.join(', ') : 'N/A'}</p>
+              </div>
+              <div>
+                <span className="font-medium text-gray-700">Founder/Co-founder Roles:</span>
+                <p className="text-gray-900">{cvData.consultancy_startup?.founder_cofounder_roles?.length > 0 ? cvData.consultancy_startup.founder_cofounder_roles.join(', ') : 'N/A'}</p>
+              </div>
             </div>
-          )}
+          </div>
         </div>
       )}
     </div>

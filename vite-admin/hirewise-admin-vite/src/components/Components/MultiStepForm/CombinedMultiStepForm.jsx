@@ -1831,33 +1831,21 @@ const ResearchInformation = ({ formData, setFormData, onNext, onPrevious, onSave
   const [errors, setErrors] = useState({});
   const validateForm = () => {
     const newErrors = {};
-    if (!formData.scopusId) {
-      newErrors.scopusId = 'Scopus ID is required';
-    } else if (!/^\d{11}$/.test(formData.scopusId)) {
+    // Scopus ID - Optional, but validate format if provided
+    if (formData.scopusId && !/^\d{11}$/.test(formData.scopusId)) {
       newErrors.scopusId = 'Scopus ID must be exactly 11 digits';
     }
+    // Google Scholar Link - Mandatory
     if (!formData.googleScholarId) {
       newErrors.googleScholarId = 'Google Scholar Link is required';
     } else if (!/^https?:\/\/(scholar\.google\.com|scholar\.google\.[a-z.]+)\/.+/.test(formData.googleScholarId)) {
       newErrors.googleScholarId = 'Please enter a valid Google Scholar profile link';
     }
-    if (formData.orchidId) {
-      if (!/^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$/.test(formData.orchidId)) {
-        newErrors.orchidId = 'ORCID ID must be in the format 0000-0001-5109-3700';
-      }
+    // ORCID ID - Optional, but validate format if provided
+    if (formData.orchidId && !/^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$/.test(formData.orchidId)) {
+      newErrors.orchidId = 'ORCID ID must be in the format 0000-0001-5109-3700';
     }
-    if (!formData.scopus_general_papers && formData.scopus_general_papers !== 0) {
-      newErrors.scopus_general_papers = 'No. of Scopus Index General Papers is required';
-    }
-    if (!formData.conference_papers && formData.conference_papers !== 0) {
-      newErrors.conference_papers = 'No. of Scopus Index Conference Papers is required';
-    }
-    if (!formData.edited_books && formData.edited_books !== 0) {
-      newErrors.edited_books = 'No. of Edited Books is required';
-    }
-    if (!formData.govt_funded_projects && formData.govt_funded_projects !== 0) {
-      newErrors.govt_funded_projects = 'No. of Govt. Funded Projects is required';
-    }
+    // All publication counts are optional - no validation required
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -1881,7 +1869,7 @@ const ResearchInformation = ({ formData, setFormData, onNext, onPrevious, onSave
       <div className="form-fields-row">
         <div className="form-field" style={{ flex: '0 0 200px' }}>
           <label htmlFor="scopusId">
-            Scopus ID*
+            Scopus ID
             <a 
               href="https://www.scopus.com/freelookup/form/author.uri" 
               target="_blank" 
@@ -1954,7 +1942,7 @@ const ResearchInformation = ({ formData, setFormData, onNext, onPrevious, onSave
       <div className="form-fields-row" style={{ alignItems: 'flex-start', flexWrap: 'nowrap' }}>
         <div className="form-field" style={{ flex: '1 1 0', minWidth: '200px' }}>
           <label htmlFor="scopus_general_papers" style={rowLabelStyle}>
-            No. of Scopus Index General Papers*
+            No. of Scopus Index General Papers
           </label>
           <input
             type="number"
@@ -1968,7 +1956,7 @@ const ResearchInformation = ({ formData, setFormData, onNext, onPrevious, onSave
         </div>
         <div className="form-field" style={{ flex: '1 1 0', minWidth: '200px' }}>
           <label htmlFor="conference_papers" style={rowLabelStyle}>
-            No. of Scopus Index Conference Papers*
+            No. of Scopus Index Conference Papers
           </label>
           <input
             type="number"
@@ -1982,7 +1970,7 @@ const ResearchInformation = ({ formData, setFormData, onNext, onPrevious, onSave
         </div>
         <div className="form-field" style={{ flex: '1 1 0', minWidth: '200px' }}>
           <label htmlFor="edited_books" style={rowLabelStyle}>
-            No. of Edited Books*
+            No. of Edited Books
           </label>
           <input
             type="number"
@@ -1996,7 +1984,7 @@ const ResearchInformation = ({ formData, setFormData, onNext, onPrevious, onSave
         </div>
         <div className="form-field" style={{ flex: '1 1 0', minWidth: '200px' }}>
           <label htmlFor="govt_funded_projects" style={rowLabelStyle}>
-            No. of Govt. Funded Projects*
+            No. of Govt. Funded Projects
           </label>
           <input
             type="number"
