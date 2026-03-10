@@ -262,41 +262,10 @@ BML Munjal University | Faculty Recruitment System
             text: textContent
         };
 
-        console.log('📧 Sending via Outlook SMTP...');
+        console.log('📧 Sending via Gmail SMTP (port 465 SSL - optimized for Render)...');
         
-        // Enhanced timeout with retry logic
-        const sendWithRetry = async (maxRetries = 2) => {
-            for (let attempt = 1; attempt <= maxRetries; attempt++) {
-                try {
-                    console.log(`📧 Attempt ${attempt}/${maxRetries}...`);
-                    
-                    const sendWithTimeout = new Promise((resolve, reject) => {
-                        const timeout = setTimeout(() => {
-                            reject(new Error(`Email timeout after 30 seconds (attempt ${attempt})`));
-                        }, 30000); // Reduced to 30 seconds
-
-                        transporter.sendMail(mailOptions)
-                            .then(info => {
-                                clearTimeout(timeout);
-                                resolve(info);
-                            })
-                            .catch(error => {
-                                clearTimeout(timeout);
-                                reject(error);
-                            });
-                    });
-
-                    return await sendWithTimeout;
-                } catch (error) {
-                    console.log(`❌ Attempt ${attempt} failed:`, error.message);
-                    if (attempt === maxRetries) throw error;
-                    // Wait 2 seconds before retry
-                    await new Promise(resolve => setTimeout(resolve, 2000));
-                }
-            }
-        };
-
-        const info = await sendWithRetry();
+        // Send directly - getTransporter() already configured with 5s timeout
+        const info = await transporter.sendMail(mailOptions);
 
         console.log('Interview confirmation email sent successfully:', info.response);
         return {
@@ -734,68 +703,11 @@ export const sendEnhancedInterviewConfirmationEmail = async (
             html: htmlContent
         };
 
-        console.log('📧 Sending enhanced confirmation email...');
+        console.log('📧 Sending enhanced confirmation email with Gmail SMTP (port 465 SSL)...');
         
-        // TRY SENDGRID FIRST (works on Render - uses HTTPS not SMTP)
-        if (process.env.SENDGRID_API_KEY) {
-            console.log('📧 Using SendGrid API...');
-            
-            const msg = {
-                to: candidateEmail,
-                from: process.env.EMAIL_FROM || 'hirewisebmu8@gmail.com',
-                subject: `Interview Invitation - ${position} Position`,
-                html: htmlContent
-            };
-
-            try {
-                const [response] = await sgMail.send(msg);
-                console.log('✅ SendGrid email sent:', response.statusCode);
-                return {
-                    success: true,
-                    messageId: response.headers['x-message-id']
-                };
-            } catch (error) {
-                console.error('❌ SendGrid failed:', error.response?.body?.errors || error.message);
-                // Fall through to Gmail SMTP backup
-            }
-        }
-
-        // FALLBACK TO GMAIL SMTP (for local development only)
-        console.log('📧 Falling back to Gmail SMTP...');
-        
-        // Enhanced timeout with retry logic (same as other functions)
-        const sendWithRetry = async (maxRetries = 2) => {
-            for (let attempt = 1; attempt <= maxRetries; attempt++) {
-                try {
-                    console.log(`📧 Attempt ${attempt}/${maxRetries}...`);
-                    
-                    const sendWithTimeout = new Promise((resolve, reject) => {
-                        const timeout = setTimeout(() => {
-                            reject(new Error(`Email timeout after 90 seconds (attempt ${attempt})`));
-                        }, 90000); // 90 seconds timeout (increased from 30)
-
-                        getTransporter().sendMail(mailOptions)
-                            .then(info => {
-                                clearTimeout(timeout);
-                                resolve(info);
-                            })
-                            .catch(error => {
-                                clearTimeout(timeout);
-                                reject(error);
-                            });
-                    });
-
-                    return await sendWithTimeout;
-                } catch (error) {
-                    console.log(`❌ Attempt ${attempt} failed:`, error.message);
-                    if (attempt === maxRetries) throw error;
-                    // Wait 2 seconds before retry
-                    await new Promise(resolve => setTimeout(resolve, 2000));
-                }
-            }
-        };
-
-        const info = await sendWithRetry();
+        // Use Gmail SMTP directly - SendGrid credentials are invalid
+        // Port 465 SSL is more reliable on Render than port 587
+        const info = await getTransporter().sendMail(mailOptions);
         console.log('✅ Enhanced confirmation email sent:', info.messageId);
 
         return {
