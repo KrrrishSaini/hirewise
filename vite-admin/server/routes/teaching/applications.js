@@ -1194,8 +1194,10 @@ router.post('/send-confirmation-enhanced/:id', async (req, res) => {
 
     // DO EVERYTHING ELSE ASYNC (fire-and-forget)
     const processAsync = async () => {
+      console.log('🚀 [ASYNC START] Processing interview confirmation for application:', applicationId);
       try {
         console.log('💾 Updating database with interview details...');
+        console.log('📊 Data to update:', { date, time, timezone, applicationId });
         
         // Store interview details in database
         const { error: updateError } = await supabase
@@ -1242,12 +1244,19 @@ router.post('/send-confirmation-enhanced/:id', async (req, res) => {
         cache.delPattern(`req:/api/applications/*`).catch(console.error);
 
       } catch (error) {
-        console.error('❌ Async processing error:', error);
+        console.error('❌ [ASYNC ERROR] Full error details:', error);
+        console.error('❌ [ASYNC ERROR] Stack trace:', error.stack);
+        console.error('❌ [ASYNC ERROR] Error name:', error.name);
+        console.error('❌ [ASYNC ERROR] Error message:', error.message);
       }
     };
 
     // Fire and forget - don't await
-    processAsync();
+    console.log('🔥 Firing async process (fire-and-forget)...');
+    processAsync().catch(err => {
+      console.error('❌ [PROMISE REJECTION] Async function threw unhandled error:', err);
+      console.error('❌ [PROMISE REJECTION] Stack:', err.stack);
+    });
 
   } catch (error) {
     console.error('Error sending enhanced confirmation:', error);

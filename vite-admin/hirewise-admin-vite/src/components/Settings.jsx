@@ -138,14 +138,21 @@ const Settings = () => {
         throw new Error(data.error || 'Failed to update profile');
       }
 
+      console.log('Profile update response:', data);
+
       // Update localStorage
       localStorage.setItem('adminEmail', data.user.email);
       localStorage.setItem('adminName', data.user.name);
 
+      console.log('Updated localStorage - Name:', data.user.name, 'Email:', data.user.email);
+
       // Dispatch custom event to notify AdminLayout
       window.dispatchEvent(new Event('adminProfileUpdated'));
+      
+      // Also trigger storage event for cross-tab updates
+      window.dispatchEvent(new Event('storage'));
 
-      setMessage({ text: 'Profile updated successfully!', type: 'success' });
+      setMessage({ text: 'Profile updated successfully! Changes will appear immediately.', type: 'success' });
     } catch (err) {
       console.error('Update profile error:', err);
       setMessage({ text: err.message || 'Failed to update profile', type: 'error' });

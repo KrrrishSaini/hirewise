@@ -93,19 +93,27 @@ router.put('/profile', async (req, res) => {
       return res.status(401).json({ error: 'Invalid or expired token' });
     }
 
-    // Use service role to update user
+    // Build updates object
     const updates = {};
+    
+    // Update email if changed
     if (email && email !== user.email) {
       updates.email = email;
     }
+    
+    // Update user_metadata with name (merge with existing metadata)
     if (name) {
-      updates.data = { name };
+      updates.user_metadata = {
+        ...user.user_metadata,
+        name: name
+      };
     }
 
     if (Object.keys(updates).length === 0) {
       return res.status(400).json({ error: 'No changes provided' });
     }
 
+    // Update user in Supabase
     const { data, error } = await supabase.auth.admin.updateUserById(
       user.id,
       updates
@@ -116,13 +124,14 @@ router.put('/profile', async (req, res) => {
       return res.status(400).json({ error: error.message });
     }
 
+    // Return the updated user info
     res.json({
       success: true,
       message: 'Profile updated successfully',
       user: {
         id: data.user.id,
         email: data.user.email,
-        name: data.user.user_metadata?.name || name
+        name: data.user.user_metadata?.name || 'Administrator'
       }
     });
   } catch (err) {

@@ -2,7 +2,7 @@
 Write-Host "Starting Hiring Portal..." -ForegroundColor Green
 
 # Start backend server in a new window
-Write-Host "`nStarting Backend Server (Port 5000)..." -ForegroundColor Cyan
+Write-Host "\nStarting Backend Server (Port 5000)..." -ForegroundColor Cyan
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$PSScriptRoot\vite-admin\server'; npm start"
 
 # Wait a moment for backend to initialize
