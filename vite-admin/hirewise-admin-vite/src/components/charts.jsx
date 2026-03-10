@@ -28,20 +28,51 @@ const DEPARTMENT_COLORS = [
   '#e57373', '#4facfe'
 ];
 
-// Updated helper function to parse text experience values
+const EXPERIENCE_BUCKETS = [
+  'Fresher',
+  '1 month–2 years',
+  '2–5 years',
+  '5–10 years',
+  '10+ years',
+  'Unknown'
+];
+
+const parseExperienceToMonths = (expValue) => {
+  if (expValue === null || expValue === undefined) return null;
+  const expText = String(expValue).trim();
+  if (!expText) return null;
+
+  const lower = expText.toLowerCase();
+  if (lower.includes('fresher')) return 0;
+
+  const yearsMatch = lower.match(/(\d+(?:\.\d+)?)\s*(years?|yrs?)/);
+  const monthsMatch = lower.match(/(\d+(?:\.\d+)?)\s*(months?|mos?)/);
+
+  let months = 0;
+  if (yearsMatch) months += Math.round(Number(yearsMatch[1]) * 12);
+  if (monthsMatch) months += Math.round(Number(monthsMatch[1]));
+
+  if (months > 0) return months;
+  if (yearsMatch || monthsMatch) return 0;
+
+  // Fallback: plain numeric values (common in some legacy rows)
+  const numeric = Number(expText);
+  if (Number.isFinite(numeric)) {
+    // Treat <= 30 as years, otherwise months.
+    return numeric <= 30 ? Math.round(numeric * 12) : Math.round(numeric);
+  }
+
+  return null;
+};
+
 const categorizeExperience = (expText) => {
-  if (!expText) return "Unknown";
-  
-  // Extract years number from text (handles "4 years 6 months", "2 years", etc.)
-  const yearsMatch = expText.match(/(\d+)\s*years?/i);
-  if (!yearsMatch) return "Unknown";
-  
-  const years = parseInt(yearsMatch[1], 10);
-  
-  if (years <= 2) return "0–2 Years";
-  if (years <= 5) return "2–5 Years";
-  if (years <= 10) return "5–10 Years";
-  return "10+ Years";
+  const months = parseExperienceToMonths(expText);
+  if (months === null) return 'Unknown';
+  if (months === 0) return 'Fresher';
+  if (months <= 24) return '1 month–2 years';
+  if (months <= 60) return '2–5 years';
+  if (months <= 120) return '5–10 years';
+  return '10+ years';
 };
 
 // Helper function to capitalize first letter of department names
@@ -86,13 +117,10 @@ export default function AnalyticsDashboard({ selectedView = 'teaching' }) {
         // Experience aggregation
         const expRaw = filtered.map(r => ({ years_of_experience: r.years_of_experience }));
         if (expRaw.length > 0) {
-          const experienceCounts = {
-            '0–2 Years': 0,
-            '2–5 Years': 0,
-            '5–10 Years': 0,
-            '10+ Years': 0,
-            'Unknown': 0
-          };
+          const experienceCounts = EXPERIENCE_BUCKETS.reduce((acc, bucket) => {
+            acc[bucket] = 0;
+            return acc;
+          }, {});
           expRaw.forEach(({ years_of_experience }) => {
             const range = categorizeExperience(years_of_experience);
             experienceCounts[range]++;
@@ -141,10 +169,11 @@ export default function AnalyticsDashboard({ selectedView = 'teaching' }) {
         console.error('Error fetching data:', error);
         // Fallback to dummy experience data if there's an error
         setExperienceData([
-          { range: '0–2 Years', count: 20, percentage: 20 },
-          { range: '2–5 Years', count: 33, percentage: 33 },
-          { range: '5–10 Years', count: 27, percentage: 27 },
-          { range: '10+ Years', count: 20, percentage: 20 }
+          { range: 'Fresher', count: 8, percentage: 8 },
+          { range: '1 month–2 years', count: 25, percentage: 25 },
+          { range: '2–5 years', count: 33, percentage: 33 },
+          { range: '5–10 years', count: 22, percentage: 22 },
+          { range: '10+ years', count: 12, percentage: 12 }
         ]);
         setGenderData([]);
         setDepartmentData([]);
