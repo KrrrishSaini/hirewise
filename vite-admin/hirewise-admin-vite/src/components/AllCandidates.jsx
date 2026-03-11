@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase-client';
 import { candidatesApi } from '../lib/api';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Star } from 'lucide-react';
 import CVParsingSection from './CVParsingSection';
 
 const COMMITTEES = [
@@ -180,27 +179,45 @@ const AllCandidates = () => {
       .replace(/\s+/g, ' ')
       .trim();
 
+  const getEducationObject = (candidate) => {
+    const education = candidate?.education;
+    if (!education) return {};
+    if (typeof education === 'object' && !Array.isArray(education)) return education;
+    if (typeof education === 'string') {
+      const trimmed = education.trim();
+      if (!trimmed) return {};
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
+      } catch (_error) {
+        return {};
+      }
+    }
+    return {};
+  };
+
   const derivePhdStatus = (candidate) => {
     const normalize = (value) => normalizeFilterValue(value);
+    const education = getEducationObject(candidate);
 
     const direct =
       candidate?.phd_status ||
       candidate?.phdStatus ||
-      candidate?.education?.phdStatus ||
-      candidate?.education?.phd_status;
+      education?.phdStatus ||
+      education?.phd_status;
 
     if (direct) return normalize(direct);
 
     const highestDegree = normalize(
       candidate?.highest_degree ||
-      candidate?.education?.highestDegree ||
-      candidate?.education?.highest_degree
+      education?.highestDegree ||
+      education?.highest_degree
     );
     if (highestDegree.includes('phd') || highestDegree.includes('doctor')) {
       const gradYear = Number(
         candidate?.graduation_year ||
-        candidate?.education?.phdYear ||
-        candidate?.education?.phd_year
+        education?.phdYear ||
+        education?.phd_year
       );
       if (Number.isFinite(gradYear) && gradYear > 0 && gradYear <= new Date().getFullYear()) {
         return 'awarded';
@@ -213,6 +230,7 @@ const AllCandidates = () => {
 
   const getAdditionalEducation = (candidate) => {
     if (!candidate) return null;
+    const education = getEducationObject(candidate);
     const firstNonEmpty = (...values) =>
       values
         .map((value) => (value === null || value === undefined ? '' : String(value).trim()))
@@ -221,16 +239,37 @@ const AllCandidates = () => {
     const highestDegree = firstNonEmpty(
       candidate.highest_degree,
       candidate.highestDegree,
-      candidate.education?.highest_degree,
-      candidate.education?.highestDegree
+      education?.highest_degree,
+      education?.highestDegree
     );
     const highestRank = normalizeDegreeRank(highestDegree);
     const highestGradYear = firstNonEmpty(
       candidate.graduation_year,
       candidate.graduationYear,
-      candidate.education?.graduation_year,
-      candidate.education?.graduationYear
+      education?.graduation_year,
+      education?.graduationYear
     );
+
+    const additionalLegacyDegree = firstNonEmpty(
+      candidate.additional_qualification,
+      candidate.additionalQualification,
+      education?.additional_qualification,
+      education?.additionalQualification
+    );
+    const additionalLegacyInstitute = firstNonEmpty(
+      candidate.additional_university,
+      candidate.additionalUniversity,
+      education?.additional_university,
+      education?.additionalUniversity
+    );
+    const additionalLegacyYear = firstNonEmpty(
+      candidate.additional_graduation_year,
+      candidate.additionalGraduationYear,
+      education?.additional_graduation_year,
+      education?.additionalGraduationYear
+    );
+    const additionalLegacyRank =
+      normalizeDegreeRank(additionalLegacyDegree) || (highestRank > 1 ? highestRank - 1 : 0);
 
     const degrees = [
       {
@@ -239,21 +278,22 @@ const AllCandidates = () => {
           candidate.phd_degree_name,
           candidate.phdDegreeName,
           candidate.phdDegree,
-          candidate.education?.phd_degree_name,
-          candidate.education?.phdDegreeName,
+          education?.phd_degree_name,
+          education?.phdDegreeName,
+          education?.phdDegree,
           highestRank === 3 ? highestDegree : ''
         ),
         institute: firstNonEmpty(
           candidate.phd_institute,
           candidate.phdInstitute,
-          candidate.education?.phd_institute,
-          candidate.education?.phdInstitute
+          education?.phd_institute,
+          education?.phdInstitute
         ),
         year: firstNonEmpty(
           candidate.phd_year,
           candidate.phdYear,
-          candidate.education?.phd_year,
-          candidate.education?.phdYear,
+          education?.phd_year,
+          education?.phdYear,
           highestRank === 3 ? highestGradYear : ''
         ),
       },
@@ -263,21 +303,28 @@ const AllCandidates = () => {
           candidate.master_degree_name,
           candidate.masterDegreeName,
           candidate.masterDegree,
-          candidate.education?.master_degree_name,
-          candidate.education?.masterDegreeName,
+          education?.master_degree_name,
+          education?.masterDegreeName,
+          education?.masters_degree_name,
+          education?.mastersDegreeName,
+          education?.mastersDegree,
           highestRank === 2 ? highestDegree : ''
         ),
         institute: firstNonEmpty(
           candidate.master_institute,
           candidate.masterInstitute,
-          candidate.education?.master_institute,
-          candidate.education?.masterInstitute
+          education?.master_institute,
+          education?.masterInstitute,
+          education?.masters_institute,
+          education?.mastersInstitute
         ),
         year: firstNonEmpty(
           candidate.master_year,
           candidate.masterYear,
-          candidate.education?.master_year,
-          candidate.education?.masterYear,
+          education?.master_year,
+          education?.masterYear,
+          education?.masters_year,
+          education?.mastersYear,
           highestRank === 2 ? highestGradYear : ''
         ),
       },
@@ -287,31 +334,64 @@ const AllCandidates = () => {
           candidate.bachelor_degree_name,
           candidate.bachelorDegreeName,
           candidate.bachelorDegree,
-          candidate.education?.bachelor_degree_name,
-          candidate.education?.bachelorDegreeName,
+          education?.bachelor_degree_name,
+          education?.bachelorDegreeName,
+          education?.bachelors_degree_name,
+          education?.bachelorsDegreeName,
+          education?.bachelorsDegree,
           highestRank === 1 ? highestDegree : ''
         ),
         institute: firstNonEmpty(
           candidate.bachelor_institute,
           candidate.bachelorInstitute,
-          candidate.education?.bachelor_institute,
-          candidate.education?.bachelorInstitute
+          education?.bachelor_institute,
+          education?.bachelorInstitute,
+          education?.bachelors_institute,
+          education?.bachelorsInstitute
         ),
         year: firstNonEmpty(
           candidate.bachelor_year,
           candidate.bachelorYear,
-          candidate.education?.bachelor_year,
-          candidate.education?.bachelorYear,
+          education?.bachelor_year,
+          education?.bachelorYear,
+          education?.bachelors_year,
+          education?.bachelorsYear,
           highestRank === 1 ? highestGradYear : ''
         ),
+      },
+      {
+        rank: additionalLegacyRank,
+        degree: additionalLegacyDegree,
+        institute: additionalLegacyInstitute,
+        year: additionalLegacyYear,
       },
     ].filter((d) => d.degree || d.institute || d.year);
 
     if (degrees.length === 0) return null;
 
+    // If duplicate degree ranks exist across payload shapes, keep the richest merged record.
+    const dedupedByRank = Array.from(
+      degrees.reduce((acc, degree) => {
+        if (!degree.rank) return acc;
+        const existing = acc.get(degree.rank);
+        if (!existing) {
+          acc.set(degree.rank, degree);
+          return acc;
+        }
+
+        acc.set(degree.rank, {
+          rank: degree.rank,
+          degree: firstNonEmpty(existing.degree, degree.degree),
+          institute: firstNonEmpty(existing.institute, degree.institute),
+          year: firstNonEmpty(existing.year, degree.year),
+        });
+        return acc;
+      }, new Map()).values()
+    );
+
     const resolvedHighestRank =
-      highestRank || Math.max(...degrees.map((degree) => degree.rank));
-    const nextLowerDegree = degrees
+      highestRank || Math.max(...dedupedByRank.map((degree) => degree.rank));
+    const nextLowerDegree = dedupedByRank
       .filter((degree) => degree.rank < resolvedHighestRank)
       .sort((a, b) => b.rank - a.rank)[0];
 
@@ -490,23 +570,6 @@ const AllCandidates = () => {
       general: avgMatch('III'),
       total: totalMatch ? Number(totalMatch[1]) : null
     };
-  };
-
-  const normalizeSectionScore = (value) => {
-    if (value === null || value === undefined || value === '') return null;
-    const numeric = Number(value);
-    if (Number.isNaN(numeric)) return null;
-    const converted = numeric > 5 ? numeric / 2 : numeric;
-    return Math.max(0, Math.min(5, converted));
-  };
-
-  const getSectionEvaluationSummary = (evaluation) => {
-    const parsed = parseEvaluationAverages(evaluation?.remarks);
-    const teaching = parsed.teaching ?? normalizeSectionScore(evaluation?.teaching_competence);
-    const research = parsed.research ?? normalizeSectionScore(evaluation?.research_potential);
-    const general = parsed.general ?? normalizeSectionScore(evaluation?.industry_experience) ?? normalizeSectionScore(evaluation?.communication_skills);
-    const total = parsed.total ?? (teaching !== null && research !== null && general !== null ? teaching + research + general : null);
-    return { teaching, research, general, total };
   };
 
   const matchesStage = (candidate, stage) => {
@@ -1052,12 +1115,12 @@ const AllCandidates = () => {
               </div>
             </div>
           </div>
-          <div className="mt-4 flex flex-wrap gap-2">
+          <div className="mt-4 flex items-center gap-2 overflow-x-auto whitespace-nowrap pb-1">
             {PIPELINE_STAGES.map((stage) => (
               <button
                 key={stage.key}
                 onClick={() => handleStageChange(stage.key)}
-                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                className={`shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
                   selectedStage === stage.key
                     ? 'bg-indigo-600 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -1069,65 +1132,25 @@ const AllCandidates = () => {
             <button
               type="button"
               onClick={() => setShowFilters((s) => !s)}
-              className="ml-2 px-3 py-1.5 rounded-full text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-100"
+              className="ml-2 shrink-0 inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-100"
             >
-              {showFilters ? 'Hide Filters' : 'Filters'}
+              <span>{showFilters ? 'Hide Filters' : 'Filters'}</span>
+              {activeFilterCount > 0 && (
+                <>
+                  <span className="h-4 w-px bg-gray-300" />
+                  <span
+                    role="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      resetFilters();
+                    }}
+                    className="text-xs font-semibold text-indigo-600 hover:text-indigo-700"
+                  >
+                    Clear
+                  </span>
+                </>
+              )}
             </button>
-            <button
-              type="button"
-              onClick={resetFilters}
-              className="px-3 py-1.5 rounded-full text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-100"
-            >
-              Clear
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                if (multiAssignMode) {
-                  setMultiAssignMode(false);
-                  setSelectedCandidateIds([]);
-                  return;
-                }
-                setMultiAssignMode(true);
-              }}
-              className={`px-3 py-1.5 rounded-full text-sm font-semibold border transition-colors ${
-                multiAssignMode
-                  ? 'bg-gray-700 text-white border-gray-700'
-                  : 'bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700'
-              }`}
-            >
-              {multiAssignMode ? 'Cancel Multi Assign' : 'Multi Assign'}
-            </button>
-            {multiAssignMode && (
-              <>
-                <button
-                  type="button"
-                  onClick={toggleSelectAllAssignable}
-                  className="px-3 py-1.5 rounded-full text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-100"
-                >
-                  {areAllAssignableSelected ? 'Deselect All' : 'Select All'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectedCandidateIds([])}
-                  className="px-3 py-1.5 rounded-full text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-100"
-                >
-                  Clear Selection
-                </button>
-                <button
-                  type="button"
-                  onClick={openBulkAssignModal}
-                  disabled={selectedCandidateIds.length === 0}
-                  className={`px-3 py-1.5 rounded-full text-sm font-semibold border ${
-                    selectedCandidateIds.length === 0
-                      ? 'bg-gray-200 text-gray-500 border-gray-200 cursor-not-allowed'
-                      : 'bg-green-600 text-white border-green-600 hover:bg-green-700'
-                  }`}
-                >
-                  Assign Selected ({selectedCandidateIds.length})
-                </button>
-              </>
-            )}
           </div>
 
           {showFilters && (
@@ -1323,13 +1346,65 @@ const AllCandidates = () => {
           {filteredCandidates.length > 0 ? (
             <div className="overflow-x-auto">
               <div className="min-w-[920px] px-4 pb-4">
-                <div className={`grid ${multiAssignMode ? 'grid-cols-[54px_90px_1.9fr_1.4fr_1.2fr_2fr]' : 'grid-cols-[90px_1.9fr_1.4fr_1.2fr_2fr]'} items-center gap-4 border-b border-gray-200 px-3 pb-3 text-base font-semibold text-gray-700`}>
+                <div className={`grid ${multiAssignMode ? 'grid-cols-[54px_90px_1.9fr_1.4fr_1.2fr_2fr]' : 'grid-cols-[90px_1.9fr_1.4fr_1.2fr_2fr]'} items-start gap-4 border-b border-gray-200 px-3 pb-3 text-base font-semibold text-gray-700`}>
                   {multiAssignMode && <div>Select</div>}
                   <div>Rank</div>
                   <div>Name</div>
                   <div>Position Applied</div>
                   <div>Department</div>
-                  <div>Actions</div>
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span>Actions</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (multiAssignMode) {
+                            setMultiAssignMode(false);
+                            setSelectedCandidateIds([]);
+                            return;
+                          }
+                          setMultiAssignMode(true);
+                        }}
+                        className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
+                          multiAssignMode
+                            ? 'bg-gray-700 text-white border-gray-700'
+                            : 'bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700'
+                        }`}
+                      >
+                        {multiAssignMode ? 'Cancel Multi Assign' : 'Multi Assign'}
+                      </button>
+                    </div>
+                    {multiAssignMode && (
+                      <div className="flex flex-wrap items-center justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={toggleSelectAllAssignable}
+                          className="px-3 py-1.5 rounded-full text-xs font-semibold border border-gray-300 text-gray-700 hover:bg-gray-100"
+                        >
+                          {areAllAssignableSelected ? 'Deselect All' : 'Select All'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedCandidateIds([])}
+                          className="px-3 py-1.5 rounded-full text-xs font-semibold border border-gray-300 text-gray-700 hover:bg-gray-100"
+                        >
+                          Clear Selection
+                        </button>
+                        <button
+                          type="button"
+                          onClick={openBulkAssignModal}
+                          disabled={selectedCandidateIds.length === 0}
+                          className={`px-3 py-1.5 rounded-full text-xs font-semibold border ${
+                            selectedCandidateIds.length === 0
+                              ? 'bg-gray-200 text-gray-500 border-gray-200 cursor-not-allowed'
+                              : 'bg-green-600 text-white border-green-600 hover:bg-green-700'
+                          }`}
+                        >
+                          Assign Selected ({selectedCandidateIds.length})
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {paginatedCandidates.map((candidate, index) => {
@@ -1965,101 +2040,59 @@ const AllCandidates = () => {
         </div>
       )}
 
-      {showEvaluationModal && evaluationData && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              {/* Header */}
-              <div className="flex justify-between items-start mb-6">
-                <div className="flex items-center gap-2">
-                  <Star className="w-6 h-6 text-yellow-500 fill-yellow-500" />
-                  <h2 className="text-2xl font-bold text-gray-800">Faculty Evaluation</h2>
+      {showEvaluationModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-xl max-h-[85vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between px-4 py-3 border-b">
+              <h3 className="text-lg font-bold text-gray-900">Interview Evaluation</h3>
+              <button onClick={() => setShowEvaluationModal(false)} className="text-gray-400 hover:text-gray-600">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4">
+              {evaluationLoading ? (
+                <div className="flex items-center justify-center py-10">
+                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
                 </div>
-                <button
-                  onClick={() => setShowEvaluationModal(false)}
-                  className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
-                >
-                  ×
-                </button>
-              </div>
-
-              {/* Faculty Info */}
-              <div className="mb-6 p-4 bg-blue-50 rounded-lg">
-                <p className="text-sm text-gray-600">Evaluated by</p>
-                <p className="text-lg font-semibold text-gray-800">
-                  {evaluationData.faculty_name?.startsWith('Dr.')
-                    ? evaluationData.faculty_name
-                    : `Dr. ${evaluationData.faculty_name || 'N/A'}`}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {new Date(evaluationData.evaluated_at).toLocaleString('en-US', {
-                    dateStyle: 'medium',
-                    timeStyle: 'short'
-                  })}
-                </p>
-              </div>
-
-              {/* Evaluation Scores */}
-              <div className="space-y-4 mb-6">
-                <h3 className="font-semibold text-gray-700 mb-3">Evaluation Scores</h3>
-
-                {(() => {
-                  const sectionSummary = getSectionEvaluationSummary(evaluationData);
-                  return [
-                    { label: 'Teaching', value: sectionSummary.teaching, color: 'bg-green-500' },
-                    { label: 'Research', value: sectionSummary.research, color: 'bg-blue-500' },
-                    { label: 'General: Culture Alignment', value: sectionSummary.general, color: 'bg-purple-500' }
-                  ].map((item, idx) => (
-                    <div key={idx} className="space-y-1">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-700 font-medium">{item.label}</span>
-                        <span className="text-gray-900 font-bold">
-                          {item.value === null ? 'N/A' : `${item.value.toFixed(2)}/5`}
-                        </span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2.5">
-                        <div
-                          className={`h-2.5 rounded-full ${item.color}`}
-                          style={{ width: `${item.value === null ? 0 : (item.value / 5) * 100}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  ));
-                })()}
-              </div>
-
-              {/* Combined Score */}
-              <div className="mb-6 p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg border border-purple-200">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-700 font-semibold">Combined Score</span>
-                  <span className="text-2xl font-bold text-purple-700">
-                    {(() => {
-                      const sectionSummary = getSectionEvaluationSummary(evaluationData);
-                      return sectionSummary.total === null ? 'N/A' : `${sectionSummary.total.toFixed(2)}/15`;
-                    })()}
-                  </span>
+              ) : evaluationData ? (
+                <div className="space-y-3 text-sm text-gray-700">
+                  {(() => {
+                    const parsed = parseEvaluationAverages(evaluationData.remarks);
+                    const teaching = parsed.teaching ?? (typeof evaluationData.teaching_competence === 'number' ? evaluationData.teaching_competence / 2 : null);
+                    const research = parsed.research ?? (typeof evaluationData.research_potential === 'number' ? evaluationData.research_potential / 2 : null);
+                    const general = parsed.general ?? (typeof evaluationData.industry_experience === 'number' ? evaluationData.industry_experience / 2 : null);
+                    const total = parsed.total ?? (teaching !== null && research !== null && general !== null ? teaching + research + general : null);
+                    const formatScore = (value) => (value === null ? 'N/A' : value.toFixed(2));
+                    return (
+                      <>
+                        <p><span className="font-semibold">Evaluation Committee:</span> {evaluationData.faculty_name || 'N/A'}</p>
+                        <p><span className="font-semibold">I. Teaching:</span> {formatScore(teaching)}/5</p>
+                        <p><span className="font-semibold">II. Research:</span> {formatScore(research)}/5</p>
+                        <p><span className="font-semibold">III. General: Culture Alignment:</span> {formatScore(general)}/5</p>
+                        <p><span className="font-semibold">Combined Score:</span> {formatScore(total)}/15</p>
+                        <div>
+                          <p className="font-semibold">Remarks</p>
+                          <p className="text-xs text-gray-600 whitespace-pre-wrap">
+                            {extractEvaluationComments(evaluationData.remarks) || 'No additional comments.'}
+                          </p>
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
-              </div>
-
-              {/* Remarks */}
-              {evaluationData.remarks && (
-                <div className="mb-4">
-                  <h3 className="font-semibold text-gray-700 mb-2">Remarks</h3>
-                  <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                    <p className="text-gray-700 whitespace-pre-wrap">{evaluationData.remarks}</p>
-                  </div>
-                </div>
+              ) : (
+                <p className="text-sm text-gray-600">No evaluation loaded.</p>
               )}
-
-              {/* Close Button */}
-              <div className="flex justify-end mt-6">
-                <button
-                  onClick={() => setShowEvaluationModal(false)}
-                  className="px-6 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-medium transition-colors"
-                >
-                  Close
-                </button>
-              </div>
+            </div>
+            <div className="px-4 py-3 border-t bg-gray-50 flex justify-end">
+              <button
+                onClick={() => setShowEvaluationModal(false)}
+                className="px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-100"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>

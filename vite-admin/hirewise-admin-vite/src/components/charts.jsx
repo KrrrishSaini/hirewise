@@ -33,8 +33,7 @@ const EXPERIENCE_BUCKETS = [
   '1 month–2 years',
   '2–5 years',
   '5–10 years',
-  '10+ years',
-  'Unknown'
+  '10+ years'
 ];
 
 const parseExperienceToMonths = (expValue) => {
@@ -67,7 +66,7 @@ const parseExperienceToMonths = (expValue) => {
 
 const categorizeExperience = (expText) => {
   const months = parseExperienceToMonths(expText);
-  if (months === null) return 'Unknown';
+  if (months === null) return null;
   if (months === 0) return 'Fresher';
   if (months <= 24) return '1 month–2 years';
   if (months <= 60) return '2–5 years';
@@ -123,17 +122,21 @@ export default function AnalyticsDashboard({ selectedView = 'teaching' }) {
           }, {});
           expRaw.forEach(({ years_of_experience }) => {
             const range = categorizeExperience(years_of_experience);
+            if (!range) return;
             experienceCounts[range]++;
           });
-          if (experienceCounts['Unknown'] === 0) delete experienceCounts['Unknown'];
-          const total = expRaw.length;
-          setExperienceData(
-            Object.entries(experienceCounts).map(([range, count]) => ({
-              range,
-              count,
-              percentage: Math.round((count / total) * 100)
-            }))
-          );
+          const totalKnown = Object.values(experienceCounts).reduce((sum, count) => sum + count, 0);
+          if (totalKnown === 0) {
+            setExperienceData([]);
+          } else {
+            setExperienceData(
+              Object.entries(experienceCounts).map(([range, count]) => ({
+                range,
+                count,
+                percentage: Math.round((count / totalKnown) * 100)
+              }))
+            );
+          }
         } else {
           setExperienceData([]);
         }
