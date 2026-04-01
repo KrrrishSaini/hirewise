@@ -219,9 +219,10 @@ const FacultyDashboard = () => {
       setLoading(true);
 
       // Use backend detailed endpoint (service-key query) to avoid RLS gaps on client-side joins.
-      const allCandidates = await candidatesApi.getAllDetailed('All', { fresh: true });
+      const allCandidatesRaw = await candidatesApi.getAllDetailed('All', { fresh: true });
+      const allCandidates = Array.isArray(allCandidatesRaw) ? allCandidatesRaw : [];
 
-      const validCandidates = (allCandidates || []).filter((c) => {
+      const validCandidates = allCandidates.filter((c) => {
         const assignedCode = (c.assigned_committee_code || '').toLowerCase();
         const assignedEmail = (c.assigned_faculty_email || '').toLowerCase();
         const assignedName = (c.assigned_faculty_name || '').toLowerCase();

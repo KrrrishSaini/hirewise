@@ -147,6 +147,16 @@ class ApiClient {
 // Export singleton instance
 export const api = new ApiClient(API_BASE);
 
+const normalizeCandidatesList = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  if (payload && typeof payload === 'object') {
+    if (Array.isArray(payload.data)) return payload.data;
+    if (Array.isArray(payload.applications)) return payload.applications;
+    if (Array.isArray(payload.candidates)) return payload.candidates;
+  }
+  return [];
+};
+
 // Export helper functions for common endpoints
 export const candidatesApi = {
   getTopRankings: (params = {}) => 
@@ -159,7 +169,7 @@ export const candidatesApi = {
     return api.get('/api/applications/all/detailed', {
       query,
       skipCache: fresh,
-    });
+    }).then(normalizeCandidatesList);
   },
   
   getById: (id, options = {}) => {
