@@ -214,22 +214,62 @@ const FacultyDashboard = () => {
   const committeeCode = (committeeInfo.code || '').toLowerCase();
   const isArchivedView = location.pathname.includes('/faculty-portal/archived');
 
+  const toComparableToken = (value) =>
+    String(value || '')
+      .toLowerCase()
+      .replace(/@.*/, '')
+      .replace(/[^a-z0-9]/g, '')
+      .trim();
+
+  const buildCommitteeTokens = () => {
+    const code = committeeInfo?.code || '';
+    const name = committeeInfo?.name || '';
+    const firstWord = String(name || '').split(/\s+/)[0] || '';
+    const aliases = [
+      code,
+      name,
+      `${code}@bmu.edu.in`,
+      `${firstWord}@bmu.edu.in`,
+      firstWord,
+    ];
+    return new Set(aliases.map(toComparableToken).filter(Boolean));
+  };
+
+  const isAssignedToCurrentCommittee = (candidate) => {
+    const expectedTokens = buildCommitteeTokens();
+    const assignedValues = [
+      candidate?.assigned_committee_code,
+      candidate?.assigned_committee,
+      candidate?.committee_code,
+      candidate?.assigned_faculty_email,
+      candidate?.assigned_faculty_name,
+    ];
+    const assignedTokens = assignedValues.map(toComparableToken).filter(Boolean);
+    return assignedTokens.some((token) => expectedTokens.has(token));
+  };
+
   const fetchCandidates = async () => {
     try {
       setLoading(true);
+      setError(null);
 
-      // Use backend detailed endpoint (service-key query) to avoid RLS gaps on client-side joins.
-      const allCandidatesRaw = await candidatesApi.getAllDetailed('All', { fresh: true });
-      const allCandidates = Array.isArray(allCandidatesRaw) ? allCandidatesRaw : [];
+      // Use backend detailed endpoint first (service-key query), then fallback to direct query.
+      let allCandidates = [];
+      try {
+        const allCandidatesRaw = await candidatesApi.getAllDetailed('All', { fresh: true });
+        allCandidates = Array.isArray(allCandidatesRaw) ? allCandidatesRaw : [];
+      } catch (apiError) {
+        console.warn('FacultyDashboard: detailed API failed, using fallback query', apiError?.message || apiError);
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('faculty_applications')
+          .select('*')
+          .order('created_at', { ascending: false });
+        if (fallbackError) throw fallbackError;
+        allCandidates = Array.isArray(fallbackData) ? fallbackData : [];
+      }
 
       const validCandidates = allCandidates.filter((c) => {
-        const assignedCode = (c.assigned_committee_code || '').toLowerCase();
-        const assignedEmail = (c.assigned_faculty_email || '').toLowerCase();
-        const assignedName = (c.assigned_faculty_name || '').toLowerCase();
-        const isAssigned =
-          assignedCode === committeeCode ||
-          assignedEmail === committeeCode ||
-          assignedName === committeeCode;
+        const isAssigned = isAssignedToCurrentCommittee(c);
         const notDeleted = c.status !== 'deleted' && c.status !== 'Deleted';
         return isAssigned && notDeleted;
       });

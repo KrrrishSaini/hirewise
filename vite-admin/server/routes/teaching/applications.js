@@ -315,7 +315,25 @@ router.get('/:id', cache.middleware(300), async (req, res) => {
         .map((value) => (value === null || value === undefined ? '' : String(value).trim()))
         .find(Boolean) || '';
 
-    const appEducation = app?.education && typeof app.education === 'object' ? app.education : {};
+    const parseEducationPayload = (value) => {
+      if (!value) return {};
+      if (typeof value === 'object' && !Array.isArray(value)) return value;
+      if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if (!trimmed) return {};
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+            return parsed;
+          }
+        } catch (_error) {
+          return {};
+        }
+      }
+      return {};
+    };
+
+    const appEducation = parseEducationPayload(app?.education);
 
     const normalizeFromOther = (value, otherValue) => {
       const normalized = (value || '').toString().trim();
@@ -329,38 +347,66 @@ router.get('/:id', cache.middleware(300), async (req, res) => {
       bachelorInstitute: firstNonEmpty(
         app.bachelor_institute,
         app.bachelorInstitute,
+        app.bachelors_institute,
+        app.bachelorsInstitute,
         appEducation.bachelorInstitute,
-        appEducation.bachelor_institute
+        appEducation.bachelor_institute,
+        appEducation.bachelorsInstitute,
+        appEducation.bachelors_institute
       ),
       bachelorDegreeName: firstNonEmpty(
         app.bachelor_degree_name,
         app.bachelorDegreeName,
+        app.bachelors_degree_name,
+        app.bachelorsDegreeName,
+        app.bachelorsDegree,
         appEducation.bachelorDegreeName,
-        appEducation.bachelor_degree_name
+        appEducation.bachelor_degree_name,
+        appEducation.bachelorsDegreeName,
+        appEducation.bachelors_degree_name,
+        appEducation.bachelorsDegree
       ),
       bachelorYear: firstNonEmpty(
         app.bachelor_year,
         app.bachelorYear,
+        app.bachelors_year,
+        app.bachelorsYear,
         appEducation.bachelorYear,
-        appEducation.bachelor_year
+        appEducation.bachelor_year,
+        appEducation.bachelorsYear,
+        appEducation.bachelors_year
       ),
       masterInstitute: firstNonEmpty(
         app.master_institute,
         app.masterInstitute,
+        app.masters_institute,
+        app.mastersInstitute,
         appEducation.masterInstitute,
-        appEducation.master_institute
+        appEducation.master_institute,
+        appEducation.mastersInstitute,
+        appEducation.masters_institute
       ),
       masterDegreeName: firstNonEmpty(
         app.master_degree_name,
         app.masterDegreeName,
+        app.masters_degree_name,
+        app.mastersDegreeName,
+        app.mastersDegree,
         appEducation.masterDegreeName,
-        appEducation.master_degree_name
+        appEducation.master_degree_name,
+        appEducation.mastersDegreeName,
+        appEducation.masters_degree_name,
+        appEducation.mastersDegree
       ),
       masterYear: firstNonEmpty(
         app.master_year,
         app.masterYear,
+        app.masters_year,
+        app.mastersYear,
         appEducation.masterYear,
-        appEducation.master_year
+        appEducation.master_year,
+        appEducation.mastersYear,
+        appEducation.masters_year
       ),
       phdInstitute: firstNonEmpty(
         app.phd_institute,
@@ -415,23 +461,55 @@ router.get('/:id', cache.middleware(300), async (req, res) => {
 
           const draftEducation = {
             bachelorInstitute: normalizeFromOther(
-              firstNonEmpty(formData.bachelorInstitute, formData.bachelor_institute),
+              firstNonEmpty(
+                formData.bachelorInstitute,
+                formData.bachelor_institute,
+                formData.bachelorsInstitute,
+                formData.bachelors_institute
+              ),
               firstNonEmpty(formData.bachelorInstituteOther, formData.bachelor_institute_other)
             ),
             bachelorDegreeName: normalizeFromOther(
-              firstNonEmpty(formData.bachelorDegreeName, formData.bachelor_degree_name),
+              firstNonEmpty(
+                formData.bachelorDegreeName,
+                formData.bachelor_degree_name,
+                formData.bachelorsDegreeName,
+                formData.bachelors_degree_name,
+                formData.bachelorsDegree
+              ),
               firstNonEmpty(formData.bachelorDegreeNameOther, formData.bachelor_degree_name_other)
             ),
-            bachelorYear: firstNonEmpty(formData.bachelorYear, formData.bachelor_year),
+            bachelorYear: firstNonEmpty(
+              formData.bachelorYear,
+              formData.bachelor_year,
+              formData.bachelorsYear,
+              formData.bachelors_year
+            ),
             masterInstitute: normalizeFromOther(
-              firstNonEmpty(formData.masterInstitute, formData.master_institute),
+              firstNonEmpty(
+                formData.masterInstitute,
+                formData.master_institute,
+                formData.mastersInstitute,
+                formData.masters_institute
+              ),
               firstNonEmpty(formData.masterInstituteOther, formData.master_institute_other)
             ),
             masterDegreeName: normalizeFromOther(
-              firstNonEmpty(formData.masterDegreeName, formData.master_degree_name),
+              firstNonEmpty(
+                formData.masterDegreeName,
+                formData.master_degree_name,
+                formData.mastersDegreeName,
+                formData.masters_degree_name,
+                formData.mastersDegree
+              ),
               firstNonEmpty(formData.masterDegreeNameOther, formData.master_degree_name_other)
             ),
-            masterYear: firstNonEmpty(formData.masterYear, formData.master_year),
+            masterYear: firstNonEmpty(
+              formData.masterYear,
+              formData.master_year,
+              formData.mastersYear,
+              formData.masters_year
+            ),
             phdInstitute: normalizeFromOther(
               firstNonEmpty(formData.phdInstitute, formData.phd_institute),
               firstNonEmpty(formData.phdInstituteOther, formData.phd_institute_other)
@@ -512,12 +590,24 @@ router.get('/:id', cache.middleware(300), async (req, res) => {
       phd_year: resolvedEducation.phdYear || null,
       education: {
         ...(appEducation || {}),
-        bachelorInstitute: resolvedEducation.bachelorInstitute || appEducation.bachelorInstitute || '',
-        bachelorDegreeName: resolvedEducation.bachelorDegreeName || appEducation.bachelorDegreeName || '',
-        bachelorYear: resolvedEducation.bachelorYear || appEducation.bachelorYear || '',
-        masterInstitute: resolvedEducation.masterInstitute || appEducation.masterInstitute || '',
-        masterDegreeName: resolvedEducation.masterDegreeName || appEducation.masterDegreeName || '',
-        masterYear: resolvedEducation.masterYear || appEducation.masterYear || '',
+        bachelorInstitute:
+          resolvedEducation.bachelorInstitute ||
+          firstNonEmpty(appEducation.bachelorInstitute, appEducation.bachelor_institute, appEducation.bachelorsInstitute, appEducation.bachelors_institute),
+        bachelorDegreeName:
+          resolvedEducation.bachelorDegreeName ||
+          firstNonEmpty(appEducation.bachelorDegreeName, appEducation.bachelor_degree_name, appEducation.bachelorsDegreeName, appEducation.bachelors_degree_name, appEducation.bachelorsDegree),
+        bachelorYear:
+          resolvedEducation.bachelorYear ||
+          firstNonEmpty(appEducation.bachelorYear, appEducation.bachelor_year, appEducation.bachelorsYear, appEducation.bachelors_year),
+        masterInstitute:
+          resolvedEducation.masterInstitute ||
+          firstNonEmpty(appEducation.masterInstitute, appEducation.master_institute, appEducation.mastersInstitute, appEducation.masters_institute),
+        masterDegreeName:
+          resolvedEducation.masterDegreeName ||
+          firstNonEmpty(appEducation.masterDegreeName, appEducation.master_degree_name, appEducation.mastersDegreeName, appEducation.masters_degree_name, appEducation.mastersDegree),
+        masterYear:
+          resolvedEducation.masterYear ||
+          firstNonEmpty(appEducation.masterYear, appEducation.master_year, appEducation.mastersYear, appEducation.masters_year),
         phdInstitute: resolvedEducation.phdInstitute || appEducation.phdInstitute || '',
         phdDegreeName: resolvedEducation.phdDegreeName || appEducation.phdDegreeName || '',
         phdYear: resolvedEducation.phdYear || appEducation.phdYear || ''
@@ -888,9 +978,22 @@ router.get('/all/detailed', cache.middleware(120), async (req, res) => {
       query = query.eq('department', department);
     }
 
-    const { data: applications, error } = await query;
+    let { data: applications, error } = await query;
+    if (error) {
+      console.warn('Detailed applications join query failed, using fallback base query:', error.message || error);
+      let fallbackQuery = supabase
+        .from('faculty_applications')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-    if (error) throw error;
+      if (department && department !== 'All') {
+        fallbackQuery = fallbackQuery.eq('department', department);
+      }
+
+      const { data: fallbackApplications, error: fallbackError } = await fallbackQuery;
+      if (fallbackError) throw fallbackError;
+      applications = fallbackApplications || [];
+    }
 
     // Format the data for frontend
     const formatted = (applications || []).map(app => ({
@@ -1219,7 +1322,7 @@ router.post('/send-confirmation-enhanced/:id', async (req, res) => {
 
         // Construct base URL
         const baseUrl = process.env.API_BASE_URL ||
-          `http://localhost:${process.env.PORT || 5000}`;
+          `http://localhost:${process.env.PORT || 5001}`;
 
         console.log('📧 Sending email in background...');
         const emailResult = await emailService.sendEnhancedInterviewConfirmationEmail(
