@@ -18,6 +18,39 @@ const normalizeFileArray = (value) => {
   return [];
 };
 
+const DEFAULT_DEPARTMENTS = [
+  { id: 'eng', name: 'School of Engineering & Technology', type: 'TEACHING', status: 'ACTIVE' },
+  { id: 'law', name: 'School of Law', type: 'TEACHING', status: 'ACTIVE' },
+  { id: 'mgmt', name: 'School of Management', type: 'TEACHING', status: 'ACTIVE' },
+  { id: 'lib', name: 'School of Liberal Studies', type: 'TEACHING', status: 'ACTIVE' },
+  { id: 'adm', name: 'Administration', type: 'NON_TEACHING', status: 'ACTIVE' },
+  { id: 'it', name: 'IT Maintenance', type: 'NON_TEACHING', status: 'ACTIVE' },
+  { id: 'sec', name: 'Security', type: 'NON_TEACHING', status: 'ACTIVE' },
+  { id: 'lab', name: 'Lab Assistants', type: 'NON_TEACHING', status: 'ACTIVE' }
+];
+
+const DEFAULT_TEACHING_POSTS = [
+  { id: 'ap', name: 'Assistant Professor', type: 'TEACHING', status: 'ACTIVE' },
+  { id: 'acp', name: 'Associate Professor', type: 'TEACHING', status: 'ACTIVE' },
+  { id: 'prof', name: 'Professor', type: 'TEACHING', status: 'ACTIVE' },
+  { id: 'pop', name: 'Professor of Practice', type: 'TEACHING', status: 'ACTIVE' },
+  { id: 'lec', name: 'Lecturer', type: 'TEACHING', status: 'ACTIVE' }
+];
+
+const DEFAULT_NON_TEACHING_POSTS = [
+  { id: 'ao', name: 'Administrative Officer', type: 'NON_TEACHING', status: 'ACTIVE' },
+  { id: 'its', name: 'IT Support', type: 'NON_TEACHING', status: 'ACTIVE' },
+  { id: 'so', name: 'Security Officer', type: 'NON_TEACHING', status: 'ACTIVE' },
+  { id: 'lt', name: 'Lab Technician', type: 'NON_TEACHING', status: 'ACTIVE' }
+];
+
+const applyPositionFallbacks = ({ setDepartments, setTeachingPosts, setNonTeachingPosts, setBranches }) => {
+  setDepartments(DEFAULT_DEPARTMENTS);
+  setTeachingPosts(DEFAULT_TEACHING_POSTS);
+  setNonTeachingPosts(DEFAULT_NON_TEACHING_POSTS);
+  if (typeof setBranches === 'function') setBranches([]);
+};
+
 // Step 1: PositionSelection
 const PositionSelection = ({ formData, setFormData, onNext, onSaveExit, savingDraft }) => {
   const [errors, setErrors] = useState({});
@@ -35,56 +68,66 @@ const PositionSelection = ({ formData, setFormData, onNext, onSaveExit, savingDr
   const loadData = async () => {
     setLoading(true);
     try {
+      const fetchJsonFromCandidates = async (candidates) => {
+        for (const url of candidates) {
+          try {
+            const response = await fetch(url);
+            if (!response.ok) continue;
+            const payload = await response.json();
+            if (Array.isArray(payload)) return payload;
+            if (payload && Array.isArray(payload.data)) return payload.data;
+          } catch (err) {
+            console.warn(`Failed to fetch ${url}:`, err?.message || err);
+          }
+        }
+        return [];
+      };
+
       // Load ONLY ACTIVE departments, positions, and branches for client form
-      const [departmentsRes, positionsRes, branchesRes] = await Promise.all([
-        fetch(`${API_BASE}/api/admin/departments?status=ACTIVE`),
-        fetch(`${API_BASE}/api/admin/positions?status=ACTIVE`),
-        fetch(`${API_BASE}/api/admin/branches?status=ACTIVE`)
+      const [depts, positions, branchesData] = await Promise.all([
+        fetchJsonFromCandidates([
+          `${API_BASE}/api/admin/departments?status=ACTIVE`,
+          `${API_BASE}/api/departments/departments?status=ACTIVE`,
+        ]),
+        fetchJsonFromCandidates([
+          `${API_BASE}/api/admin/positions?status=ACTIVE`,
+          `${API_BASE}/api/departments/positions?status=ACTIVE`,
+        ]),
+        fetchJsonFromCandidates([
+          `${API_BASE}/api/admin/branches?status=ACTIVE`,
+          `${API_BASE}/api/departments/branches?status=ACTIVE`,
+        ]),
       ]);
+      const teachingPositions = Array.isArray(positions)
+        ? positions.filter((p) => p.type === 'TEACHING')
+        : [];
+      const nonTeachingPositions = Array.isArray(positions)
+        ? positions.filter((p) => p.type === 'NON_TEACHING')
+        : [];
 
-      if (departmentsRes.ok) {
-        const depts = await departmentsRes.json();
-        setDepartments(depts);
+      // If backend returns no active config, keep form usable with safe defaults.
+      if (!depts.length || (!teachingPositions.length && !nonTeachingPositions.length)) {
+        applyPositionFallbacks({
+          setDepartments,
+          setTeachingPosts,
+          setNonTeachingPosts,
+          setBranches,
+        });
+        return;
       }
 
-      if (positionsRes.ok) {
-        const positions = await positionsRes.json();
-        const teachingPositions = positions.filter(p => p.type === 'TEACHING');
-        const nonTeachingPositions = positions.filter(p => p.type === 'NON_TEACHING');
-        setTeachingPosts(teachingPositions);
-        setNonTeachingPosts(nonTeachingPositions);
-      }
-
-      if (branchesRes.ok) {
-        const branchesData = await branchesRes.json();
-        setBranches(branchesData);
-      }
+      setDepartments(depts);
+      setTeachingPosts(teachingPositions);
+      setNonTeachingPosts(nonTeachingPositions);
+      setBranches(Array.isArray(branchesData) ? branchesData : []);
     } catch (error) {
       console.error('Error loading form data:', error);
-      // Fallback to hardcoded values if API fails
-      setDepartments([
-        { id: 'eng', name: 'School of Engineering & Technology', type: 'TEACHING', status: 'ACTIVE' },
-        { id: 'law', name: 'School of Law', type: 'TEACHING', status: 'ACTIVE' },
-        { id: 'mgmt', name: 'School of Management', type: 'TEACHING', status: 'ACTIVE' },
-        { id: 'lib', name: 'School of Liberal Studies', type: 'TEACHING', status: 'ACTIVE' },
-        { id: 'adm', name: 'Administration', type: 'NON_TEACHING', status: 'ACTIVE' },
-        { id: 'it', name: 'IT Maintenance', type: 'NON_TEACHING', status: 'ACTIVE' },
-        { id: 'sec', name: 'Security', type: 'NON_TEACHING', status: 'ACTIVE' },
-        { id: 'lab', name: 'Lab Assistants', type: 'NON_TEACHING', status: 'ACTIVE' }
-      ]);
-      setTeachingPosts([
-        { id: 'ap', name: 'Assistant Professor', type: 'TEACHING', status: 'ACTIVE' },
-        { id: 'acp', name: 'Associate Professor', type: 'TEACHING', status: 'ACTIVE' },
-        { id: 'prof', name: 'Professor', type: 'TEACHING', status: 'ACTIVE' },
-        { id: 'pop', name: 'Professor of Practice', type: 'TEACHING', status: 'ACTIVE' },
-        { id: 'lec', name: 'Lecturer', type: 'TEACHING', status: 'ACTIVE' }
-      ]);
-      setNonTeachingPosts([
-        { id: 'ao', name: 'Administrative Officer', type: 'NON_TEACHING', status: 'ACTIVE' },
-        { id: 'its', name: 'IT Support', type: 'NON_TEACHING', status: 'ACTIVE' },
-        { id: 'so', name: 'Security Officer', type: 'NON_TEACHING', status: 'ACTIVE' },
-        { id: 'lt', name: 'Lab Technician', type: 'NON_TEACHING', status: 'ACTIVE' }
-      ]);
+      applyPositionFallbacks({
+        setDepartments,
+        setTeachingPosts,
+        setNonTeachingPosts,
+        setBranches,
+      });
     }
     setLoading(false);
   };

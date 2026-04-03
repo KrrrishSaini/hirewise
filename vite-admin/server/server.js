@@ -104,6 +104,8 @@ app.use("/api/ml", mlRoute);
 app.use("/api/auth", authRoute);
 app.use("/api/google", googleRoute);
 app.use("/api/departments", departmentsRoute);
+// Backward-compatible alias: older frontend calls /api/admin/departments|positions|branches
+app.use("/api/admin", departmentsRoute);
 app.use("/api/admin", adminRoute);
 
 // OAuth2 callback route (at root level for Google redirect)
