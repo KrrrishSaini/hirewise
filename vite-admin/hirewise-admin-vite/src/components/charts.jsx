@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { User, Building, Briefcase } from 'lucide-react';
 import { API_BASE } from '../lib/config';
+import { toArrayPayload } from '../lib/normalize';
 import {
   PieChart,
   Pie,
@@ -99,7 +100,8 @@ export default function AnalyticsDashboard({ selectedView = 'teaching' }) {
           throw new Error(`API error: ${response.status}`);
         }
 
-        const rows = await response.json();
+        const payload = await response.json();
+        const rows = toArrayPayload(payload);
         console.log('📊 Got', rows.length, 'rows from backend');
 
         // Filter by teaching/non-teaching in JavaScript

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase-client';
 import { candidatesApi } from '../lib/api';
+import { toArrayPayload } from '../lib/normalize';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import CVParsingSection from './CVParsingSection';
 
@@ -635,16 +636,18 @@ const AllCandidates = () => {
         data = supabaseData || [];
       }
 
+      const normalizedData = toArrayPayload(data);
+
       // Keep all active candidates (exclude deleted only)
-      const filteredData = (data || []).filter(candidate => 
+      const filteredData = normalizedData.filter(candidate => 
         candidate.status !== 'deleted' &&
         candidate.status !== 'Deleted'
       );
 
       console.log(
-        `AllCandidates: Loaded ${data?.length || 0} candidates (${usedFallback ? 'fallback Supabase' : 'backend API'}), filtered to ${filteredData.length} active records`
+        `AllCandidates: Loaded ${normalizedData.length || 0} candidates (${usedFallback ? 'fallback Supabase' : 'backend API'}), filtered to ${filteredData.length} active records`
       );
-      console.log('All statuses in DB:', [...new Set(data?.map(c => c.status))]);
+      console.log('All statuses in DB:', [...new Set(normalizedData.map(c => c.status))]);
       console.log('First few candidates:', filteredData.slice(0, 5).map(c => ({ id: c.id, name: c.first_name, status: c.status })));
       
       const normalized = filteredData.map(candidate => ({

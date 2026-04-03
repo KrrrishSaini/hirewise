@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Send, User, Clock } from 'lucide-react';
 import { API_BASE } from '../lib/config';
+import { toArrayPayload } from '../lib/normalize';
 
 /**
  * Communication Modal for Admin-Candidate Interview Scheduling Conversation
@@ -29,7 +30,7 @@ const CommunicationModal = ({ isOpen, onClose, applicationId, candidateName }) =
             if (!response.ok) throw new Error('Failed to fetch communication history');
 
             const data = await response.json();
-            setHistory(data.history || []);
+            setHistory(toArrayPayload(data?.history ?? data));
             setLatestMessage(data.latestMessage || '');
             setNegotiationCount(data.negotiationCount || 0);
         } catch (err) {

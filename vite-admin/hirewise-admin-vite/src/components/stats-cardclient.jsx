@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase-client'
 import { API_BASE } from '../lib/config'
+import { toArrayPayload, toObjectPayload } from '../lib/normalize'
 import { Users, CheckCircle, XCircle, Trash2, Star, Calendar } from 'lucide-react'
 import CandidateDetailsModal from './CandidateDetailsModal'
 import DateTimePickerModal from './DateTimePickerModal'
@@ -109,7 +110,10 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
           throw new Error(`API error: ${response.status}`)
         }
 
-        const allStats = await response.json()
+        const rawStats = await response.json()
+        const allStats = rawStats?.data && !Array.isArray(rawStats?.data)
+          ? toObjectPayload(rawStats.data)
+          : toObjectPayload(rawStats)
         console.log('✅ StatsCards: API returned', allStats)
 
         // Filter for teaching/non-teaching in JavaScript
@@ -121,7 +125,11 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
 
         // For now, return all stats (backend doesn't filter by position yet)
         // TODO: Add position filtering to backend endpoint if needed
-        setStats(allStats)
+        setStats({
+          total: Number(allStats.total) || 0,
+          shortlisted: Number(allStats.shortlisted) || 0,
+          rejected: Number(allStats.rejected) || 0,
+        })
       } catch (err) {
         console.error('❌ StatsCards: FAILED -', err.message)
         setError(err.message)
@@ -187,21 +195,20 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
         throw new Error(`API error: ${response.status}`)
       }
 
-      const data = await response.json()
+      const payload = await response.json()
+      const data = toArrayPayload(payload)
       console.log('📋 Got', data.length, 'items from backend')
 
       // Update confirmation states from fetched data
-      if (Array.isArray(data)) {
-        const confirmStates = {}
-        data.forEach(item => {
-          if (item.confirmation_response) {
-            confirmStates[item.id] = item.confirmation_response
-          }
-        })
-        setConfirmationStates(confirmStates)
-      }
+      const confirmStates = {}
+      data.forEach(item => {
+        if (item.confirmation_response) {
+          confirmStates[item.id] = item.confirmation_response
+        }
+      })
+      setConfirmationStates(confirmStates)
 
-      setPanelItems(Array.isArray(data) ? data : [])
+      setPanelItems(data)
     } catch (e) {
       console.error('❌ Error fetching list:', e)
       setPanelError(e.message)

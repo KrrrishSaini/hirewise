@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { API_BASE } from '../lib/config.js';
+import { toArrayPayload } from '../lib/normalize';
 
 const DepartmentPositionManagement = () => {
   const [activeTab, setActiveTab] = useState('departments');
@@ -48,11 +49,12 @@ const DepartmentPositionManagement = () => {
     try {
       const response = await fetch(`${API_BASE}/api/admin/departments`);
       if (response.ok) {
-        const data = await response.json();
-        setDepartments(data);
+        const payload = await response.json();
+        setDepartments(toArrayPayload(payload));
       }
     } catch (error) {
       console.error('Error loading departments:', error);
+      setDepartments([]);
     }
   };
 
@@ -60,11 +62,12 @@ const DepartmentPositionManagement = () => {
     try {
       const response = await fetch(`${API_BASE}/api/admin/branches`);
       if (response.ok) {
-        const data = await response.json();
-        setBranches(data);
+        const payload = await response.json();
+        setBranches(toArrayPayload(payload));
       }
     } catch (error) {
       console.error('Error loading branches:', error);
+      setBranches([]);
     }
   };
 
@@ -72,11 +75,12 @@ const DepartmentPositionManagement = () => {
     try {
       const response = await fetch(`${API_BASE}/api/admin/positions`);
       if (response.ok) {
-        const data = await response.json();
-        setPositions(data);
+        const payload = await response.json();
+        setPositions(toArrayPayload(payload));
       }
     } catch (error) {
       console.error('Error loading positions:', error);
+      setPositions([]);
     }
   };
 

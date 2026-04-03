@@ -1,5 +1,6 @@
 // lib/api.js
 import { API_BASE } from './config';
+import { toArrayPayload } from './normalize';
 
 /**
  * Fetch with retry logic and exponential backoff
@@ -148,13 +149,7 @@ class ApiClient {
 export const api = new ApiClient(API_BASE);
 
 const normalizeCandidatesList = (payload) => {
-  if (Array.isArray(payload)) return payload;
-  if (payload && typeof payload === 'object') {
-    if (Array.isArray(payload.data)) return payload.data;
-    if (Array.isArray(payload.applications)) return payload.applications;
-    if (Array.isArray(payload.candidates)) return payload.candidates;
-  }
-  return [];
+  return toArrayPayload(payload);
 };
 
 // Export helper functions for common endpoints

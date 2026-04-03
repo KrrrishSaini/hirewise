@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Star } from 'lucide-react';
 import { candidatesApi } from '../../lib/api';
+import { toArrayPayload } from '../../lib/normalize';
 import { supabase } from '../../../lib/supabase-client';
 import CandidateDetailsModal from '../CandidateDetailsModal';
 
@@ -257,7 +258,7 @@ const FacultyDashboard = () => {
       let allCandidates = [];
       try {
         const allCandidatesRaw = await candidatesApi.getAllDetailed('All', { fresh: true });
-        allCandidates = Array.isArray(allCandidatesRaw) ? allCandidatesRaw : [];
+        allCandidates = toArrayPayload(allCandidatesRaw);
       } catch (apiError) {
         console.warn('FacultyDashboard: detailed API failed, using fallback query', apiError?.message || apiError);
         const { data: fallbackData, error: fallbackError } = await supabase
@@ -265,7 +266,7 @@ const FacultyDashboard = () => {
           .select('*')
           .order('created_at', { ascending: false });
         if (fallbackError) throw fallbackError;
-        allCandidates = Array.isArray(fallbackData) ? fallbackData : [];
+        allCandidates = toArrayPayload(fallbackData);
       }
 
       const validCandidates = allCandidates.filter((c) => {

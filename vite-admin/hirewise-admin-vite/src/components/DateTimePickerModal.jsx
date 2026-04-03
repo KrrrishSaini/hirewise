@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { API_BASE } from '../lib/config';
+import { toArrayPayload } from '../lib/normalize';
 
 /**
  * Date/Time/Timezone Picker Modal for Interview Scheduling
@@ -31,7 +32,8 @@ const DateTimePickerModal = ({ isOpen, onClose, onConfirm, candidateName }) => {
         try {
             const response = await fetch(`${API_BASE}/api/applications/timezones`);
             const data = await response.json();
-            setTimezones(data.timezones || []);
+            const rows = toArrayPayload(data?.timezones ?? data);
+            setTimezones(rows);
         } catch (err) {
             console.error('Failed to fetch timezones:', err);
             // Fallback timezones

@@ -5,6 +5,7 @@ import Charts from './charts'; // Adjust path as needed
 import { candidatesApi } from '../lib/api';
 import { supabase } from '../../lib/supabase-client';
 import { API_BASE } from '../lib/config';
+import { toArrayPayload } from '../lib/normalize';
 import CVParsingSection from './CVParsingSection';
 
 
@@ -83,7 +84,7 @@ const Dashboard = () => {
           }
 
           const trendRows = await response.json();
-          setApplicationTrendRows(Array.isArray(trendRows) ? trendRows : []);
+          setApplicationTrendRows(toArrayPayload(trendRows));
           settled = true;
         } catch (apiErr) {
           console.warn('Dashboard trend API fetch failed, falling back to Supabase:', apiErr?.message || apiErr);
@@ -168,7 +169,7 @@ const Dashboard = () => {
         
         const data = await Promise.race([apiPromise, timeoutPromise]);
         console.log('Dashboard: API response:', data);
-        const arr = Array.isArray(data) ? data : [];
+        const arr = toArrayPayload(data);
         const unique = dedupeCandidates(arr);
         console.log('Dashboard: Final candidates after dedup:', unique.length);
         setCandidates(unique);
@@ -307,7 +308,7 @@ const Dashboard = () => {
       return position.includes('professor') || position === 'teaching' || position.includes('lecturer');
     };
 
-    const rowsForView = (applicationTrendRows || []).filter((row) => {
+    const rowsForView = toArrayPayload(applicationTrendRows).filter((row) => {
       const teaching = isTeachingPosition(row.position);
       return selectedView === 'teaching' ? teaching : !teaching;
     });
