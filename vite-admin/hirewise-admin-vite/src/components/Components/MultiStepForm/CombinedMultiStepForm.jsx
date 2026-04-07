@@ -2480,6 +2480,7 @@ const CombinedMultiStepForm = () => {
   // Helper function for department short names
   const getDepartmentShortName = (deptId) => {
     if (!deptId) return '';
+    const normalizedId = String(deptId).trim().toLowerCase();
     // Short-name map for known simple IDs
     const shortMap = {
       eng: 'SOET',
@@ -2496,10 +2497,24 @@ const CombinedMultiStepForm = () => {
       admin: 'Admin',
       security: 'Sec',
     };
-    if (shortMap[deptId]) return shortMap[deptId];
-    // Look up in loaded departments array (handles UUID-based IDs from API)
-    const found = departments.find(d => d.id === deptId);
-    if (found) return found.name;
+    if (shortMap[normalizedId]) return shortMap[normalizedId];
+
+    // Fallback: resolve from bundled defaults by id/name (keeps function self-contained).
+    const knownDefault = DEFAULT_DEPARTMENTS.find((d) => {
+      const idMatch = String(d.id || '').toLowerCase() === normalizedId;
+      const nameMatch = String(d.name || '').toLowerCase() === normalizedId;
+      return idMatch || nameMatch;
+    });
+    if (knownDefault) return shortMap[knownDefault.id] || knownDefault.name;
+
+    // Heuristic fallback for backend-managed labels/ids.
+    if (normalizedId.includes('engineering')) return 'SOET';
+    if (normalizedId.includes('management')) return 'SOM';
+    if (normalizedId.includes('law')) return 'SOL';
+    if (normalizedId.includes('liberal')) return 'SOLS';
+    if (normalizedId.includes('admin')) return 'Admin';
+    if (normalizedId.includes('security')) return 'Sec';
+    if (normalizedId.includes('it')) return 'IT';
     return '';
   };
 
@@ -3201,9 +3216,10 @@ const CombinedMultiStepForm = () => {
                     ? formData.position.charAt(0).toUpperCase() + formData.position.slice(1)
                     : formData.position}
                   </span>
-              {formData.department && (
-                <> • <span>{getDepartmentShortName(formData.department)}</span></>
-              )}
+              {(() => {
+                const departmentLabel = getDepartmentShortName(formData.department);
+                return departmentLabel ? <> • <span>{departmentLabel}</span></> : null;
+              })()}
             </div>
           )}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
