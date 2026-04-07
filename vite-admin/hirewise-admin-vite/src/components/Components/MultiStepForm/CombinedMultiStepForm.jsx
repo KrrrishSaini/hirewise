@@ -18,16 +18,21 @@ const normalizeFileArray = (value) => {
   return [];
 };
 
-const DEFAULT_DEPARTMENTS = [
+const DEFAULT_TEACHING_DEPARTMENTS = [
   { id: 'eng', name: 'School of Engineering & Technology', type: 'TEACHING', status: 'ACTIVE' },
   { id: 'law', name: 'School of Law', type: 'TEACHING', status: 'ACTIVE' },
   { id: 'mgmt', name: 'School of Management', type: 'TEACHING', status: 'ACTIVE' },
   { id: 'lib', name: 'School of Liberal Studies', type: 'TEACHING', status: 'ACTIVE' },
+];
+
+const DEFAULT_NON_TEACHING_DEPARTMENTS = [
   { id: 'adm', name: 'Administration', type: 'NON_TEACHING', status: 'ACTIVE' },
   { id: 'it', name: 'IT Maintenance', type: 'NON_TEACHING', status: 'ACTIVE' },
   { id: 'sec', name: 'Security', type: 'NON_TEACHING', status: 'ACTIVE' },
   { id: 'lab', name: 'Lab Assistants', type: 'NON_TEACHING', status: 'ACTIVE' }
 ];
+
+const DEFAULT_DEPARTMENTS = [...DEFAULT_TEACHING_DEPARTMENTS, ...DEFAULT_NON_TEACHING_DEPARTMENTS];
 
 const DEFAULT_TEACHING_POSTS = [
   { id: 'ap', name: 'Assistant Professor', type: 'TEACHING', status: 'ACTIVE' },
@@ -57,53 +62,207 @@ const DEFAULT_BRANCHES = [
   { id: 'crimlaw', name: 'Criminal Law', department_id: 'law', status: 'ACTIVE' },
   { id: 'corplaw', name: 'Corporate Law', department_id: 'law', status: 'ACTIVE' },
   { id: 'civlaw', name: 'Civil Law', department_id: 'law', status: 'ACTIVE' },
+  { id: 'constlaw', name: 'Constitutional Law', department_id: 'law', status: 'ACTIVE' },
   // School of Management
   { id: 'fin', name: 'Finance', department_id: 'mgmt', status: 'ACTIVE' },
   { id: 'mkt', name: 'Marketing', department_id: 'mgmt', status: 'ACTIVE' },
   { id: 'hr', name: 'Human Resources', department_id: 'mgmt', status: 'ACTIVE' },
+  { id: 'ops', name: 'Operations', department_id: 'mgmt', status: 'ACTIVE' },
+  { id: 'ba', name: 'Business Analytics', department_id: 'mgmt', status: 'ACTIVE' },
   // School of Liberal Studies
   { id: 'eng_lit', name: 'English', department_id: 'lib', status: 'ACTIVE' },
   { id: 'hist', name: 'History', department_id: 'lib', status: 'ACTIVE' },
   { id: 'soc', name: 'Sociology', department_id: 'lib', status: 'ACTIVE' },
+  { id: 'psy', name: 'Psychology', department_id: 'lib', status: 'ACTIVE' },
+  { id: 'eco', name: 'Economics', department_id: 'lib', status: 'ACTIVE' },
 ];
 
-// Keep degree names hardcoded in client form so dropdowns remain populated
-// even when department identifiers change (e.g., UUID-backed department ids).
+// Keep degree names hardcoded in client form so dropdowns remain populated.
 const BACHELOR_DEGREE_OPTIONS = [
   'B.Tech in Computer Science & Engineering',
   'B.Tech in Mechanical Engineering',
   'B.Tech in Electronics & Communication',
+  'B.Tech in Electrical Engineering',
+  'B.Sc in Mathematics',
+  'B.Sc in Chemistry',
+  'B.Sc in Physics',
   'BBA in Finance',
   'BBA in Marketing',
   'BBA in Human Resources',
+  'BBA in Operations',
+  'BBA in Business Analytics',
   'B.Com',
   'LLB in Criminal Law',
   'LLB in Corporate Law',
   'LLB in Civil Law',
+  'LLB in Constitutional Law',
   'BA LLB',
   'BA in English',
   'BA in History',
   'BA in Sociology',
   'BA in Psychology',
+  'BA in Economics',
 ];
 
 const MASTER_DEGREE_OPTIONS = [
   'M.Tech in Computer Science',
   'M.Tech in Mechanical Engineering',
   'M.Tech in Electronics & Communication',
+  'M.Tech in Electrical Engineering',
   'ME in Computer Science',
+  'M.Sc in Mathematics',
+  'M.Sc in Chemistry',
+  'M.Sc in Physics',
   'MBA in Finance',
   'MBA in Marketing',
   'MBA in Human Resources',
+  'MBA in Operations',
+  'MBA in Business Analytics',
   'M.Com',
   'LLM in Criminal Law',
   'LLM in Corporate Law',
   'LLM in Civil Law',
+  'LLM in Constitutional Law',
   'MA in English',
   'MA in History',
   'MA in Sociology',
   'MA in Psychology',
+  'MA in Economics',
 ];
+
+const TEACHING_SCHOOL_KEYS = ['eng', 'law', 'mgmt', 'lib'];
+const TEACHING_SCHOOL_KEYWORDS = {
+  eng: ['eng', 'engineering', 'technology', 'soet'],
+  law: ['law', 'sol'],
+  mgmt: ['mgmt', 'management', 'som', 'business'],
+  lib: ['lib', 'liberal', 'sols'],
+};
+
+const BRANCH_KEYWORDS = {
+  cse: ['cse', 'computer science'],
+  me: ['me', 'mechanical'],
+  ece: ['ece', 'electronics', 'communication'],
+  ee: ['ee', 'electrical'],
+  math: ['math', 'mathematics'],
+  chem: ['chem', 'chemistry'],
+  phy: ['phy', 'physics'],
+  crimlaw: ['criminal law'],
+  corplaw: ['corporate law'],
+  civlaw: ['civil law'],
+  constlaw: ['constitutional law'],
+  fin: ['finance'],
+  mkt: ['marketing'],
+  hr: ['human resources', 'hr'],
+  ops: ['operations'],
+  ba: ['business analytics', 'analytics'],
+  eng_lit: ['english'],
+  hist: ['history'],
+  soc: ['sociology'],
+  psy: ['psychology'],
+  eco: ['economics'],
+};
+
+const DEGREE_OPTIONS_BY_SCHOOL = {
+  eng: {
+    bachelor: [
+      'B.Tech in Computer Science & Engineering',
+      'B.Tech in Mechanical Engineering',
+      'B.Tech in Electronics & Communication',
+      'B.Tech in Electrical Engineering',
+      'B.Sc in Mathematics',
+      'B.Sc in Chemistry',
+      'B.Sc in Physics',
+    ],
+    master: [
+      'M.Tech in Computer Science',
+      'M.Tech in Mechanical Engineering',
+      'M.Tech in Electronics & Communication',
+      'M.Tech in Electrical Engineering',
+      'ME in Computer Science',
+      'M.Sc in Mathematics',
+      'M.Sc in Chemistry',
+      'M.Sc in Physics',
+    ],
+  },
+  law: {
+    bachelor: ['LLB in Criminal Law', 'LLB in Corporate Law', 'LLB in Civil Law', 'LLB in Constitutional Law', 'BA LLB'],
+    master: ['LLM in Criminal Law', 'LLM in Corporate Law', 'LLM in Civil Law', 'LLM in Constitutional Law'],
+  },
+  mgmt: {
+    bachelor: ['BBA in Finance', 'BBA in Marketing', 'BBA in Human Resources', 'BBA in Operations', 'BBA in Business Analytics', 'B.Com'],
+    master: ['MBA in Finance', 'MBA in Marketing', 'MBA in Human Resources', 'MBA in Operations', 'MBA in Business Analytics', 'M.Com'],
+  },
+  lib: {
+    bachelor: ['BA in English', 'BA in History', 'BA in Sociology', 'BA in Psychology', 'BA in Economics'],
+    master: ['MA in English', 'MA in History', 'MA in Sociology', 'MA in Psychology', 'MA in Economics'],
+  },
+};
+
+const DEGREE_OPTIONS_BY_BRANCH = {
+  cse: { bachelor: ['B.Tech in Computer Science & Engineering'], master: ['M.Tech in Computer Science', 'ME in Computer Science'] },
+  me: { bachelor: ['B.Tech in Mechanical Engineering'], master: ['M.Tech in Mechanical Engineering'] },
+  ece: { bachelor: ['B.Tech in Electronics & Communication'], master: ['M.Tech in Electronics & Communication'] },
+  ee: { bachelor: ['B.Tech in Electrical Engineering'], master: ['M.Tech in Electrical Engineering'] },
+  math: { bachelor: ['B.Sc in Mathematics'], master: ['M.Sc in Mathematics'] },
+  chem: { bachelor: ['B.Sc in Chemistry'], master: ['M.Sc in Chemistry'] },
+  phy: { bachelor: ['B.Sc in Physics'], master: ['M.Sc in Physics'] },
+  crimlaw: { bachelor: ['LLB in Criminal Law', 'BA LLB'], master: ['LLM in Criminal Law'] },
+  corplaw: { bachelor: ['LLB in Corporate Law', 'BA LLB'], master: ['LLM in Corporate Law'] },
+  civlaw: { bachelor: ['LLB in Civil Law', 'BA LLB'], master: ['LLM in Civil Law'] },
+  constlaw: { bachelor: ['LLB in Constitutional Law', 'BA LLB'], master: ['LLM in Constitutional Law'] },
+  fin: { bachelor: ['BBA in Finance', 'B.Com'], master: ['MBA in Finance', 'M.Com'] },
+  mkt: { bachelor: ['BBA in Marketing', 'B.Com'], master: ['MBA in Marketing', 'M.Com'] },
+  hr: { bachelor: ['BBA in Human Resources'], master: ['MBA in Human Resources'] },
+  ops: { bachelor: ['BBA in Operations'], master: ['MBA in Operations'] },
+  ba: { bachelor: ['BBA in Business Analytics'], master: ['MBA in Business Analytics'] },
+  eng_lit: { bachelor: ['BA in English'], master: ['MA in English'] },
+  hist: { bachelor: ['BA in History'], master: ['MA in History'] },
+  soc: { bachelor: ['BA in Sociology'], master: ['MA in Sociology'] },
+  psy: { bachelor: ['BA in Psychology'], master: ['MA in Psychology'] },
+  eco: { bachelor: ['BA in Economics'], master: ['MA in Economics'] },
+};
+
+const normalizeValue = (value) => String(value || '').trim().toLowerCase();
+
+const resolveTeachingSchoolKey = (value) => {
+  const normalized = normalizeValue(value);
+  if (!normalized) return '';
+  for (const key of TEACHING_SCHOOL_KEYS) {
+    const keywords = TEACHING_SCHOOL_KEYWORDS[key] || [];
+    if (keywords.some((kw) => normalized === kw || normalized.includes(kw))) {
+      return key;
+    }
+  }
+  return '';
+};
+
+const resolveBranchKey = (value) => {
+  const normalized = normalizeValue(value);
+  if (!normalized) return '';
+  for (const [branchKey, keywords] of Object.entries(BRANCH_KEYWORDS)) {
+    if (keywords.some((kw) => normalized === kw || normalized.includes(kw))) {
+      return branchKey;
+    }
+  }
+  return '';
+};
+
+const getDegreeOptionsForSelection = (formData, level) => {
+  const fallback = level === 'bachelor' ? BACHELOR_DEGREE_OPTIONS : MASTER_DEGREE_OPTIONS;
+  if (formData?.position !== 'teaching') return fallback;
+
+  const branchKey = resolveBranchKey(formData?.branch);
+  if (branchKey && DEGREE_OPTIONS_BY_BRANCH[branchKey]?.[level]?.length) {
+    return DEGREE_OPTIONS_BY_BRANCH[branchKey][level];
+  }
+
+  const schoolKey = resolveTeachingSchoolKey(formData?.department);
+  if (schoolKey && DEGREE_OPTIONS_BY_SCHOOL[schoolKey]?.[level]?.length) {
+    return DEGREE_OPTIONS_BY_SCHOOL[schoolKey][level];
+  }
+
+  return fallback;
+};
 
 const applyPositionFallbacks = ({ setDepartments, setTeachingPosts, setNonTeachingPosts, setBranches }) => {
   setDepartments(DEFAULT_DEPARTMENTS);
@@ -199,7 +358,27 @@ const PositionSelection = ({ formData, setFormData, onNext, onSaveExit, savingDr
     const normalizeType = (value) => String(value || '').replace(/[\s-]/g, '_').toUpperCase();
     // Convert 'teaching' or 'non-teaching' to 'TEACHING' or 'NON_TEACHING'
     const positionType = normalizeType(formData.position);
-    const filtered = departments.filter((dept) => normalizeType(dept.type) === positionType);
+    const source = Array.isArray(departments) && departments.length ? departments : DEFAULT_DEPARTMENTS;
+
+    if (positionType === 'TEACHING') {
+      // Keep teaching schools strict and predictable, regardless of backend custom labels.
+      return TEACHING_SCHOOL_KEYS.map((schoolKey) => {
+        const canonical = DEFAULT_TEACHING_DEPARTMENTS.find((d) => d.id === schoolKey);
+        const dynamicMatch = source.find((dept) => {
+          const normalizedType = normalizeType(dept.type);
+          return normalizedType === 'TEACHING' && resolveTeachingSchoolKey(dept.id || dept.name) === schoolKey;
+        });
+        return {
+          ...(dynamicMatch || canonical),
+          id: canonical.id,
+          name: canonical.name,
+          type: 'TEACHING',
+          status: 'ACTIVE',
+        };
+      }).filter(Boolean);
+    }
+
+    const filtered = source.filter((dept) => normalizeType(dept.type) === positionType);
     if (filtered.length) return filtered;
     // Safety fallback if backend payload shape/type is inconsistent.
     return DEFAULT_DEPARTMENTS.filter((dept) => normalizeType(dept.type) === positionType);
@@ -208,6 +387,18 @@ const PositionSelection = ({ formData, setFormData, onNext, onSaveExit, savingDr
   // Get branches based on selected department
   const getFilteredBranches = () => {
     if (!formData.department) return [];
+
+    if (formData.position === 'teaching') {
+      const selectedDept = departments.find(
+        (d) =>
+          String(d.id || '') === String(formData.department) ||
+          String(d.name || '').toLowerCase() === String(formData.department).toLowerCase()
+      );
+      const schoolKey = resolveTeachingSchoolKey(selectedDept?.id || selectedDept?.name || formData.department);
+      if (!schoolKey) return [];
+      return DEFAULT_BRANCHES.filter((branch) => branch.department_id === schoolKey);
+    }
+
     const selectedDept = departments.find(
       (d) =>
         String(d.id || '') === String(formData.department) ||
@@ -238,8 +429,6 @@ const PositionSelection = ({ formData, setFormData, onNext, onSaveExit, savingDr
       if (fallbackBranches.length) return fallbackBranches;
     }
 
-    // Final fallback for teaching: keep dropdown usable instead of blank.
-    if (formData.position === 'teaching') return DEFAULT_BRANCHES;
     return [];
   };
 
@@ -360,6 +549,10 @@ const PositionSelection = ({ formData, setFormData, onNext, onSaveExit, savingDr
                 ...formData,
                 department: e.target.value,
                 branch: '',
+                bachelorDegreeName: '',
+                bachelorDegreeNameOther: '',
+                masterDegreeName: '',
+                masterDegreeNameOther: '',
               });
             }}
             disabled={!formData.position}
@@ -381,7 +574,14 @@ const PositionSelection = ({ formData, setFormData, onNext, onSaveExit, savingDr
               id="branch"
               value={formData.branch}
               onChange={(e) =>
-                setFormData({ ...formData, branch: e.target.value })
+                setFormData({
+                  ...formData,
+                  branch: e.target.value,
+                  bachelorDegreeName: '',
+                  bachelorDegreeNameOther: '',
+                  masterDegreeName: '',
+                  masterDegreeNameOther: '',
+                })
               }
               disabled={!formData.department}
             >
@@ -937,6 +1137,9 @@ const EducationDetails = ({ formData, setFormData, onNext, onPrevious, onSaveExi
     setFormData(nextForm);
   };
 
+  const bachelorDegreeOptions = getDegreeOptionsForSelection(formData, 'bachelor');
+  const masterDegreeOptions = getDegreeOptionsForSelection(formData, 'master');
+
   return (
     <form onSubmit={handleSubmit}>
       <h3 className="degree-section-title" style={{ 
@@ -984,7 +1187,7 @@ const EducationDetails = ({ formData, setFormData, onNext, onPrevious, onSaveExi
             onChange={handleInputChange}
           >
             <option value="">Select Degree</option>
-            {BACHELOR_DEGREE_OPTIONS.map((degree) => (
+            {bachelorDegreeOptions.map((degree) => (
               <option key={degree} value={degree}>{degree}</option>
             ))}
             <option value="Other">Other</option>
@@ -1106,7 +1309,7 @@ const EducationDetails = ({ formData, setFormData, onNext, onPrevious, onSaveExi
             onChange={handleInputChange}
           >
             <option value="">Select Degree</option>
-            {MASTER_DEGREE_OPTIONS.map((degree) => (
+            {masterDegreeOptions.map((degree) => (
               <option key={degree} value={degree}>{degree}</option>
             ))}
             <option value="Other">Other</option>
