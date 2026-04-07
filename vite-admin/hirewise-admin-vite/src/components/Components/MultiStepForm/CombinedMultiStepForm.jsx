@@ -49,6 +49,19 @@ const DEFAULT_NON_TEACHING_POSTS = [
   { id: 'lt', name: 'Lab Technician', type: 'NON_TEACHING', status: 'ACTIVE' }
 ];
 
+const TEACHING_EXPERIENCE_POST_OPTIONS = [
+  'Assistant Professor',
+  'Associate Professor',
+  'Professor',
+  'Professor of Practice',
+  'Lecturer',
+  'Visiting Faculty',
+  'Adjunct Faculty',
+  'Teaching Assistant',
+  'Research Associate',
+  'Other',
+];
+
 const DEFAULT_BRANCHES = [
   // School of Engineering & Technology
   { id: 'cse', name: 'Computer Science & Engineering', department_id: 'eng', status: 'ACTIVE' },
@@ -1512,6 +1525,7 @@ const EducationDetails = ({ formData, setFormData, onNext, onPrevious, onSaveExi
 // Step 4: Experience
 const Experience = ({ formData, setFormData, onNext, onPrevious, onSaveExit, savingDraft }) => {
   const [errors, setErrors] = useState({});
+  const teachingExperiencePostOptions = TEACHING_EXPERIENCE_POST_OPTIONS;
   useEffect(() => {
     setFormData((prev) => ({
       ...prev,
@@ -1783,10 +1797,9 @@ const Experience = ({ formData, setFormData, onNext, onPrevious, onSaveExit, sav
             onChange={(e) => handleTeachingChange(idx, e)}
           >
             <option value="">Select Post</option>
-            <option value="Assistant Professor">Assistant Professor</option>
-            <option value="Associate Professor">Associate Professor</option>
-            <option value="Professor">Professor</option>
-            <option value="Other">Other</option>
+            {teachingExperiencePostOptions.map((post) => (
+              <option key={post} value={post}>{post}</option>
+            ))}
           </select>
           {errors.teaching && errors.teaching[idx] && errors.teaching[idx].teachingPost && (
             <span className="error">{errors.teaching[idx].teachingPost}</span>
