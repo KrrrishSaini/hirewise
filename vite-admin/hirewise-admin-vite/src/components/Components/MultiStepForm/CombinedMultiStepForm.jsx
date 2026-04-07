@@ -44,11 +44,34 @@ const DEFAULT_NON_TEACHING_POSTS = [
   { id: 'lt', name: 'Lab Technician', type: 'NON_TEACHING', status: 'ACTIVE' }
 ];
 
+const DEFAULT_BRANCHES = [
+  // School of Engineering & Technology
+  { id: 'cse', name: 'Computer Science & Engineering', department_id: 'eng', status: 'ACTIVE' },
+  { id: 'me', name: 'Mechanical Engineering', department_id: 'eng', status: 'ACTIVE' },
+  { id: 'ece', name: 'Electronics and Communication Engineering', department_id: 'eng', status: 'ACTIVE' },
+  { id: 'ee', name: 'Electrical Engineering', department_id: 'eng', status: 'ACTIVE' },
+  { id: 'math', name: 'Mathematics', department_id: 'eng', status: 'ACTIVE' },
+  { id: 'chem', name: 'Chemistry', department_id: 'eng', status: 'ACTIVE' },
+  { id: 'phy', name: 'Physics', department_id: 'eng', status: 'ACTIVE' },
+  // School of Law
+  { id: 'crimlaw', name: 'Criminal Law', department_id: 'law', status: 'ACTIVE' },
+  { id: 'corplaw', name: 'Corporate Law', department_id: 'law', status: 'ACTIVE' },
+  { id: 'civlaw', name: 'Civil Law', department_id: 'law', status: 'ACTIVE' },
+  // School of Management
+  { id: 'fin', name: 'Finance', department_id: 'mgmt', status: 'ACTIVE' },
+  { id: 'mkt', name: 'Marketing', department_id: 'mgmt', status: 'ACTIVE' },
+  { id: 'hr', name: 'Human Resources', department_id: 'mgmt', status: 'ACTIVE' },
+  // School of Liberal Studies
+  { id: 'eng_lit', name: 'English', department_id: 'lib', status: 'ACTIVE' },
+  { id: 'hist', name: 'History', department_id: 'lib', status: 'ACTIVE' },
+  { id: 'soc', name: 'Sociology', department_id: 'lib', status: 'ACTIVE' },
+];
+
 const applyPositionFallbacks = ({ setDepartments, setTeachingPosts, setNonTeachingPosts, setBranches }) => {
   setDepartments(DEFAULT_DEPARTMENTS);
   setTeachingPosts(DEFAULT_TEACHING_POSTS);
   setNonTeachingPosts(DEFAULT_NON_TEACHING_POSTS);
-  if (typeof setBranches === 'function') setBranches([]);
+  if (typeof setBranches === 'function') setBranches(DEFAULT_BRANCHES);
 };
 
 // Step 1: PositionSelection
@@ -336,9 +359,9 @@ const PersonalInformation = ({ formData, setFormData, onNext, onPrevious, onSave
       const { data: { session } } = await supabase.auth.getSession();
       const user = session?.user;
       if (user) {
-        // Auto-fill email from auth
-        if (!formData.email) {
-          setFormData(prev => ({ ...prev, email: user.email }));
+        // Always auto-fill email from auth (field is read-only)
+        if (user.email) {
+          setFormData(prev => ({ ...prev, email: prev.email || user.email }));
         }
         
         // Fetch profile data (name and phone from registration)
@@ -2350,7 +2373,9 @@ const CombinedMultiStepForm = () => {
         if (data && data.form_data && active) {
           setFormData((prev) => ({
             ...prev,
-            ...data.form_data
+            ...data.form_data,
+            // Always ensure email is populated from auth session
+            email: data.form_data.email || user.email || prev.email,
           }));
           const loadedStep = data.current_step || 1;
           setCurrentStep(loadedStep);
@@ -2453,19 +2478,29 @@ const CombinedMultiStepForm = () => {
   }, [currentStep]);
 
   // Helper function for department short names
-  const getDepartmentShortName = (dept) => {
-    if (!dept) return '';
-    const map = {
-      engineering: 'SOET',
+  const getDepartmentShortName = (deptId) => {
+    if (!deptId) return '';
+    // Short-name map for known simple IDs
+    const shortMap = {
+      eng: 'SOET',
       law: 'SOL',
+      mgmt: 'SOM',
+      lib: 'SOLS',
+      adm: 'Admin',
+      it: 'IT',
+      sec: 'Sec',
+      lab: 'Lab',
+      engineering: 'SOET',
       management: 'SOM',
       liberal: 'SOLS',
       admin: 'Admin',
-      it: 'IT',
       security: 'Sec',
-      lab: 'Lab'
     };
-    return map[dept] || dept;
+    if (shortMap[deptId]) return shortMap[deptId];
+    // Look up in loaded departments array (handles UUID-based IDs from API)
+    const found = departments.find(d => d.id === deptId);
+    if (found) return found.name;
+    return '';
   };
 
   // Get steps based on position
