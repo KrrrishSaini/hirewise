@@ -319,6 +319,57 @@ h2 {
   text-align: left;
 }
 
+.file-upload-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.file-upload-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.file-slot-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #4b5563;
+}
+
+.file-name {
+  font-size: 0.85rem;
+  color: #374151;
+}
+
+.add-file-btn {
+  align-self: flex-start;
+  margin-top: 2px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #1f2937;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.add-file-btn:hover:not(:disabled) {
+  border-color: #3b82f6;
+  color: #1d4ed8;
+  background: #eff6ff;
+}
+
+.add-file-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+  background: #e5e7eb;
+  border-color: #d1d5db;
+  color: #6b7280;
+}
+
 .two-column-row {
   display: grid;
   grid-template-columns: repeat(2, minmax(260px, 1fr));

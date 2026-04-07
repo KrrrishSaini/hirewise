@@ -18,6 +18,19 @@ const normalizeFileArray = (value) => {
   return [];
 };
 
+// Preserve upload slots for Best Published Papers while capping at 3.
+const normalizePublicationSlots = (value) => {
+  if (!value) return [];
+  if (Array.isArray(value)) {
+    return value.slice(0, 3).map((item) => (item instanceof File ? item : null));
+  }
+  if (value instanceof File) return [value];
+  if (value?.length && typeof value.item === 'function') {
+    return Array.from(value).slice(0, 3).map((item) => (item instanceof File ? item : null));
+  }
+  return [];
+};
+
 const DEFAULT_TEACHING_DEPARTMENTS = [
   { id: 'eng', name: 'School of Engineering & Technology', type: 'TEACHING', status: 'ACTIVE' },
   { id: 'law', name: 'School of Law', type: 'TEACHING', status: 'ACTIVE' },
@@ -2295,7 +2308,9 @@ const Documentation = ({ formData, setFormData, onPrevious, onSubmit, onSaveExit
     };
 
     if (field === 'otherPublications') {
-      const selectedFiles = Array.from(files).slice(0, 3);
+      const selectedFiles = Array.from(files)
+        .slice(0, 3)
+        .map((item) => (item instanceof File ? item : null));
       setFormData((prev) => ({
         ...prev,
         otherPublications: selectedFiles,
@@ -2370,17 +2385,20 @@ const Documentation = ({ formData, setFormData, onPrevious, onSubmit, onSaveExit
     }
   };
 
-  const otherPublicationFiles = normalizeFileArray(formData.otherPublications);
-  const otherPublicationSlots = Math.max(otherPublicationFiles.length, 1);
+  const publicationSlots = normalizePublicationSlots(formData.otherPublications);
+  const selectedPublicationCount = publicationSlots.filter(Boolean).length;
+  const visiblePublicationSlots = Math.max(publicationSlots.length, 1);
+  const canAddPublicationSlot =
+    selectedPublicationCount >= 1 && selectedPublicationCount < 3 && publicationSlots.length < 3;
 
   const handleOtherPublicationChange = (index, file) => {
     setFormData((prev) => {
-      const existing = normalizeFileArray(prev.otherPublications);
+      const existing = normalizePublicationSlots(prev.otherPublications);
       const updated = [...existing];
       while (updated.length <= index) {
         updated.push(null);
       }
-      updated[index] = file;
+      updated[index] = file instanceof File ? file : null;
       return { ...prev, otherPublications: updated };
     });
     setErrors((prev) => ({ ...prev, otherPublications: '' }));
@@ -2388,8 +2406,9 @@ const Documentation = ({ formData, setFormData, onPrevious, onSubmit, onSaveExit
 
   const addOtherPublicationSlot = () => {
     setFormData((prev) => {
-      const existing = normalizeFileArray(prev.otherPublications);
-      if (existing.length >= 3) return prev;
+      const existing = normalizePublicationSlots(prev.otherPublications);
+      const selectedCount = existing.filter(Boolean).length;
+      if (selectedCount >= 3 || existing.length >= 3 || selectedCount < 1) return prev;
       return { ...prev, otherPublications: [...existing, null] };
     });
   };
@@ -2425,30 +2444,31 @@ const Documentation = ({ formData, setFormData, onPrevious, onSubmit, onSaveExit
       </div>
       <div className="form-field">
         <label>Best Published Papers{formData.position === 'teaching' ? '*' : ''} (up to 3 files)</label>
-        <div className="stacked-inputs">
-          {Array.from({ length: Math.min(otherPublicationSlots, 3) }).map((_, idx) => (
-            <div key={idx} className="stacked-input-row">
+        <div className="file-upload-stack">
+          {Array.from({ length: Math.min(visiblePublicationSlots, 3) }).map((_, idx) => (
+            <div key={idx} className="file-upload-row">
+              <span className="file-slot-label">File {idx + 1}</span>
               <input
                 type="file"
+                accept=".pdf,.doc,.docx"
                 onChange={(e) => {
                   const file = e.target.files?.[0];
                   if (file) handleOtherPublicationChange(idx, file);
                 }}
                 aria-describedby="papers-hint"
               />
-              {otherPublicationFiles[idx] && (
-                <span className="file-name">{otherPublicationFiles[idx].name}</span>
+              {publicationSlots[idx] && (
+                <span className="file-name">{publicationSlots[idx].name}</span>
               )}
             </div>
           ))}
           <button
             type="button"
-            className="btn btn-secondary"
+            className="add-file-btn"
             onClick={addOtherPublicationSlot}
-            disabled={otherPublicationFiles.length >= 3}
-            style={{ alignSelf: 'flex-start', marginTop: '8px' }}
+            disabled={!canAddPublicationSlot}
           >
-            Add another file
+            {selectedPublicationCount >= 3 ? 'Maximum 3 files added' : 'Add another file'}
           </button>
         </div>
         <div id="papers-hint" style={{ fontSize: '0.85rem', color: '#6b7280', marginTop: '6px' }}>Upload up to 3 files</div>
