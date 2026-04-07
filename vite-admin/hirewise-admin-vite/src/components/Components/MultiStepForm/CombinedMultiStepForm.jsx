@@ -67,6 +67,44 @@ const DEFAULT_BRANCHES = [
   { id: 'soc', name: 'Sociology', department_id: 'lib', status: 'ACTIVE' },
 ];
 
+// Keep degree names hardcoded in client form so dropdowns remain populated
+// even when department identifiers change (e.g., UUID-backed department ids).
+const BACHELOR_DEGREE_OPTIONS = [
+  'B.Tech in Computer Science & Engineering',
+  'B.Tech in Mechanical Engineering',
+  'B.Tech in Electronics & Communication',
+  'BBA in Finance',
+  'BBA in Marketing',
+  'BBA in Human Resources',
+  'B.Com',
+  'LLB in Criminal Law',
+  'LLB in Corporate Law',
+  'LLB in Civil Law',
+  'BA LLB',
+  'BA in English',
+  'BA in History',
+  'BA in Sociology',
+  'BA in Psychology',
+];
+
+const MASTER_DEGREE_OPTIONS = [
+  'M.Tech in Computer Science',
+  'M.Tech in Mechanical Engineering',
+  'M.Tech in Electronics & Communication',
+  'ME in Computer Science',
+  'MBA in Finance',
+  'MBA in Marketing',
+  'MBA in Human Resources',
+  'M.Com',
+  'LLM in Criminal Law',
+  'LLM in Corporate Law',
+  'LLM in Civil Law',
+  'MA in English',
+  'MA in History',
+  'MA in Sociology',
+  'MA in Psychology',
+];
+
 const applyPositionFallbacks = ({ setDepartments, setTeachingPosts, setNonTeachingPosts, setBranches }) => {
   setDepartments(DEFAULT_DEPARTMENTS);
   setTeachingPosts(DEFAULT_TEACHING_POSTS);
@@ -142,7 +180,7 @@ const PositionSelection = ({ formData, setFormData, onNext, onSaveExit, savingDr
       setDepartments(depts);
       setTeachingPosts(teachingPositions);
       setNonTeachingPosts(nonTeachingPositions);
-      setBranches(Array.isArray(branchesData) ? branchesData : []);
+      setBranches(Array.isArray(branchesData) && branchesData.length ? branchesData : DEFAULT_BRANCHES);
     } catch (error) {
       console.error('Error loading form data:', error);
       applyPositionFallbacks({
@@ -158,17 +196,51 @@ const PositionSelection = ({ formData, setFormData, onNext, onSaveExit, savingDr
   // Get departments based on selected position type
   const getFilteredDepartments = () => {
     if (!formData.position) return [];
+    const normalizeType = (value) => String(value || '').replace(/[\s-]/g, '_').toUpperCase();
     // Convert 'teaching' or 'non-teaching' to 'TEACHING' or 'NON_TEACHING'
-    const positionType = formData.position.replace('-', '_').toUpperCase();
-    return departments.filter(dept => dept.type === positionType);
+    const positionType = normalizeType(formData.position);
+    const filtered = departments.filter((dept) => normalizeType(dept.type) === positionType);
+    if (filtered.length) return filtered;
+    // Safety fallback if backend payload shape/type is inconsistent.
+    return DEFAULT_DEPARTMENTS.filter((dept) => normalizeType(dept.type) === positionType);
   };
 
   // Get branches based on selected department
   const getFilteredBranches = () => {
     if (!formData.department) return [];
-    const selectedDept = departments.find(d => d.id === formData.department);
-    if (!selectedDept) return [];
-    return branches.filter(branch => branch.department_id === selectedDept.id);
+    const selectedDept = departments.find(
+      (d) =>
+        String(d.id || '') === String(formData.department) ||
+        String(d.name || '').toLowerCase() === String(formData.department).toLowerCase()
+    );
+
+    const selectedDeptId = String(selectedDept?.id ?? formData.department ?? '');
+    const branchSource = Array.isArray(branches) && branches.length ? branches : DEFAULT_BRANCHES;
+
+    const exactMatches = branchSource.filter((branch) => {
+      const branchDeptId = String(
+        branch.department_id ?? branch.departmentId ?? branch.department ?? ''
+      ).trim();
+      return branchDeptId && branchDeptId === selectedDeptId;
+    });
+    if (exactMatches.length) return exactMatches;
+
+    // If backend uses UUID ids for departments and static ids for branches, infer by school name/id.
+    const normalizedRef = `${String(selectedDept?.name || '')} ${selectedDeptId}`.toLowerCase();
+    let fallbackDeptKey = '';
+    if (normalizedRef.includes('engineering') || selectedDeptId === 'eng') fallbackDeptKey = 'eng';
+    else if (normalizedRef.includes('law') || selectedDeptId === 'law') fallbackDeptKey = 'law';
+    else if (normalizedRef.includes('management') || selectedDeptId === 'mgmt') fallbackDeptKey = 'mgmt';
+    else if (normalizedRef.includes('liberal') || selectedDeptId === 'lib') fallbackDeptKey = 'lib';
+
+    if (fallbackDeptKey) {
+      const fallbackBranches = DEFAULT_BRANCHES.filter((branch) => branch.department_id === fallbackDeptKey);
+      if (fallbackBranches.length) return fallbackBranches;
+    }
+
+    // Final fallback for teaching: keep dropdown usable instead of blank.
+    if (formData.position === 'teaching') return DEFAULT_BRANCHES;
+    return [];
   };
 
   const validateForm = () => {
@@ -912,60 +984,9 @@ const EducationDetails = ({ formData, setFormData, onNext, onPrevious, onSaveExi
             onChange={handleInputChange}
           >
             <option value="">Select Degree</option>
-            {formData.department === 'engineering' && (
-              <>
-                <option value="B.Tech in Computer Science & Engineering">B.Tech in Computer Science & Engineering</option>
-                <option value="B.Tech in Mechanical Engineering">B.Tech in Mechanical Engineering</option>
-                <option value="B.Tech in Electronics & Communication">B.Tech in Electronics & Communication</option>
-              </>
-            )}
-            {formData.department === 'management' && (
-              <>
-                <option value="BBA in Finance">BBA in Finance</option>
-                <option value="BBA in Marketing">BBA in Marketing</option>
-                <option value="BBA in Human Resources">BBA in Human Resources</option>
-                <option value="B.Com">B.Com</option>
-              </>
-            )}
-            {formData.department === 'law' && (
-              <>
-                <option value="LLB in Criminal Law">LLB in Criminal Law</option>
-                <option value="LLB in Corporate Law">LLB in Corporate Law</option>
-                <option value="LLB in Civil Law">LLB in Civil Law</option>
-                <option value="BA LLB">BA LLB</option>
-              </>
-            )}
-            {formData.department === 'liberal' && (
-              <>
-                <option value="BA in English">BA in English</option>
-                <option value="BA in History">BA in History</option>
-                <option value="BA in Sociology">BA in Sociology</option>
-                <option value="BA in Psychology">BA in Psychology</option>
-              </>
-            )}
-            {/* All teaching degree options available for non-teaching departments */}
-            {['admin', 'it', 'security', 'lab'].includes(formData.department) && (
-              <>
-                {/* Engineering options */}
-                <option value="B.Tech in Computer Science & Engineering">B.Tech in Computer Science & Engineering</option>
-                <option value="B.Tech in Mechanical Engineering">B.Tech in Mechanical Engineering</option>
-                <option value="B.Tech in Electronics & Communication">B.Tech in Electronics & Communication</option>
-                {/* Management options */}
-                <option value="BBA in Finance">BBA in Finance</option>
-                <option value="BBA in Marketing">BBA in Marketing</option>
-                <option value="BBA in Human Resources">BBA in Human Resources</option>
-                <option value="B.Com">B.Com</option>
-                {/* Law options */}
-                <option value="LLB in Criminal Law">LLB in Criminal Law</option>
-                <option value="LLB in Corporate Law">LLB in Corporate Law</option>
-                <option value="LLB in Civil Law">LLB in Civil Law</option>
-                {/* Liberal options */}
-                <option value="BA in English">BA in English</option>
-                <option value="BA in History">BA in History</option>
-                <option value="BA in Sociology">BA in Sociology</option>
-                <option value="BA in Psychology">BA in Psychology</option>
-              </>
-            )}
+            {BACHELOR_DEGREE_OPTIONS.map((degree) => (
+              <option key={degree} value={degree}>{degree}</option>
+            ))}
             <option value="Other">Other</option>
           </select>
           {formData.bachelorDegreeName === 'Other' && (
@@ -1085,61 +1106,9 @@ const EducationDetails = ({ formData, setFormData, onNext, onPrevious, onSaveExi
             onChange={handleInputChange}
           >
             <option value="">Select Degree</option>
-            {formData.department === 'engineering' && (
-              <>
-                <option value="M.Tech in Computer Science">M.Tech in Computer Science</option>
-                <option value="M.Tech in Mechanical Engineering">M.Tech in Mechanical Engineering</option>
-                <option value="M.Tech in Electronics & Communication">M.Tech in Electronics & Communication</option>
-                <option value="ME in Computer Science">ME in Computer Science</option>
-              </>
-            )}
-            {formData.department === 'management' && (
-              <>
-                <option value="MBA in Finance">MBA in Finance</option>
-                <option value="MBA in Marketing">MBA in Marketing</option>
-                <option value="MBA in Human Resources">MBA in Human Resources</option>
-                <option value="M.Com">M.Com</option>
-              </>
-            )}
-            {formData.department === 'law' && (
-              <>
-                <option value="LLM in Criminal Law">LLM in Criminal Law</option>
-                <option value="LLM in Corporate Law">LLM in Corporate Law</option>
-                <option value="LLM in Civil Law">LLM in Civil Law</option>
-              </>
-            )}
-            {formData.department === 'liberal' && (
-              <>
-                <option value="MA in English">MA in English</option>
-                <option value="MA in History">MA in History</option>
-                <option value="MA in Sociology">MA in Sociology</option>
-                <option value="MA in Psychology">MA in Psychology</option>
-              </>
-            )}
-            {/* All teaching degree options available for non-teaching departments */}
-            {['admin', 'it', 'security', 'lab'].includes(formData.department) && (
-              <>
-                {/* Engineering options */}
-                <option value="M.Tech in Computer Science">M.Tech in Computer Science</option>
-                <option value="M.Tech in Mechanical Engineering">M.Tech in Mechanical Engineering</option>
-                <option value="M.Tech in Electronics & Communication">M.Tech in Electronics & Communication</option>
-                <option value="ME in Computer Science">ME in Computer Science</option>
-                {/* Management options */}
-                <option value="MBA in Finance">MBA in Finance</option>
-                <option value="MBA in Marketing">MBA in Marketing</option>
-                <option value="MBA in Human Resources">MBA in Human Resources</option>
-                <option value="M.Com">M.Com</option>
-                {/* Law options */}
-                <option value="LLM in Criminal Law">LLM in Criminal Law</option>
-                <option value="LLM in Corporate Law">LLM in Corporate Law</option>
-                <option value="LLM in Civil Law">LLM in Civil Law</option>
-                {/* Liberal options */}
-                <option value="MA in English">MA in English</option>
-                <option value="MA in History">MA in History</option>
-                <option value="MA in Sociology">MA in Sociology</option>
-                <option value="MA in Psychology">MA in Psychology</option>
-              </>
-            )}
+            {MASTER_DEGREE_OPTIONS.map((degree) => (
+              <option key={degree} value={degree}>{degree}</option>
+            ))}
             <option value="Other">Other</option>
           </select>
           {formData.masterDegreeName === 'Other' && (
