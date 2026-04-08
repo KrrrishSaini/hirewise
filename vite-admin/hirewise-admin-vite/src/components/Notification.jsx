@@ -438,91 +438,93 @@ const Notification = () => {
 
         {/* Right Sidebar - Takes up 1/3 of width */}
         <div className="w-80 flex flex-col gap-4 min-h-0">
-          {/* Send New Notification Section */}
-          <div className="bg-white rounded-lg shadow-sm flex flex-col">
-            <div className="p-4 border-b flex-shrink-0">
-              <h2 className="text-lg font-semibold text-gray-800 flex items-center">
-                <Send className="w-5 h-5 mr-2 text-blue-500" />
-                Send New Notification
-              </h2>
-            </div>
-            <div className="p-4 space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Alert Type</label>
-                <select 
-                  value={alertType}
-                  onChange={(e) => setAlertType(e.target.value)}
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                >
-                  <option value="general">General Notification</option>
-                  <option value="system">System Update</option>
-                  <option value="urgent">Urgent Alert</option>
-                  <option value="maintenance">Maintenance Notice</option>
-                  <option value="feature">New Feature</option>
-                </select>
+          {/* Send New Notification Section (hidden for now) */}
+          {false && (
+            <div className="bg-white rounded-lg shadow-sm flex flex-col">
+              <div className="p-4 border-b flex-shrink-0">
+                <h2 className="text-lg font-semibold text-gray-800 flex items-center">
+                  <Send className="w-5 h-5 mr-2 text-blue-500" />
+                  Send New Notification
+                </h2>
               </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
-                <select 
-                  value={priority}
-                  onChange={(e) => setPriority(e.target.value)}
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                >
-                  <option value="normal">Normal</option>
-                  <option value="high">High</option>
-                  <option value="urgent">Urgent</option>
-                </select>
-              </div>
+              <div className="p-4 space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Alert Type</label>
+                  <select 
+                    value={alertType}
+                    onChange={(e) => setAlertType(e.target.value)}
+                    className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  >
+                    <option value="general">General Notification</option>
+                    <option value="system">System Update</option>
+                    <option value="urgent">Urgent Alert</option>
+                    <option value="maintenance">Maintenance Notice</option>
+                    <option value="feature">New Feature</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
+                  <select 
+                    value={priority}
+                    onChange={(e) => setPriority(e.target.value)}
+                    className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  >
+                    <option value="normal">Normal</option>
+                    <option value="high">High</option>
+                    <option value="urgent">Urgent</option>
+                  </select>
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
-                <input 
-                  type="text" 
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                  placeholder="Enter notification title"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Message</label>
-                <textarea 
-                  rows="3"
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm resize-none"
-                  placeholder="Enter notification message"
-                ></textarea>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Recipients</label>
-                <select 
-                  value={recipients}
-                  onChange={(e) => setRecipients(e.target.value)}
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                  <input 
+                    type="text" 
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                    placeholder="Enter notification title"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Message</label>
+                  <textarea 
+                    rows="3"
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm resize-none"
+                    placeholder="Enter notification message"
+                  ></textarea>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Recipients</label>
+                  <select 
+                    value={recipients}
+                    onChange={(e) => setRecipients(e.target.value)}
+                    className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  >
+                    <option value="all">All Users</option>
+                    <option value="candidates">All Candidates</option>
+                    <option value="active">Active Candidates</option>
+                    <option value="pending">Pending Candidates</option>
+                    <option value="inactive">Inactive Candidates</option>
+                    <option value="admins">Admin Users</option>
+                  </select>
+                </div>
+                
+                <button 
+                  onClick={handleSendNotification}
+                  disabled={!title || !message}
+                  className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white py-2.5 rounded-lg transition-colors flex items-center justify-center space-x-2 text-sm"
                 >
-                  <option value="all">All Users</option>
-                  <option value="candidates">All Candidates</option>
-                  <option value="active">Active Candidates</option>
-                  <option value="pending">Pending Candidates</option>
-                  <option value="inactive">Inactive Candidates</option>
-                  <option value="admins">Admin Users</option>
-                </select>
+                  <Send className="w-4 h-4" />
+                  <span>Send Notification</span>
+                </button>
               </div>
-              
-              <button 
-                onClick={handleSendNotification}
-                disabled={!title || !message}
-                className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white py-2.5 rounded-lg transition-colors flex items-center justify-center space-x-2 text-sm"
-              >
-                <Send className="w-4 h-4" />
-                <span>Send Notification</span>
-              </button>
             </div>
-          </div>
+          )}
 
           {/* Recent Sent Notifications */}
           {notifications.length > 0 && (

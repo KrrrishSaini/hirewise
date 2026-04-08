@@ -486,7 +486,8 @@ body {
 .figma-footer-logo {
   height: 50px;
   width: 50px;
-  filter: brightness(0) invert(1); /* White logo for dark background */
+  object-fit: contain;
+  border-radius: 8px;
 }
 
 .figma-footer-text {

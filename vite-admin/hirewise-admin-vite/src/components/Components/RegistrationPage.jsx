@@ -19,6 +19,8 @@ const bullets = [
   "World-class Faculty & Mentorship",
 ];
 
+const LOGO_SRC = "/image 2.png";
+
 const initialState = {
   name: "",
   email: "",
@@ -304,7 +306,7 @@ const RegistrationPage = ({ onRegistrationSuccess, onLoginSuccess }) => {
       <div className="figma-container">
         {/* Left */}
         <div className="figma-left">
-          <img src="/image%202.png" alt="BML Munjal University" className="figma-logo" />
+          <img src={LOGO_SRC} alt="BML Munjal University" className="figma-logo" />
           <div className="figma-hirewise">HIREWISE</div>
           <h1 className="figma-heading">APPLICATIONS FOR FACULTY & STAFF POSITIONS — NOW OPEN</h1>
           <div className="figma-italic-row">
@@ -599,7 +601,7 @@ const RegistrationPage = ({ onRegistrationSuccess, onLoginSuccess }) => {
       </div>
       <footer className="figma-footer">
         <div className="figma-footer-content">
-          <img src="/image%202.png" alt="BML Munjal University" className="figma-footer-logo" />
+          <img src={LOGO_SRC} alt="BML Munjal University" className="figma-footer-logo" />
           <span className="figma-footer-text">© 2026 BML Munjal University. All rights reserved.</span>
           <div className="figma-footer-links">
             <a href="#">Privacy Policy</a>
