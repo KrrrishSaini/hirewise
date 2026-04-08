@@ -1045,12 +1045,11 @@ router.post('/send-confirmation/:id', async (req, res) => {
       return res.status(400).json({ error: 'Candidate email not found' });
     }
 
-    // Construct base URL from environment or use PORT variable
-    const baseUrl = process.env.API_BASE_URL || (
-      process.env.NODE_ENV === 'production'
-        ? 'https://your-production-domain.com'
-        : `http://localhost:${process.env.PORT || 5000}`
-    );
+    // Construct backend base URL robustly for email links
+    const baseUrl = process.env.API_BASE_URL
+      || process.env.RENDER_EXTERNAL_URL
+      || `${req.protocol}://${req.get('host')}`
+      || `http://localhost:${process.env.PORT || 5000}`;
 
     // Send the confirmation email
     const emailResult = await emailService.sendInterviewConfirmationEmail(
@@ -1265,6 +1264,10 @@ router.post('/send-confirmation-enhanced/:id', async (req, res) => {
   try {
     const applicationId = parseInt(req.params.id);
     const { date, time, timezone } = req.body;
+    const baseUrl = process.env.API_BASE_URL
+      || process.env.RENDER_EXTERNAL_URL
+      || `${req.protocol}://${req.get('host')}`
+      || `http://localhost:${process.env.PORT || 5000}`;
 
     // Validate inputs
     if (!date || !time || !timezone) {
@@ -1319,10 +1322,6 @@ router.post('/send-confirmation-enhanced/:id', async (req, res) => {
         }
 
         console.log('✅ Database updated successfully');
-
-        // Construct base URL
-        const baseUrl = process.env.API_BASE_URL ||
-          `http://localhost:${process.env.PORT || 5001}`;
 
         console.log('📧 Sending email in background...');
         const emailResult = await emailService.sendEnhancedInterviewConfirmationEmail(

@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase-client';
 import { candidatesApi } from '../lib/api';
 import { toArrayPayload } from '../lib/normalize';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { Star } from 'lucide-react';
 import CVParsingSection from './CVParsingSection';
 
 const COMMITTEES = [
@@ -571,6 +572,23 @@ const AllCandidates = () => {
       general: avgMatch('III'),
       total: totalMatch ? Number(totalMatch[1]) : null
     };
+  };
+
+  const normalizeSectionScore = (value) => {
+    if (value === null || value === undefined || value === '') return null;
+    const numeric = Number(value);
+    if (Number.isNaN(numeric)) return null;
+    const converted = numeric > 5 ? numeric / 2 : numeric;
+    return Math.max(0, Math.min(5, converted));
+  };
+
+  const getSectionEvaluationSummary = (evaluation) => {
+    const parsed = parseEvaluationAverages(evaluation?.remarks);
+    const teaching = parsed.teaching ?? normalizeSectionScore(evaluation?.teaching_competence);
+    const research = parsed.research ?? normalizeSectionScore(evaluation?.research_potential);
+    const general = parsed.general ?? normalizeSectionScore(evaluation?.industry_experience) ?? normalizeSectionScore(evaluation?.communication_skills);
+    const total = parsed.total ?? (teaching !== null && research !== null && general !== null ? teaching + research + general : null);
+    return { teaching, research, general, total };
   };
 
   const matchesStage = (candidate, stage) => {
@@ -1925,34 +1943,6 @@ const AllCandidates = () => {
                     </ResponsiveContainer>
                   </div>
 
-                  {/* Publications Bar Chart */}
-                  <div className="bg-white border rounded-lg p-4 shadow-sm">
-                    <h3 className="text-sm font-bold text-gray-900 mb-2">Research Output</h3>
-                    <ResponsiveContainer width="100%" height={180}>
-                      <BarChart
-                        data={[
-                          { name: 'Scopus', count: selectedCandidate.scopus_general_papers || 0, fill: '#8b5cf6' },
-                          { name: 'Conference', count: selectedCandidate.conference_papers || 0, fill: '#3b82f6' },
-                          { name: 'Books', count: selectedCandidate.edited_books || 0, fill: '#10b981' }
-                        ]}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                        <YAxis tick={{ fontSize: 12 }} />
-                        <Tooltip />
-                        <Bar dataKey="count" radius={[8, 8, 0, 0]}>
-                          {[
-                            { name: 'Scopus', count: selectedCandidate.scopus_general_papers || 0, fill: '#8b5cf6' },
-                            { name: 'Conference', count: selectedCandidate.conference_papers || 0, fill: '#3b82f6' },
-                            { name: 'Books', count: selectedCandidate.edited_books || 0, fill: '#10b981' }
-                          ].map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.fill} />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-
                   {/* Documents */}
                   <div className="bg-white border rounded-lg p-4 shadow-sm">
                     <h3 className="text-sm font-bold text-gray-900 mb-3">Documents</h3>
@@ -2044,58 +2034,116 @@ const AllCandidates = () => {
       )}
 
       {showEvaluationModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[60] p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-xl max-h-[85vh] overflow-hidden flex flex-col">
-            <div className="flex items-center justify-between px-4 py-3 border-b">
-              <h3 className="text-lg font-bold text-gray-900">Interview Evaluation</h3>
-              <button onClick={() => setShowEvaluationModal(false)} className="text-gray-400 hover:text-gray-600">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70] p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
               {evaluationLoading ? (
                 <div className="flex items-center justify-center py-10">
                   <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
                 </div>
               ) : evaluationData ? (
-                <div className="space-y-3 text-sm text-gray-700">
-                  {(() => {
-                    const parsed = parseEvaluationAverages(evaluationData.remarks);
-                    const teaching = parsed.teaching ?? (typeof evaluationData.teaching_competence === 'number' ? evaluationData.teaching_competence / 2 : null);
-                    const research = parsed.research ?? (typeof evaluationData.research_potential === 'number' ? evaluationData.research_potential / 2 : null);
-                    const general = parsed.general ?? (typeof evaluationData.industry_experience === 'number' ? evaluationData.industry_experience / 2 : null);
-                    const total = parsed.total ?? (teaching !== null && research !== null && general !== null ? teaching + research + general : null);
-                    const formatScore = (value) => (value === null ? 'N/A' : value.toFixed(2));
-                    return (
-                      <>
-                        <p><span className="font-semibold">Evaluation Committee:</span> {evaluationData.faculty_name || 'N/A'}</p>
-                        <p><span className="font-semibold">I. Teaching:</span> {formatScore(teaching)}/5</p>
-                        <p><span className="font-semibold">II. Research:</span> {formatScore(research)}/5</p>
-                        <p><span className="font-semibold">III. General: Culture Alignment:</span> {formatScore(general)}/5</p>
-                        <p><span className="font-semibold">Combined Score:</span> {formatScore(total)}/15</p>
-                        <div>
-                          <p className="font-semibold">Remarks</p>
-                          <p className="text-xs text-gray-600 whitespace-pre-wrap">
-                            {extractEvaluationComments(evaluationData.remarks) || 'No additional comments.'}
-                          </p>
+                <>
+                  <div className="flex justify-between items-start mb-6">
+                    <div className="flex items-center gap-2">
+                      <Star className="w-6 h-6 text-yellow-500 fill-yellow-500" />
+                      <h2 className="text-2xl font-bold text-gray-800">Faculty Evaluation</h2>
+                    </div>
+                    <button
+                      onClick={() => setShowEvaluationModal(false)}
+                      className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
+                    >
+                      ×
+                    </button>
+                  </div>
+
+                  <div className="mb-6 p-4 bg-blue-50 rounded-lg">
+                    <p className="text-sm text-gray-600">Evaluated by</p>
+                    <p className="text-lg font-semibold text-gray-800">
+                      {evaluationData.faculty_name?.startsWith('Dr.')
+                        ? evaluationData.faculty_name
+                        : `Dr. ${evaluationData.faculty_name || 'N/A'}`}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {evaluationData.evaluated_at
+                        ? new Date(evaluationData.evaluated_at).toLocaleString('en-US', {
+                            dateStyle: 'medium',
+                            timeStyle: 'short'
+                          })
+                        : 'N/A'}
+                    </p>
+                  </div>
+
+                  <div className="space-y-4 mb-6">
+                    <h3 className="font-semibold text-gray-700 mb-3">Evaluation Scores</h3>
+                    {(() => {
+                      const sectionSummary = getSectionEvaluationSummary(evaluationData);
+                      return [
+                        { label: 'Teaching', value: sectionSummary.teaching, color: 'bg-green-500' },
+                        { label: 'Research', value: sectionSummary.research, color: 'bg-blue-500' },
+                        { label: 'General: Culture Alignment', value: sectionSummary.general, color: 'bg-purple-500' }
+                      ].map((item, idx) => (
+                        <div key={idx} className="space-y-1">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-700 font-medium">{item.label}</span>
+                            <span className="text-gray-900 font-bold">
+                              {item.value === null ? 'N/A' : `${item.value.toFixed(2)}/5`}
+                            </span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2.5">
+                            <div
+                              className={`h-2.5 rounded-full ${item.color}`}
+                              style={{ width: `${item.value === null ? 0 : (item.value / 5) * 100}%` }}
+                            ></div>
+                          </div>
                         </div>
-                      </>
-                    );
-                  })()}
-                </div>
+                      ));
+                    })()}
+                  </div>
+
+                  <div className="mb-6 p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg border border-purple-200">
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-700 font-semibold">Combined Score</span>
+                      <span className="text-2xl font-bold text-purple-700">
+                        {(() => {
+                          const sectionSummary = getSectionEvaluationSummary(evaluationData);
+                          return sectionSummary.total === null ? 'N/A' : `${sectionSummary.total.toFixed(2)}/15`;
+                        })()}
+                      </span>
+                    </div>
+                  </div>
+
+                  {evaluationData.remarks && (
+                    <div className="mb-4">
+                      <h3 className="font-semibold text-gray-700 mb-2">Remarks</h3>
+                      <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                        <p className="text-gray-700 whitespace-pre-wrap">{evaluationData.remarks}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex justify-end mt-6">
+                    <button
+                      onClick={() => setShowEvaluationModal(false)}
+                      className="px-6 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-medium transition-colors"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </>
               ) : (
-                <p className="text-sm text-gray-600">No evaluation loaded.</p>
+                <div className="text-center py-8">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Interview Evaluation</h3>
+                  <p className="text-sm text-gray-600">No evaluation loaded.</p>
+                  <div className="flex justify-end mt-6">
+                    <button
+                      onClick={() => setShowEvaluationModal(false)}
+                      className="px-6 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-medium transition-colors"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
               )}
-            </div>
-            <div className="px-4 py-3 border-t bg-gray-50 flex justify-end">
-              <button
-                onClick={() => setShowEvaluationModal(false)}
-                className="px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-100"
-              >
-                Close
-              </button>
             </div>
           </div>
         </div>

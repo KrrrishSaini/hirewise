@@ -75,6 +75,8 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
   const [panelLoading, setPanelLoading] = useState(false)
   const [panelItems, setPanelItems] = useState([])
   const [panelError, setPanelError] = useState(null)
+  const [currentPanelPage, setCurrentPanelPage] = useState(1)
+  const ITEMS_PER_PAGE = 5
 
   // Evaluation modal state
   const [selectedEvaluation, setSelectedEvaluation] = useState(null)
@@ -221,9 +223,11 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
   const togglePanel = (key) => {
     if (activePanel === key) {
       setActivePanel(null)
+      setCurrentPanelPage(1)
       return
     }
     setActivePanel(key)
+    setCurrentPanelPage(1)
     fetchList(key)
   }
 
@@ -610,8 +614,15 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {panelItems.map((a) => (
-                      <tr key={a.id} className="border-b hover:bg-gray-50">
+                    {(() => {
+                      const totalPages = Math.ceil(panelItems.length / ITEMS_PER_PAGE);
+                      const startIdx = (currentPanelPage - 1) * ITEMS_PER_PAGE;
+                      const endIdx = startIdx + ITEMS_PER_PAGE;
+                      const paginatedItems = panelItems.slice(startIdx, endIdx);
+                      
+                      return paginatedItems.map((a) => {
+                        return (
+                          <tr key={a.id} className="border-b hover:bg-gray-50">
                         <td className="px-4 py-2 text-sm text-gray-900">
                           {a.title ? `${a.title} ` : ''}{`${a.first_name || ''} ${a.last_name || ''}`.trim() || 'N/A'}
                         </td>
@@ -677,9 +688,47 @@ export default function StatsCardsClient({ selectedView = 'teaching' }) {
                           </td>
                         )}
                         <td className="px-4 py-2 text-sm text-gray-500">{a.created_at ? new Date(a.created_at).toLocaleDateString() : '—'}</td>
-                      </tr>))}
+                      </tr>
+                        );
+                      });
+                    })()}
                   </tbody>
                 </table>
+                
+                {/* Pagination Controls */}
+                {panelItems.length > ITEMS_PER_PAGE && (
+                  <div className="flex items-center justify-center gap-2 mt-4 pt-4 border-t">
+                    <button
+                      onClick={() => setCurrentPanelPage(prev => Math.max(prev - 1, 1))}
+                      disabled={currentPanelPage === 1}
+                      className="px-3 py-1.5 text-xs font-medium rounded-lg border disabled:opacity-50 disabled:cursor-not-allowed bg-white hover:bg-gray-50"
+                    >
+                      ← Previous
+                    </button>
+                    <div className="flex gap-1">
+                      {Array.from({ length: Math.ceil(panelItems.length / ITEMS_PER_PAGE) }, (_, i) => i + 1).map(page => (
+                        <button
+                          key={page}
+                          onClick={() => setCurrentPanelPage(page)}
+                          className={`px-2.5 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                            currentPanelPage === page
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-white border text-gray-700 hover:bg-gray-50'
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      onClick={() => setCurrentPanelPage(prev => Math.min(prev + 1, Math.ceil(panelItems.length / ITEMS_PER_PAGE)))}
+                      disabled={currentPanelPage === Math.ceil(panelItems.length / ITEMS_PER_PAGE)}
+                      className="px-3 py-1.5 text-xs font-medium rounded-lg border disabled:opacity-50 disabled:cursor-not-allowed bg-white hover:bg-gray-50"
+                    >
+                      Next →
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>

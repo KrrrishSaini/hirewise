@@ -20,7 +20,7 @@ class GoogleCalendarService {
         try {
             const clientId = process.env.GOOGLE_CLIENT_ID;
             const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-            const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:5000/oauth2callback';
+            const redirectUri = process.env.GOOGLE_REDIRECT_URI || `http://localhost:${process.env.PORT || 5000}/oauth2callback`;
 
             console.log('🔧 Google Calendar Init - Client ID:', clientId ? clientId.substring(0, 20) + '...' : 'MISSING');
             console.log('🔧 Google Calendar Init - Client Secret:', clientSecret ? 'SET (' + clientSecret.length + ' chars)' : 'MISSING');

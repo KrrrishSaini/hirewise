@@ -516,7 +516,7 @@ export const sendEnhancedInterviewConfirmationEmail = async (
 ) => {
     if (!baseUrl) {
         baseUrl = process.env.NODE_ENV === 'production'
-            ? process.env.API_BASE_URL || 'https://hirewise-maxx-2.onrender.com'
+            ? process.env.API_BASE_URL || process.env.RENDER_EXTERNAL_URL
             : `http://localhost:${process.env.PORT || 5000}`;
     }
 

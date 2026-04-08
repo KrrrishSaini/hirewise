@@ -631,34 +631,6 @@ const AllCandidates = () => {
                     </ResponsiveContainer>
                   </div>
 
-                  {/* Publications Bar Chart */}
-                  <div className="bg-white border rounded-lg p-4 shadow-sm">
-                    <h3 className="text-sm font-bold text-gray-900 mb-2">Research Output</h3>
-                    <ResponsiveContainer width="100%" height={180}>
-                      <BarChart
-                        data={[
-                          { name: 'Scopus', count: selectedCandidate.scopus_general_papers || 0, fill: '#8b5cf6' },
-                          { name: 'Conference', count: selectedCandidate.conference_papers || 0, fill: '#3b82f6' },
-                          { name: 'Books', count: selectedCandidate.edited_books || 0, fill: '#10b981' }
-                        ]}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                        <YAxis tick={{ fontSize: 12 }} />
-                        <Tooltip />
-                        <Bar dataKey="count" radius={[8, 8, 0, 0]}>
-                          {[
-                            { name: 'Scopus', count: selectedCandidate.scopus_general_papers || 0, fill: '#8b5cf6' },
-                            { name: 'Conference', count: selectedCandidate.conference_papers || 0, fill: '#3b82f6' },
-                            { name: 'Books', count: selectedCandidate.edited_books || 0, fill: '#10b981' }
-                          ].map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.fill} />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-
                   {/* Documents */}
                   <div className="bg-white border rounded-lg p-4 shadow-sm">
                     <h3 className="text-sm font-bold text-gray-900 mb-3">Documents</h3>

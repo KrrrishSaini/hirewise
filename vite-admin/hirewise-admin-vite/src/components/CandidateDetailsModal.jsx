@@ -531,33 +531,6 @@ export default function CandidateDetailsModal({
                 </div>
 
                 <div className="bg-white border rounded-lg p-4 shadow-sm">
-                  <h3 className="text-sm font-bold text-gray-900 mb-2">Research Output</h3>
-                  <ResponsiveContainer width="100%" height={180}>
-                    <BarChart
-                      data={[
-                        { name: 'Scopus', count: candidate.scopus_general_papers || 0, fill: '#8b5cf6' },
-                        { name: 'Conference', count: candidate.conference_papers || 0, fill: '#3b82f6' },
-                        { name: 'Books', count: candidate.edited_books || 0, fill: '#10b981' },
-                      ]}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                      <YAxis tick={{ fontSize: 12 }} />
-                      <Tooltip />
-                      <Bar dataKey="count" radius={[8, 8, 0, 0]}>
-                        {[
-                          { fill: '#8b5cf6' },
-                          { fill: '#3b82f6' },
-                          { fill: '#10b981' },
-                        ].map((entry, index) => (
-                          <Cell key={`bar-${index}`} fill={entry.fill} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-
-                <div className="bg-white border rounded-lg p-4 shadow-sm">
                   <h3 className="text-sm font-bold text-gray-900 mb-3">Documents</h3>
                   <div className="grid grid-cols-2 gap-2">
                     <div className="bg-gray-50 rounded p-2">

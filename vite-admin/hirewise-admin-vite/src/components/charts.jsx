@@ -198,10 +198,11 @@ export default function AnalyticsDashboard({ selectedView = 'teaching' }) {
     outerRadius,
     percent,
     index,
-    name
+    name,
+    fill
   }) => {
     const RADIAN = Math.PI / 180;
-    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+    const radius = outerRadius + 55;
     const x = cx + radius * Math.cos(-midAngle * RADIAN);
     const y = cy + radius * Math.sin(-midAngle * RADIAN);
 
@@ -209,10 +210,10 @@ export default function AnalyticsDashboard({ selectedView = 'teaching' }) {
       <text
         x={x}
         y={y}
-        fill="white"
+        fill={fill}
         textAnchor="middle"
         dominantBaseline="central"
-        className="text-xs font-medium"
+        className="text-lg font-bold"
       >
         {`${name} ${(percent * 100).toFixed(0)}%`}
       </text>
@@ -229,27 +230,29 @@ export default function AnalyticsDashboard({ selectedView = 'teaching' }) {
 
   return (
     <div className="flex flex-col lg:flex-row gap-4 px-6 pb-4">
-      {/* Gender Pie Chart (30%) */}
+      {/* Gender Semi-Circle Chart (30%) */}
       <div className="w-full lg:w-[30%] bg-white rounded-lg shadow-sm p-2 border border-gray-200 border-opacity-60">
         <h2 className="text-lg font-semibold text-gray-900 mb-2 flex items-center">
           <User className="h-5 w-5 mr-2" />
           Gender Distribution
         </h2>
-        <div className="h-48">
+        <div className="h-64">
           {genderData.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
-              <PieChart margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+              <PieChart margin={{ top: 20, right: 50, left: 50, bottom: 0 }}>
                 <Pie
                   data={genderData}
                   cx="50%"
-                  cy="50%"
+                  cy="85%"
                   labelLine={false}
                   label={renderCustomizedLabel}
-                  outerRadius={80}
-                  innerRadius={40}
+                  outerRadius={130}
+                  innerRadius={66}
                   paddingAngle={2}
                   dataKey="value"
                   animationDuration={1000}
+                  startAngle={180}
+                  endAngle={0}
                 >
                   {genderData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} stroke="#fff" strokeWidth={2} />
@@ -263,13 +266,6 @@ export default function AnalyticsDashboard({ selectedView = 'teaching' }) {
                     borderRadius: '0.375rem',
                     padding: '8px 12px'
                   }}
-                />
-                <Legend 
-                  iconType="circle"
-                  layout="horizontal"
-                  verticalAlign="bottom"
-                  align="center"
-                  wrapperStyle={{ paddingTop: '10px' }}
                 />
               </PieChart>
             </ResponsiveContainer>
@@ -307,56 +303,58 @@ export default function AnalyticsDashboard({ selectedView = 'teaching' }) {
 </div>
 
       {/* Department Bar Chart (40%) */}
-      <div className="w-full lg:w-[40%] bg-white rounded-lg shadow-sm p-2 border border-gray-200 border-opacity-60">
+      <div className="w-full lg:w-[40%] bg-white rounded-lg shadow-sm p-2 border border-gray-200 border-opacity-60 flex flex-col">
         <h2 className="text-lg font-semibold text-gray-900 mb-2 flex items-center">
           <Building className="h-5 w-5 mr-2" />
           Applications by Department
         </h2>
-        <div className="h-48">
+        <div className="flex-1 min-h-[192px] flex items-end">
           {departmentData.length > 0 ? (
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart 
-                data={departmentData}
-                margin={{ top: 5, right: 5, left: 0, bottom: 5 }}
-              >
-                <XAxis 
-                  dataKey="name" 
-                  tick={{ fontSize: 12 }}
-                  axisLine={{ stroke: '#e5e7eb' }}
-                  tickLine={{ stroke: '#e5e7eb' }}
-                />
-                <YAxis 
-                  tick={{ fontSize: 12 }}
-                  axisLine={{ stroke: '#e5e7eb' }}
-                  tickLine={{ stroke: '#e5e7eb' }}
-                />
-                <Tooltip 
-                  cursor={{ fill: 'rgba(0,0,0,0.05)' }}
-                  contentStyle={{
-                    backgroundColor: '#fff',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '0.375rem',
-                    padding: '8px 12px'
-                  }}
-                  formatter={(value) => [`${value} applications`, '']}
-                  labelFormatter={(label) => `Department: ${label}`}
-                />
-                <Bar 
-                  dataKey="applications" 
-                  radius={[8, 8, 0, 0]}
-                  animationDuration={1500}
+            <div className="w-full h-48">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart 
+                  data={departmentData}
+                  margin={{ top: 15, right: 5, left: 0, bottom: 0 }}
                 >
-                  {departmentData.map((entry, index) => (
-                    <Cell 
-                      key={`cell-${index}`} 
-                      fill={entry.color} 
-                      stroke="#fff"
-                      strokeWidth={1}
-                    />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+                  <XAxis 
+                    dataKey="name" 
+                    tick={{ fontSize: 12 }}
+                    axisLine={{ stroke: '#e5e7eb' }}
+                    tickLine={{ stroke: '#e5e7eb' }}
+                  />
+                  <YAxis 
+                    tick={{ fontSize: 12 }}
+                    axisLine={{ stroke: '#e5e7eb' }}
+                    tickLine={{ stroke: '#e5e7eb' }}
+                  />
+                  <Tooltip 
+                    cursor={{ fill: 'rgba(0,0,0,0.05)' }}
+                    contentStyle={{
+                      backgroundColor: '#fff',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '0.375rem',
+                      padding: '8px 12px'
+                    }}
+                    formatter={(value) => [`${value} applications`, '']}
+                    labelFormatter={(label) => `Department: ${label}`}
+                  />
+                  <Bar 
+                    dataKey="applications" 
+                    radius={[8, 8, 0, 0]}
+                    animationDuration={1500}
+                  >
+                    {departmentData.map((entry, index) => (
+                      <Cell 
+                        key={`cell-${index}`} 
+                        fill={entry.color} 
+                        stroke="#fff"
+                        strokeWidth={1}
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           ) : (
             <p className="text-sm text-gray-500">No department data available.</p>
           )}

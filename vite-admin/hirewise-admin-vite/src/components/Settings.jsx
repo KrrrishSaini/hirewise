@@ -33,10 +33,13 @@ const Settings = () => {
     maxUploadSize: 10,
     requiredDocuments: true
   });
+  const [applicationSettingsSaving, setApplicationSettingsSaving] = useState(false);
+  const APPLICATION_SETTINGS_STORAGE_KEY = 'hirewise:applicationSettings';
 
   // Load profile on mount
   useEffect(() => {
     loadProfile();
+    loadApplicationSettings();
   }, []);
 
   const getAuthToken = () => {
@@ -108,6 +111,46 @@ const Settings = () => {
       ...prev,
       [setting]: !prev[setting]
     }));
+  };
+
+  const loadApplicationSettings = () => {
+    try {
+      const raw = localStorage.getItem(APPLICATION_SETTINGS_STORAGE_KEY);
+      if (!raw) return;
+
+      const parsed = JSON.parse(raw);
+      setApplicationSettings((prev) => ({
+        ...prev,
+        multipleApplications: Boolean(parsed.multipleApplications),
+        deadlineType: parsed.deadlineType === 'per_post' ? 'per_post' : 'global',
+        globalDeadline: parsed.globalDeadline || prev.globalDeadline,
+        maxUploadSize: Number.isFinite(Number(parsed.maxUploadSize)) ? Number(parsed.maxUploadSize) : prev.maxUploadSize,
+        requiredDocuments: parsed.requiredDocuments !== undefined ? Boolean(parsed.requiredDocuments) : prev.requiredDocuments
+      }));
+    } catch (err) {
+      console.error('Failed to load application settings:', err);
+    }
+  };
+
+  const handleSaveApplicationSettings = async () => {
+    setApplicationSettingsSaving(true);
+    setMessage({ text: '', type: '' });
+
+    try {
+      const normalized = {
+        ...applicationSettings,
+        maxUploadSize: Math.max(1, Math.min(100, Number(applicationSettings.maxUploadSize) || 10)),
+      };
+
+      localStorage.setItem(APPLICATION_SETTINGS_STORAGE_KEY, JSON.stringify(normalized));
+      setApplicationSettings(normalized);
+      setMessage({ text: 'Application settings saved successfully!', type: 'success' });
+    } catch (err) {
+      console.error('Failed to save application settings:', err);
+      setMessage({ text: 'Failed to save application settings', type: 'error' });
+    } finally {
+      setApplicationSettingsSaving(false);
+    }
   };
 
   const handleUpdateProfile = async () => {
@@ -515,7 +558,7 @@ const Settings = () => {
                     min="1"
                     max="100"
                     value={applicationSettings.maxUploadSize}
-                    onChange={(e) => handleApplicationSettingChange('maxUploadSize', parseInt(e.target.value))}
+                    onChange={(e) => handleApplicationSettingChange('maxUploadSize', e.target.value)}
                     className="w-full p-4 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-green-500 focus:ring-4 focus:ring-green-100 transition-all"
                   />
                 </div>
@@ -533,10 +576,11 @@ const Settings = () => {
               
               <div className="pt-4">
                 <button 
-                  onClick={() => console.log('Saving application settings:', applicationSettings)}
-                  className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-8 py-4 rounded-xl font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+                  onClick={handleSaveApplicationSettings}
+                  disabled={applicationSettingsSaving}
+                  className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-8 py-4 rounded-xl font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Save Application Settings
+                  {applicationSettingsSaving ? 'Saving...' : 'Save Application Settings'}
                 </button>
               </div>
             </div>
