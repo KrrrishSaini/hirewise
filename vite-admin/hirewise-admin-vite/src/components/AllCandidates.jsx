@@ -5,6 +5,7 @@ import { toArrayPayload } from '../lib/normalize';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Star } from 'lucide-react';
 import CVParsingSection from './CVParsingSection';
+import EvaluationRemarksBlock from './EvaluationRemarksBlock';
 
 const COMMITTEES = [
   { code: 'soet', name: 'SOET Committee' },
@@ -1134,44 +1135,43 @@ const AllCandidates = () => {
                   ))}
                 </select>
               </div>
-            </div>
-          </div>
-          <div className="mt-4 flex items-center gap-2 overflow-x-auto whitespace-nowrap pb-1">
-            {PIPELINE_STAGES.map((stage) => (
+              <div className="flex flex-col">
+                <label className="text-sm font-medium text-gray-700 mb-1">Select Stage</label>
+                <select
+                  value={selectedStage}
+                  onChange={(e) => handleStageChange(e.target.value)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white min-w-[190px]"
+                >
+                  {PIPELINE_STAGES.map((stage) => (
+                    <option key={stage.key} value={stage.key}>
+                      {stage.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <button
-                key={stage.key}
-                onClick={() => handleStageChange(stage.key)}
-                className={`shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                  selectedStage === stage.key
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
+                type="button"
+                onClick={() => setShowFilters((s) => !s)}
+                className="self-end inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-100"
               >
-                {stage.label}
+                <span>{showFilters ? 'Hide Filters' : 'Filters'}</span>
+                {activeFilterCount > 0 && (
+                  <>
+                    <span className="h-4 w-px bg-gray-300" />
+                    <span
+                      role="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        resetFilters();
+                      }}
+                      className="text-xs font-semibold text-indigo-600 hover:text-indigo-700"
+                    >
+                      Clear
+                    </span>
+                  </>
+                )}
               </button>
-            ))}
-            <button
-              type="button"
-              onClick={() => setShowFilters((s) => !s)}
-              className="ml-2 shrink-0 inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-100"
-            >
-              <span>{showFilters ? 'Hide Filters' : 'Filters'}</span>
-              {activeFilterCount > 0 && (
-                <>
-                  <span className="h-4 w-px bg-gray-300" />
-                  <span
-                    role="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      resetFilters();
-                    }}
-                    className="text-xs font-semibold text-indigo-600 hover:text-indigo-700"
-                  >
-                    Clear
-                  </span>
-                </>
-              )}
-            </button>
+            </div>
           </div>
 
           {showFilters && (
@@ -2035,7 +2035,7 @@ const AllCandidates = () => {
 
       {showEvaluationModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70] p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               {evaluationLoading ? (
                 <div className="flex items-center justify-center py-10">
@@ -2115,9 +2115,7 @@ const AllCandidates = () => {
                   {evaluationData.remarks && (
                     <div className="mb-4">
                       <h3 className="font-semibold text-gray-700 mb-2">Remarks</h3>
-                      <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                        <p className="text-gray-700 whitespace-pre-wrap">{evaluationData.remarks}</p>
-                      </div>
+                      <EvaluationRemarksBlock remarks={evaluationData.remarks} />
                     </div>
                   )}
 

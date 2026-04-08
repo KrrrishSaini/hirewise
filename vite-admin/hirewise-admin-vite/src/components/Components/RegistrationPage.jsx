@@ -600,7 +600,7 @@ const RegistrationPage = ({ onRegistrationSuccess, onLoginSuccess }) => {
       <footer className="figma-footer">
         <div className="figma-footer-content">
           <img src="/image%202.png" alt="BML Munjal University" className="figma-footer-logo" />
-          <span className="figma-footer-text">© 2024 BML Munjal University. All rights reserved.</span>
+          <span className="figma-footer-text">© 2026 BML Munjal University. All rights reserved.</span>
           <div className="figma-footer-links">
             <a href="#">Privacy Policy</a>
             <a href="#">Contact Us</a>

@@ -202,18 +202,36 @@ export default function AnalyticsDashboard({ selectedView = 'teaching' }) {
     fill
   }) => {
     const RADIAN = Math.PI / 180;
-    const radius = outerRadius + 55;
+    // Keep labels closer to arc to avoid clipping and improve association.
+    const radius = outerRadius + 28;
     const x = cx + radius * Math.cos(-midAngle * RADIAN);
     const y = cy + radius * Math.sin(-midAngle * RADIAN);
+    const isFemale = String(name).toLowerCase() === 'female';
+
+    // Default position (male/others)
+    let labelX = x;
+    let labelY = y;
+    let textAnchor = x > cx ? 'end' : 'start';
+
+    // Force female label below-right of the semicircle so it never overlaps pink arc.
+    if (isFemale) {
+      labelX = cx + outerRadius * 0.9;
+      labelY = cy + 18;
+      textAnchor = 'start';
+    }
+
+    // Dynamic inverse sizing as requested:
+    // when chart gets larger, label font gets smaller; when smaller, label font gets bigger.
+    const dynamicFontSize = Math.max(12, Math.min(22, Math.round(2200 / Math.max(outerRadius || 130, 1))));
 
     return (
       <text
-        x={x}
-        y={y}
+        x={labelX}
+        y={labelY}
         fill={fill}
-        textAnchor="middle"
+        textAnchor={textAnchor}
         dominantBaseline="central"
-        className="text-lg font-bold"
+        style={{ fontSize: `${dynamicFontSize}px`, fontWeight: 700 }}
       >
         {`${name} ${(percent * 100).toFixed(0)}%`}
       </text>
@@ -239,10 +257,10 @@ export default function AnalyticsDashboard({ selectedView = 'teaching' }) {
         <div className="h-64">
           {genderData.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
-              <PieChart margin={{ top: 20, right: 50, left: 50, bottom: 0 }}>
+              <PieChart margin={{ top: 20, right: 26, left: 34, bottom: 0 }}>
                 <Pie
                   data={genderData}
-                  cx="50%"
+                  cx="44%"
                   cy="85%"
                   labelLine={false}
                   label={renderCustomizedLabel}

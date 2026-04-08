@@ -33,7 +33,7 @@ This guide will help you set up Google Calendar API credentials for automated in
    - Application type: **Web application**
    - Name: HireWise Backend
    - Authorized redirect URIs:
-     - `http://localhost:5001/oauth2callback`
+   - `http://localhost:5000/oauth2callback`
      - `https://hirewise-maxx-2.onrender.com/oauth2callback`
    - Click "Create"
 
@@ -47,19 +47,19 @@ This guide will help you set up Google Calendar API credentials for automated in
 ```env
 GOOGLE_CLIENT_ID=your_client_id_here
 GOOGLE_CLIENT_SECRET=your_client_secret_here
-GOOGLE_REDIRECT_URI=http://localhost:5001/oauth2callback
+GOOGLE_REDIRECT_URI=http://localhost:5000/oauth2callback
 GOOGLE_CALENDAR_EMAIL=hirewisebmu8@gmail.com
 ```
 
 2. Start your server:
 ```bash
 cd server
-PORT=5001 npm start
+PORT=5000 npm start
 ```
 
 3. Visit in browser:
 ```
-http://localhost:5001/api/google/auth
+http://localhost:5000/api/google/auth
 ```
 
 4. Sign in with `hirewisebmu8@gmail.com`
@@ -91,7 +91,7 @@ Your final `.env` should have:
 # Google Calendar API
 GOOGLE_CLIENT_ID=123456789-abcdefg.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=GOCSPX-abc123xyz
-GOOGLE_REDIRECT_URI=http://localhost:5001/oauth2callback
+GOOGLE_REDIRECT_URI=http://localhost:5000/oauth2callback
 GOOGLE_REFRESH_TOKEN=1//abc123xyz...
 GOOGLE_CALENDAR_EMAIL=hirewisebmu8@gmail.com
 ```

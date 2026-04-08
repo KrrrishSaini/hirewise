@@ -5,6 +5,7 @@ import { candidatesApi } from '../../lib/api';
 import { toArrayPayload } from '../../lib/normalize';
 import { supabase } from '../../../lib/supabase-client';
 import CandidateDetailsModal from '../CandidateDetailsModal';
+import EvaluationRemarksBlock from '../EvaluationRemarksBlock';
 
 // Committee Dashboard - Evaluation System
 const FacultyDashboard = () => {
@@ -993,8 +994,8 @@ const FacultyDashboard = () => {
       </div>
 
       {cvPreviewCandidate && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-5xl max-h-[95vh] overflow-hidden flex flex-col">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-1">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-7xl max-h-[99vh] overflow-hidden flex flex-col">
             <div className="flex items-center justify-between p-4 border-b bg-gradient-to-r from-blue-50 to-indigo-50">
               <div>
                 <h2 className="text-lg font-bold text-gray-900">CV Preview</h2>
@@ -1032,7 +1033,7 @@ const FacultyDashboard = () => {
                 <iframe
                   title="CV Preview"
                   src={cvPreviewUrl}
-                  className="w-full h-full min-h-[70vh]"
+                  className="w-full h-full min-h-[85vh]"
                 />
               ) : (
                 <div className="flex items-center justify-center h-full">
@@ -1054,7 +1055,7 @@ const FacultyDashboard = () => {
 
       {showEvaluationModal && candidateEvaluation && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               {/* Header */}
               <div className="flex justify-between items-start mb-6">
@@ -1132,9 +1133,7 @@ const FacultyDashboard = () => {
               {candidateEvaluation.remarks && (
                 <div className="mb-4">
                   <h3 className="font-semibold text-gray-700 mb-2">Remarks</h3>
-                  <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                    <p className="text-gray-700 whitespace-pre-wrap">{candidateEvaluation.remarks}</p>
-                  </div>
+                  <EvaluationRemarksBlock remarks={candidateEvaluation.remarks} />
                 </div>
               )}
 

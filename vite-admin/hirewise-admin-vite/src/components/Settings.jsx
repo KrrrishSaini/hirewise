@@ -428,7 +428,8 @@ const Settings = () => {
           </div>
         </div>
 
-        {/* System Settings */}
+        {/* System Settings hidden from frontend as requested */}
+        {false && (
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
           <div className="bg-gradient-to-r from-purple-600 to-purple-700 px-8 py-6">
             <div className="flex items-center space-x-3">
@@ -488,104 +489,107 @@ const Settings = () => {
             </div>
           </div>
         </div>
+        )}
 
-        {/* Application Settings */}
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
-          <div className="bg-gradient-to-r from-green-600 to-green-700 px-8 py-6">
-            <div className="flex items-center space-x-3">
-              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              <h2 className="text-2xl font-bold text-white">Application Settings</h2>
-            </div>
-          </div>
-          
-          <div className="p-8">
-            <div className="space-y-8">
-              <Toggle
-                checked={applicationSettings.multipleApplications}
-                onChange={() => handleApplicationSettingToggle('multipleApplications')}
-                label="Allow Multiple Applications per User"
-              />
-
-              <div className="bg-gray-50 rounded-xl p-6 border-2 border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">Application Deadline</h3>
-                <div className="space-y-4">
-                  <label className="flex items-center p-3 bg-white rounded-lg border-2 border-gray-200 hover:border-green-300 cursor-pointer transition-colors">
-                    <input
-                      type="radio"
-                      name="deadlineType"
-                      value="global"
-                      checked={applicationSettings.deadlineType === 'global'}
-                      onChange={(e) => handleApplicationSettingChange('deadlineType', e.target.value)}
-                      className="w-4 h-4 text-green-600 mr-3"
-                    />
-                    <span className="text-gray-700 font-medium">Set Global Date</span>
-                  </label>
-                  
-                  <label className="flex items-center p-3 bg-white rounded-lg border-2 border-gray-200 hover:border-green-300 cursor-pointer transition-colors">
-                    <input
-                      type="radio"
-                      name="deadlineType"
-                      value="per_post"
-                      checked={applicationSettings.deadlineType === 'per_post'}
-                      onChange={(e) => handleApplicationSettingChange('deadlineType', e.target.value)}
-                      className="w-4 h-4 text-green-600 mr-3"
-                    />
-                    <span className="text-gray-700 font-medium">Per Post</span>
-                  </label>
-                  
-                  {applicationSettings.deadlineType === 'global' && (
-                    <div className="mt-4">
-                      <input
-                        type="date"
-                        value={applicationSettings.globalDeadline}
-                        onChange={(e) => handleApplicationSettingChange('globalDeadline', e.target.value)}
-                        className="w-full p-4 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-green-500 focus:ring-4 focus:ring-green-100 transition-all"
-                      />
-                    </div>
-                  )}
-                </div>
+        {/* Application Settings hidden from frontend as requested */}
+        {false && (
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+            <div className="bg-gradient-to-r from-green-600 to-green-700 px-8 py-6">
+              <div className="flex items-center space-x-3">
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <h2 className="text-2xl font-bold text-white">Application Settings</h2>
               </div>
+            </div>
+            
+            <div className="p-8">
+              <div className="space-y-8">
+                <Toggle
+                  checked={applicationSettings.multipleApplications}
+                  onChange={() => handleApplicationSettingToggle('multipleApplications')}
+                  label="Allow Multiple Applications per User"
+                />
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Max Upload Size (MB)
-                  </label>
-                  <input 
-                    type="number" 
-                    min="1"
-                    max="100"
-                    value={applicationSettings.maxUploadSize}
-                    onChange={(e) => handleApplicationSettingChange('maxUploadSize', e.target.value)}
-                    className="w-full p-4 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-green-500 focus:ring-4 focus:ring-green-100 transition-all"
-                  />
-                </div>
-                
-                <div className="flex items-end">
-                  <div className="w-full">
-                    <Toggle
-                      checked={applicationSettings.requiredDocuments}
-                      onChange={() => handleApplicationSettingToggle('requiredDocuments')}
-                      label="Required Documents Toggle"
-                    />
+                <div className="bg-gray-50 rounded-xl p-6 border-2 border-gray-200">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-4">Application Deadline</h3>
+                  <div className="space-y-4">
+                    <label className="flex items-center p-3 bg-white rounded-lg border-2 border-gray-200 hover:border-green-300 cursor-pointer transition-colors">
+                      <input
+                        type="radio"
+                        name="deadlineType"
+                        value="global"
+                        checked={applicationSettings.deadlineType === 'global'}
+                        onChange={(e) => handleApplicationSettingChange('deadlineType', e.target.value)}
+                        className="w-4 h-4 text-green-600 mr-3"
+                      />
+                      <span className="text-gray-700 font-medium">Set Global Date</span>
+                    </label>
+                    
+                    <label className="flex items-center p-3 bg-white rounded-lg border-2 border-gray-200 hover:border-green-300 cursor-pointer transition-colors">
+                      <input
+                        type="radio"
+                        name="deadlineType"
+                        value="per_post"
+                        checked={applicationSettings.deadlineType === 'per_post'}
+                        onChange={(e) => handleApplicationSettingChange('deadlineType', e.target.value)}
+                        className="w-4 h-4 text-green-600 mr-3"
+                      />
+                      <span className="text-gray-700 font-medium">Per Post</span>
+                    </label>
+                    
+                    {applicationSettings.deadlineType === 'global' && (
+                      <div className="mt-4">
+                        <input
+                          type="date"
+                          value={applicationSettings.globalDeadline}
+                          onChange={(e) => handleApplicationSettingChange('globalDeadline', e.target.value)}
+                          className="w-full p-4 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-green-500 focus:ring-4 focus:ring-green-100 transition-all"
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
-              </div>
-              
-              <div className="pt-4">
-                <button 
-                  onClick={handleSaveApplicationSettings}
-                  disabled={applicationSettingsSaving}
-                  className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-8 py-4 rounded-xl font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {applicationSettingsSaving ? 'Saving...' : 'Save Application Settings'}
-                </button>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Max Upload Size (MB)
+                    </label>
+                    <input 
+                      type="number" 
+                      min="1"
+                      max="100"
+                      value={applicationSettings.maxUploadSize}
+                      onChange={(e) => handleApplicationSettingChange('maxUploadSize', e.target.value)}
+                      className="w-full p-4 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-green-500 focus:ring-4 focus:ring-green-100 transition-all"
+                    />
+                  </div>
+                  
+                  <div className="flex items-end">
+                    <div className="w-full">
+                      <Toggle
+                        checked={applicationSettings.requiredDocuments}
+                        onChange={() => handleApplicationSettingToggle('requiredDocuments')}
+                        label="Required Documents Toggle"
+                      />
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="pt-4">
+                  <button 
+                    onClick={handleSaveApplicationSettings}
+                    disabled={applicationSettingsSaving}
+                    className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-8 py-4 rounded-xl font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {applicationSettingsSaving ? 'Saving...' : 'Save Application Settings'}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Department and Position Management */}
         <DepartmentPositionManagement />

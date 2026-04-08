@@ -141,7 +141,7 @@ const AdminLayout = () => {
               <Menu className="h-6 w-6" />
             </button>
             
-            <div className="flex items-center space-x-4">
+            <div className="ml-auto flex items-center space-x-4">
               <div 
                 className="relative cursor-pointer"
                 onClick={() => navigate('/admin/notifications')}
