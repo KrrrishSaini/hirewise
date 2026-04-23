@@ -1,5 +1,5 @@
 import { X } from 'lucide-react';
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { supabase } from '../../lib/supabase-client';
 import CVParsingSection from './CVParsingSection';
 
@@ -480,6 +480,12 @@ export default function CandidateDetailsModal({
               </div>
 
               <div className="space-y-4">
+                {/* CV Parsing Section */}
+                <CVParsingSection 
+                  candidateId={candidate.id} 
+                  isOpen={isOpen}
+                />
+
                 <div className="bg-gradient-to-br from-purple-50 to-indigo-100 border-2 border-indigo-200 rounded-lg p-4 shadow-lg">
                   <h3 className="text-lg font-bold text-gray-900 mb-3 text-center">Research Metrics</h3>
                   <div className="grid grid-cols-3 gap-3">
@@ -499,34 +505,29 @@ export default function CandidateDetailsModal({
                 </div>
 
                 <div className="bg-white border rounded-lg p-4 shadow-sm">
-                  <h3 className="text-sm font-bold text-gray-900 mb-2">Publications Distribution</h3>
-                  <ResponsiveContainer width="100%" height={200}>
-                    <PieChart>
-                      <Pie
-                        data={[
-                          { name: 'Scopus Papers', value: candidate.scopus_general_papers || 0, color: '#8b5cf6' },
-                          { name: 'Conference Papers', value: candidate.conference_papers || 0, color: '#3b82f6' },
-                          { name: 'Edited Books', value: candidate.edited_books || 0, color: '#10b981' },
-                        ].filter((item) => item.value > 0)}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ name, value }) => `${name}: ${value}`}
-                        outerRadius={70}
-                        dataKey="value"
-                      >
-                        {[
-                          { name: 'Scopus Papers', value: candidate.scopus_general_papers || 0, color: '#8b5cf6' },
-                          { name: 'Conference Papers', value: candidate.conference_papers || 0, color: '#3b82f6' },
-                          { name: 'Edited Books', value: candidate.edited_books || 0, color: '#10b981' },
-                        ]
-                          .filter((item) => item.value > 0)
-                          .map((entry, index) => (
-                            <Cell key={`pie-${index}`} fill={entry.color} />
-                          ))}
-                      </Pie>
+                  <h3 className="text-sm font-bold text-gray-900 mb-2">Research Output</h3>
+                  <ResponsiveContainer width="100%" height={180}>
+                    <BarChart
+                      data={[
+                        { name: 'Scopus', count: candidate.scopus_general_papers || 0, fill: '#8b5cf6' },
+                        { name: 'Conference', count: candidate.conference_papers || 0, fill: '#3b82f6' },
+                        { name: 'Books', count: candidate.edited_books || 0, fill: '#10b981' },
+                      ]}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                      <YAxis tick={{ fontSize: 12 }} />
                       <Tooltip />
-                    </PieChart>
+                      <Bar dataKey="count" radius={[8, 8, 0, 0]}>
+                        {[
+                          { fill: '#8b5cf6' },
+                          { fill: '#3b82f6' },
+                          { fill: '#10b981' },
+                        ].map((entry, index) => (
+                          <Cell key={`bar-${index}`} fill={entry.fill} />
+                        ))}
+                      </Bar>
+                    </BarChart>
                   </ResponsiveContainer>
                 </div>
 
@@ -576,11 +577,6 @@ export default function CandidateDetailsModal({
                   </div>
                 </div>
 
-                {/* CV Parsing Section */}
-                <CVParsingSection 
-                  candidateId={candidate.id} 
-                  isOpen={isOpen}
-                />
               </div>
             </div>
           )}

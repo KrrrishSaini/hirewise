@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase-client';
 import { candidatesApi } from '../lib/api';
 import { toArrayPayload } from '../lib/normalize';
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Star } from 'lucide-react';
 import CVParsingSection from './CVParsingSection';
 import EvaluationRemarksBlock from './EvaluationRemarksBlock';
@@ -1892,6 +1892,11 @@ const AllCandidates = () => {
 
                 {/* Right Side - Visual Analytics */}
                 <div className="space-y-4">
+                  <CVParsingSection
+                    candidateId={selectedCandidate.id}
+                    isOpen={Boolean(selectedCandidate?.id)}
+                  />
+
                   {/* Research Metrics Overview */}
                   <div className="bg-gradient-to-br from-purple-50 to-indigo-100 border-2 border-indigo-200 rounded-lg p-4 shadow-lg">
                     <h3 className="text-lg font-bold text-gray-900 mb-3 text-center">Research Metrics</h3>
@@ -1911,35 +1916,31 @@ const AllCandidates = () => {
                     </div>
                   </div>
 
-                  {/* Publications Distribution Pie Chart */}
+                  {/* Publications Bar Chart */}
                   <div className="bg-white border rounded-lg p-4 shadow-sm">
-                    <h3 className="text-sm font-bold text-gray-900 mb-2">Publications Distribution</h3>
-                    <ResponsiveContainer width="100%" height={200}>
-                      <PieChart>
-                        <Pie
-                          data={[
-                            { name: 'Scopus Papers', value: selectedCandidate.scopus_general_papers || 0, color: '#8b5cf6' },
-                            { name: 'Conference Papers', value: selectedCandidate.conference_papers || 0, color: '#3b82f6' },
-                            { name: 'Edited Books', value: selectedCandidate.edited_books || 0, color: '#10b981' }
-                          ].filter(item => item.value > 0)}
-                          cx="50%"
-                          cy="50%"
-                          labelLine={false}
-                          label={({ name, value }) => `${name}: ${value}`}
-                          outerRadius={70}
-                          fill="#8884d8"
-                          dataKey="value"
-                        >
-                          {[
-                            { name: 'Scopus Papers', value: selectedCandidate.scopus_general_papers || 0, color: '#8b5cf6' },
-                            { name: 'Conference Papers', value: selectedCandidate.conference_papers || 0, color: '#3b82f6' },
-                            { name: 'Edited Books', value: selectedCandidate.edited_books || 0, color: '#10b981' }
-                          ].filter(item => item.value > 0).map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
-                          ))}
-                        </Pie>
+                    <h3 className="text-sm font-bold text-gray-900 mb-2">Research Output</h3>
+                    <ResponsiveContainer width="100%" height={180}>
+                      <BarChart
+                        data={[
+                          { name: 'Scopus', count: selectedCandidate.scopus_general_papers || 0, fill: '#8b5cf6' },
+                          { name: 'Conference', count: selectedCandidate.conference_papers || 0, fill: '#3b82f6' },
+                          { name: 'Books', count: selectedCandidate.edited_books || 0, fill: '#10b981' }
+                        ]}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                        <YAxis tick={{ fontSize: 12 }} />
                         <Tooltip />
-                      </PieChart>
+                        <Bar dataKey="count" radius={[8, 8, 0, 0]}>
+                          {[
+                            { name: 'Scopus', count: selectedCandidate.scopus_general_papers || 0, fill: '#8b5cf6' },
+                            { name: 'Conference', count: selectedCandidate.conference_papers || 0, fill: '#3b82f6' },
+                            { name: 'Books', count: selectedCandidate.edited_books || 0, fill: '#10b981' }
+                          ].map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.fill} />
+                          ))}
+                        </Bar>
+                      </BarChart>
                     </ResponsiveContainer>
                   </div>
 
@@ -2009,11 +2010,6 @@ const AllCandidates = () => {
                       </div>
                     </div>
                   </div>
-
-                  <CVParsingSection
-                    candidateId={selectedCandidate.id}
-                    isOpen={Boolean(selectedCandidate?.id)}
-                  />
 
                 </div>
               </div>
