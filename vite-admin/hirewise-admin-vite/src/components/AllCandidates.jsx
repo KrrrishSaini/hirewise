@@ -1430,6 +1430,7 @@ const AllCandidates = () => {
 
                 {paginatedCandidates.map((candidate, index) => {
                   const globalIndex = startIndex + index; // Calculate global position
+                  const assignableType = getAssignableType(candidate.status);
                   return (
                     <div
                     key={candidate.id}
@@ -1474,7 +1475,7 @@ const AllCandidates = () => {
                       >
                         View Details
                       </button>
-                      {(candidate.status || 'submitted') === 'submitted' && (
+                      {assignableType === 'cv' && (
                         <button
                           onClick={() => {
                             setCandidateToAssign(candidate);
@@ -1487,7 +1488,7 @@ const AllCandidates = () => {
                           Assign Committee
                         </button>
                       )}
-                      {(candidate.status || 'submitted') === 'cv_shortlisted' && (
+                      {assignableType === 'interview' && (
                         <button
                           onClick={() => {
                             setCandidateToAssign(candidate);
@@ -1500,12 +1501,12 @@ const AllCandidates = () => {
                           Assign Interview
                         </button>
                       )}
-                      {['cv_assigned', 'interview_assigned'].includes(candidate.status) && (
+                      {!assignableType && (
                         <button
                           disabled
                           className="bg-gray-400 text-white px-4 py-2 rounded-lg cursor-not-allowed text-xs font-semibold"
                         >
-                          Assigned
+                          Completed
                         </button>
                       )}
                     </div>
