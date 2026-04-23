@@ -1,5 +1,6 @@
 import express from 'express';
 import supabase from '../config/db.js';
+import recommendationService from '../services/recommendationService.js';
 
 const router = express.Router();
 
@@ -449,22 +450,32 @@ router.get('/positions', async (req, res) => {
 router.post('/positions', async (req, res) => {
   try {
     const { name, type, department_id, branch_id } = req.body;
+    const normalizedType = type?.toUpperCase();
     
     if (!name || !type) {
       return res.status(400).json({ error: 'Name and type are required' });
     }
     
-    if (!['TEACHING', 'NON_TEACHING'].includes(type.toUpperCase())) {
+    if (!['TEACHING', 'NON_TEACHING'].includes(normalizedType)) {
       return res.status(400).json({ error: 'Type must be TEACHING or NON_TEACHING' });
+    }
+
+    if (!department_id) {
+      return res.status(400).json({ error: 'Department is required' });
     }
     
     // For NON_TEACHING, department_id is required
-    if (type.toUpperCase() === 'NON_TEACHING' && !department_id) {
-      return res.status(400).json({ error: 'Department is required for non-teaching positions' });
+    if (normalizedType === 'NON_TEACHING' && branch_id) {
+      return res.status(400).json({ error: 'Branch is not applicable for non-teaching positions' });
+    }
+
+    // For TEACHING, branch_id is mandatory
+    if (normalizedType === 'TEACHING' && !branch_id) {
+      return res.status(400).json({ error: 'Branch is required for teaching positions' });
     }
     
     // For TEACHING with branch_id, verify the branch belongs to the department
-    if (branch_id && department_id) {
+    if (normalizedType === 'TEACHING' && branch_id && department_id) {
       const { data: branch, error: branchError } = await supabase
         .from('branches')
         .select('department_id')
@@ -480,9 +491,9 @@ router.post('/positions', async (req, res) => {
       .from('positions')
       .insert([{
         name,
-        type: type.toUpperCase(),
-        department_id: department_id || null,
-        branch_id: branch_id || null,
+        type: normalizedType,
+        department_id,
+        branch_id: normalizedType === 'TEACHING' ? branch_id : null,
         status: 'ACTIVE'
       }])
       .select()
@@ -505,12 +516,13 @@ router.put('/positions/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { name, type, department_id, branch_id, status } = req.body;
+    const normalizedType = type?.toUpperCase();
     
     if (!name || !type) {
       return res.status(400).json({ error: 'Name and type are required' });
     }
     
-    if (!['TEACHING', 'NON_TEACHING'].includes(type.toUpperCase())) {
+    if (!['TEACHING', 'NON_TEACHING'].includes(normalizedType)) {
       return res.status(400).json({ error: 'Type must be TEACHING or NON_TEACHING' });
     }
     
@@ -518,13 +530,20 @@ router.put('/positions/:id', async (req, res) => {
       return res.status(400).json({ error: 'Status must be ACTIVE or INACTIVE' });
     }
     
-    // For NON_TEACHING, department_id is required
-    if (type.toUpperCase() === 'NON_TEACHING' && !department_id) {
-      return res.status(400).json({ error: 'Department is required for non-teaching positions' });
+    if (!department_id) {
+      return res.status(400).json({ error: 'Department is required' });
+    }
+
+    if (normalizedType === 'NON_TEACHING' && branch_id) {
+      return res.status(400).json({ error: 'Branch is not applicable for non-teaching positions' });
+    }
+
+    if (normalizedType === 'TEACHING' && !branch_id) {
+      return res.status(400).json({ error: 'Branch is required for teaching positions' });
     }
     
     // For TEACHING with branch_id, verify the branch belongs to the department
-    if (branch_id && department_id) {
+    if (normalizedType === 'TEACHING' && branch_id && department_id) {
       const { data: branch, error: branchError } = await supabase
         .from('branches')
         .select('department_id')
@@ -538,9 +557,9 @@ router.put('/positions/:id', async (req, res) => {
     
     const updateData = {
       name,
-      type: type.toUpperCase(),
-      department_id: department_id || null,
-      branch_id: branch_id || null
+      type: normalizedType,
+      department_id,
+      branch_id: normalizedType === 'TEACHING' ? branch_id : null
     };
     
     if (status) {
@@ -621,6 +640,164 @@ router.delete('/positions/:id', async (req, res) => {
     res.json({ message: 'Position deleted successfully' });
   } catch (error) {
     console.error('Error in delete position endpoint:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET specializations for a position
+router.get('/positions/:id/specializations', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const { data, error } = await supabase
+      .from('position_specializations')
+      .select('id, keyword, source, created_at')
+      .eq('position_id', id)
+      .order('keyword', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching position specializations:', error);
+      return res.status(500).json({ error: 'Failed to fetch position specializations' });
+    }
+
+    res.json({
+      position_id: id,
+      keywords: (data || []).map((row) => row.keyword),
+      rows: data || []
+    });
+  } catch (error) {
+    console.error('Error in get specializations endpoint:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST upsert specializations for a position
+router.post('/positions/:id/specializations', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { keywords, source = 'ADMIN_MANUAL' } = req.body;
+
+    if (!Array.isArray(keywords) || keywords.length === 0) {
+      return res.status(400).json({ error: 'keywords must be a non-empty array' });
+    }
+
+    const normalized = [...new Set(
+      keywords
+        .map((k) => (k || '').toString().trim())
+        .filter(Boolean)
+    )];
+
+    if (normalized.length === 0) {
+      return res.status(400).json({ error: 'No valid specialization keywords provided' });
+    }
+
+    const { error: deleteError } = await supabase
+      .from('position_specializations')
+      .delete()
+      .eq('position_id', id);
+
+    if (deleteError) {
+      console.error('Error clearing existing specializations:', deleteError);
+      return res.status(500).json({ error: 'Failed to update specializations' });
+    }
+
+    const rowsToInsert = normalized.map((keyword) => ({
+      position_id: id,
+      keyword,
+      source
+    }));
+
+    const { data, error } = await supabase
+      .from('position_specializations')
+      .insert(rowsToInsert)
+      .select('id, keyword, source, created_at');
+
+    if (error) {
+      console.error('Error saving specializations:', error);
+      return res.status(500).json({ error: 'Failed to save specializations' });
+    }
+
+    res.json({
+      message: 'Specializations saved successfully',
+      position_id: id,
+      keywords: normalized,
+      rows: data || []
+    });
+  } catch (error) {
+    console.error('Error in save specializations endpoint:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST generate recommendations for a position
+router.post('/positions/:id/recommendations/generate', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { topN = 10 } = req.body || {};
+
+    const result = await recommendationService.generateForPosition(id, Number(topN) || 10);
+
+    res.json({
+      success: true,
+      position_id: id,
+      recommendations: result.recommendations,
+      meta: result.meta
+    });
+  } catch (error) {
+    console.error('Error generating recommendations:', error);
+    res.status(500).json({
+      error: error.message || 'Failed to generate recommendations'
+    });
+  }
+});
+
+// GET latest recommendations for a position
+router.get('/positions/:id/recommendations/latest', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const limit = Math.min(Number(req.query.limit) || 10, 50);
+
+    const { data: latestRunRow, error: latestRunError } = await supabase
+      .from('position_recommendations')
+      .select('run_id')
+      .eq('position_id', id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (latestRunError) {
+      console.error('Error fetching latest recommendation run:', latestRunError);
+      return res.status(500).json({ error: 'Failed to fetch latest recommendations' });
+    }
+
+    if (!latestRunRow?.run_id) {
+      return res.json({
+        success: true,
+        position_id: id,
+        recommendations: []
+      });
+    }
+
+    const { data, error } = await supabase
+      .from('position_recommendations')
+      .select('*')
+      .eq('position_id', id)
+      .eq('run_id', latestRunRow.run_id)
+      .order('rank', { ascending: true })
+      .limit(limit);
+
+    if (error) {
+      console.error('Error fetching latest recommendations:', error);
+      return res.status(500).json({ error: 'Failed to fetch latest recommendations' });
+    }
+
+    res.json({
+      success: true,
+      position_id: id,
+      recommendations: data || []
+    });
+  } catch (error) {
+    console.error('Error in latest recommendations endpoint:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

@@ -36,6 +36,15 @@ const DepartmentPositionManagement = () => {
     branch_id: ''
   });
 
+  // Recommendation setup states (shown after adding a new position)
+  const [newlyCreatedPosition, setNewlyCreatedPosition] = useState(null);
+  const [specializationInput, setSpecializationInput] = useState('');
+  const [specializationKeywords, setSpecializationKeywords] = useState([]);
+  const [savingSpecializations, setSavingSpecializations] = useState(false);
+  const [generatingRecommendations, setGeneratingRecommendations] = useState(false);
+  const [latestRecommendations, setLatestRecommendations] = useState([]);
+  const [recommendationMeta, setRecommendationMeta] = useState(null);
+
   // Load data
   useEffect(() => {
     loadAllData();
@@ -279,6 +288,18 @@ const DepartmentPositionManagement = () => {
     e.preventDefault();
     setLoading(true);
 
+    if (!positionForm.department_id) {
+      showMessage('Department is required', 'error');
+      setLoading(false);
+      return;
+    }
+
+    if (activeSection === 'TEACHING' && !positionForm.branch_id) {
+      showMessage('Branch is mandatory for teaching positions', 'error');
+      setLoading(false);
+      return;
+    }
+
     try {
       const url = editingPosition 
         ? `${API_BASE}/api/admin/positions/${editingPosition.id}`
@@ -292,13 +313,23 @@ const DepartmentPositionManagement = () => {
         body: JSON.stringify({ ...positionForm, type: activeSection }),
       });
 
+      const payload = await response.json();
+
       if (response.ok) {
         showMessage(editingPosition ? 'Position updated' : 'Position created', 'success');
         loadPositions();
+
+        if (!editingPosition && payload?.id) {
+          setNewlyCreatedPosition(payload);
+          setSpecializationInput('');
+          setSpecializationKeywords([]);
+          setLatestRecommendations([]);
+          setRecommendationMeta(null);
+        }
+
         resetPositionForm();
       } else {
-        const errorData = await response.json();
-        showMessage(errorData.error || 'Operation failed', 'error');
+        showMessage(payload.error || 'Operation failed', 'error');
       }
     } catch (error) {
       showMessage('Network error', 'error');
@@ -362,6 +393,109 @@ const DepartmentPositionManagement = () => {
   const resetPositionForm = () => {
     setEditingPosition(null);
     setPositionForm({ name: '', type: activeSection, department_id: '', branch_id: '' });
+  };
+
+  const addSpecializationFromInput = () => {
+    const merged = getEffectiveSpecializationKeywords();
+    if (merged.length === specializationKeywords.length) return;
+    setSpecializationKeywords(merged);
+    setSpecializationInput('');
+  };
+
+  const getEffectiveSpecializationKeywords = () => {
+    const incoming = specializationInput
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+    const merged = [...specializationKeywords];
+    incoming.forEach((k) => {
+      if (!merged.some((m) => m.toLowerCase() === k.toLowerCase())) {
+        merged.push(k);
+      }
+    });
+
+    return merged;
+  };
+
+  const removeSpecialization = (keyword) => {
+    setSpecializationKeywords((prev) => prev.filter((k) => k !== keyword));
+  };
+
+  const handleSaveSpecializations = async () => {
+    if (!newlyCreatedPosition?.id) return false;
+
+    const effectiveKeywords = getEffectiveSpecializationKeywords();
+    if (effectiveKeywords.length === 0) {
+      showMessage('Add at least one specialization keyword', 'error');
+      return false;
+    }
+
+    if (effectiveKeywords.length !== specializationKeywords.length || specializationInput.trim()) {
+      setSpecializationKeywords(effectiveKeywords);
+      setSpecializationInput('');
+    }
+
+    setSavingSpecializations(true);
+    try {
+      const response = await fetch(`${API_BASE}/api/admin/positions/${newlyCreatedPosition.id}/specializations`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          keywords: effectiveKeywords,
+          source: 'ADMIN_MANUAL'
+        }),
+      });
+
+      const payload = await response.json();
+      if (!response.ok) {
+        showMessage(payload.error || 'Failed to save specializations', 'error');
+        return false;
+      }
+
+      showMessage('Specialization keywords saved', 'success');
+      return true;
+    } catch (err) {
+      showMessage('Failed to save specializations', 'error');
+      return false;
+    } finally {
+      setSavingSpecializations(false);
+    }
+  };
+
+  const handleGenerateRecommendations = async () => {
+    if (!newlyCreatedPosition?.id) return;
+
+    if (getEffectiveSpecializationKeywords().length === 0) {
+      showMessage('Please add specialization keywords first', 'error');
+      return;
+    }
+
+    const saved = await handleSaveSpecializations();
+    if (!saved) return;
+
+    setGeneratingRecommendations(true);
+    try {
+      const response = await fetch(`${API_BASE}/api/admin/positions/${newlyCreatedPosition.id}/recommendations/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ topN: 10 }),
+      });
+
+      const payload = await response.json();
+      if (!response.ok) {
+        showMessage(payload.error || 'Failed to generate recommendations', 'error');
+        return;
+      }
+
+      setLatestRecommendations(payload.recommendations || []);
+      setRecommendationMeta(payload.meta || null);
+      showMessage('Top CV recommendations generated', 'success');
+    } catch (err) {
+      showMessage('Failed to generate recommendations', 'error');
+    } finally {
+      setGeneratingRecommendations(false);
+    }
   };
 
   // Filter data
@@ -616,13 +750,13 @@ const DepartmentPositionManagement = () => {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {activeSection === 'TEACHING' ? 'Department (School)' : 'Department*'}
+                      {activeSection === 'TEACHING' ? 'Department (School)*' : 'Department*'}
                     </label>
                     <select
                       value={positionForm.department_id}
                       onChange={(e) => setPositionForm({ ...positionForm, department_id: e.target.value, branch_id: '' })}
                       className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:border-indigo-500"
-                      required={activeSection === 'NON_TEACHING'}
+                      required
                     >
                       <option value="">Select Department</option>
                       {(activeSection === 'TEACHING' ? getTeachingDepartments() : getFilteredDepartments())
@@ -637,14 +771,15 @@ const DepartmentPositionManagement = () => {
                   {activeSection === 'TEACHING' && positionForm.department_id && (
                     <div className="md:col-span-2">
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Branch (Optional)
+                        Branch*
                       </label>
                       <select
                         value={positionForm.branch_id}
                         onChange={(e) => setPositionForm({ ...positionForm, branch_id: e.target.value })}
                         className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:border-indigo-500"
+                        required
                       >
-                        <option value="">No specific branch (Global position)</option>
+                        <option value="">Select Branch</option>
                         {getAvailableBranches().map((branch) => (
                           <option key={branch.id} value={branch.id}>
                             {branch.name}
@@ -652,7 +787,7 @@ const DepartmentPositionManagement = () => {
                         ))}
                       </select>
                       <p className="text-xs text-gray-500 mt-1">
-                        Leave empty if this position applies to all branches
+                        Branch is mandatory for teaching positions
                       </p>
                     </div>
                   )}
@@ -677,6 +812,120 @@ const DepartmentPositionManagement = () => {
                 </div>
               </form>
             </div>
+
+            {newlyCreatedPosition && (
+              <div className="bg-indigo-50 rounded-xl p-6 border-2 border-indigo-200">
+                <h3 className="text-lg font-semibold text-indigo-900 mb-2">
+                  Recommendation Setup for: {newlyCreatedPosition.name}
+                </h3>
+                <p className="text-sm text-indigo-700 mb-4">
+                  Add specialization keywords to improve automatic CV recommendation for this position.
+                </p>
+
+                <div className="space-y-3">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Specialization Keywords* (comma separated)
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={specializationInput}
+                      onChange={(e) => setSpecializationInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          addSpecializationFromInput();
+                        }
+                      }}
+                      placeholder="e.g., Machine Learning, Data Structures, Distributed Systems"
+                      className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:border-indigo-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={addSpecializationFromInput}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium"
+                    >
+                      Add
+                    </button>
+                  </div>
+
+                  {specializationKeywords.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {specializationKeywords.map((keyword) => (
+                        <span
+                          key={keyword}
+                          className="inline-flex items-center gap-2 bg-white border border-indigo-200 text-indigo-700 px-3 py-1 rounded-full text-sm"
+                        >
+                          {keyword}
+                          <button
+                            type="button"
+                            className="text-red-500 hover:text-red-700"
+                            onClick={() => removeSpecialization(keyword)}
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="flex flex-wrap gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={handleSaveSpecializations}
+                      disabled={savingSpecializations}
+                      className="bg-white border border-indigo-300 text-indigo-700 hover:bg-indigo-100 px-4 py-2 rounded-lg font-medium disabled:opacity-50"
+                    >
+                      {savingSpecializations ? 'Saving...' : 'Save Specializations'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleGenerateRecommendations}
+                      disabled={generatingRecommendations}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium disabled:opacity-50"
+                    >
+                      {generatingRecommendations ? 'Generating...' : 'Generate Top 10 CV Recommendations'}
+                    </button>
+                  </div>
+
+                  {recommendationMeta && (
+                    <p className="text-xs text-indigo-700">
+                      Pool: {recommendationMeta.poolSize} candidates • Generated: {recommendationMeta.generatedCount}
+                      {recommendationMeta.debug ? (
+                        <span>
+                          {' '}• Active Records: {recommendationMeta.debug.activeAfterStatusFilter}
+                        </span>
+                      ) : null}
+                    </p>
+                  )}
+
+                  {recommendationMeta && latestRecommendations.length === 0 && (
+                    <div className="mt-2 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-4 py-3 text-sm">
+                      No CV found for the selected position and specialization keywords.
+                    </div>
+                  )}
+
+                  {latestRecommendations.length > 0 && (
+                    <div className="mt-2 bg-white rounded-lg border border-indigo-100 overflow-hidden">
+                      <div className="px-4 py-2 bg-indigo-100 text-indigo-900 font-semibold text-sm">
+                        Recommended CVs (Top {latestRecommendations.length})
+                      </div>
+                      <div className="divide-y">
+                        {latestRecommendations.map((row, idx) => (
+                          <div key={row.application_id || idx} className="px-4 py-2 flex items-center justify-between text-sm">
+                            <div>
+                              <span className="font-medium text-gray-900">#{idx + 1}</span>{' '}
+                              <span className="text-gray-700">{row.candidate_name || 'Candidate'}</span>
+                            </div>
+                            <span className="text-indigo-700 font-semibold">Score: {row.final_score}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Position List */}
             <div className="space-y-4">
