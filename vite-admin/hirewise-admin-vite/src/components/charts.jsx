@@ -13,8 +13,7 @@ import {
   BarChart,
   Bar,
   XAxis,
-  YAxis,
-  Legend
+  YAxis
 } from 'recharts';
 
 const GENDER_COLORS = {
@@ -190,53 +189,13 @@ export default function AnalyticsDashboard({ selectedView = 'teaching' }) {
     fetchData();
   }, [selectedView]); // Re-fetch when selectedView changes
 
-  const renderCustomizedLabel = ({
-    cx,
-    cy,
-    midAngle,
-    innerRadius,
-    outerRadius,
-    percent,
-    index,
-    name,
-    fill
-  }) => {
-    const RADIAN = Math.PI / 180;
-    // Keep labels closer to arc to avoid clipping and improve association.
-    const radius = outerRadius + 28;
-    const x = cx + radius * Math.cos(-midAngle * RADIAN);
-    const y = cy + radius * Math.sin(-midAngle * RADIAN);
-    const isFemale = String(name).toLowerCase() === 'female';
-
-    // Default position (male/others)
-    let labelX = x;
-    let labelY = y;
-    let textAnchor = x > cx ? 'end' : 'start';
-
-    // Force female label below-right of the semicircle so it never overlaps pink arc.
-    if (isFemale) {
-      labelX = cx + outerRadius * 0.9;
-      labelY = cy + 18;
-      textAnchor = 'start';
-    }
-
-    // Dynamic inverse sizing as requested:
-    // when chart gets larger, label font gets smaller; when smaller, label font gets bigger.
-    const dynamicFontSize = Math.max(12, Math.min(22, Math.round(2200 / Math.max(outerRadius || 130, 1))));
-
-    return (
-      <text
-        x={labelX}
-        y={labelY}
-        fill={fill}
-        textAnchor={textAnchor}
-        dominantBaseline="central"
-        style={{ fontSize: `${dynamicFontSize}px`, fontWeight: 700 }}
-      >
-        {`${name} ${(percent * 100).toFixed(0)}%`}
-      </text>
-    );
-  };
+  const totalGenderCount = genderData.reduce((sum, item) => sum + (item.value || 0), 0);
+  const orderedGenderData = [...genderData].sort((a, b) => {
+    const order = { Male: 0, Female: 1, Other: 2 };
+    const aRank = order[a.name] ?? 99;
+    const bRank = order[b.name] ?? 99;
+    return aRank - bRank;
+  });
 
   if (loading) {
     return (
@@ -249,44 +208,63 @@ export default function AnalyticsDashboard({ selectedView = 'teaching' }) {
   return (
     <div className="flex flex-col lg:flex-row gap-4 px-6 pb-4">
       {/* Gender Semi-Circle Chart (30%) */}
-      <div className="w-full lg:w-[30%] bg-white rounded-lg shadow-sm p-2 border border-gray-200 border-opacity-60">
+      <div className="w-full lg:w-[30%] bg-white rounded-lg shadow-sm p-4 border border-gray-200 border-opacity-60">
         <h2 className="text-lg font-semibold text-gray-900 mb-2 flex items-center">
           <User className="h-5 w-5 mr-2" />
           Gender Distribution
         </h2>
-        <div className="h-64">
+        <div className="h-64 flex flex-col">
           {genderData.length > 0 ? (
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart margin={{ top: 20, right: 26, left: 34, bottom: 0 }}>
-                <Pie
-                  data={genderData}
-                  cx="44%"
-                  cy="85%"
-                  labelLine={false}
-                  label={renderCustomizedLabel}
-                  outerRadius={130}
-                  innerRadius={66}
-                  paddingAngle={2}
-                  dataKey="value"
-                  animationDuration={1000}
-                  startAngle={180}
-                  endAngle={0}
-                >
-                  {genderData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} stroke="#fff" strokeWidth={2} />
-                  ))}
-                </Pie>
-                <Tooltip 
-                  formatter={(value) => [`${value} applicants`, '']}
-                  contentStyle={{
-                    backgroundColor: '#fff',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '0.375rem',
-                    padding: '8px 12px'
-                  }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
+            <>
+              <div className="flex-1 min-h-[180px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart margin={{ top: 8, right: 12, left: 12, bottom: 8 }}>
+                    <Pie
+                      data={orderedGenderData}
+                      cx="50%"
+                      cy="90%"
+                      labelLine={false}
+                      label={false}
+                      outerRadius={120}
+                      innerRadius={62}
+                      paddingAngle={2}
+                      dataKey="value"
+                      animationDuration={1000}
+                      startAngle={180}
+                      endAngle={0}
+                    >
+                      {orderedGenderData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} stroke="#fff" strokeWidth={2} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      formatter={(value) => [`${value} applicants`, '']}
+                      contentStyle={{
+                        backgroundColor: '#fff',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '0.375rem',
+                        padding: '8px 12px'
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
+                {orderedGenderData.map((entry) => {
+                  const percentage = totalGenderCount > 0 ? Math.round((entry.value / totalGenderCount) * 100) : 0;
+                  return (
+                    <div
+                      key={`gender-legend-${entry.name}`}
+                      className="inline-flex items-center gap-2 rounded-full bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-700 border border-gray-200"
+                    >
+                      <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: entry.color }} />
+                      <span>{entry.name}</span>
+                      <span className="text-gray-500">{percentage}%</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
           ) : (
             <p className="text-sm text-gray-500">No gender data available.</p>
           )}
